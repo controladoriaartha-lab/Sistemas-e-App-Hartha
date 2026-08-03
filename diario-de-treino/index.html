@@ -517,6 +517,7 @@ Intensidade:  Forte"></textarea>
    ========================================================================= */
 const STORAGE_KEY = 'diarioTreino_records_v1';
 const THEME_KEY = 'diarioTreino_theme_v1';
+const SEEDED_KEY = 'diarioTreino_seeded_v1';
 let records = [];
 let state = { person: 'Todos', dashRange: '30', repRange: '30', histType: 'all', histSearch: '' };
 
@@ -1836,10 +1837,14 @@ Core: Abdominal (3 séries de 12 reps)
 Intensidade: Médio`;
 
 function seedIfEmpty(){
-  if(records.length > 0) return;
-  const parsed = parseDiarioTxt(SEED_TXT);
-  records = parsed;
-  save();
+  /* semeia só na primeiríssima vez que o app roda neste navegador — nunca mais depois disso,
+     mesmo que o usuário apague todos os treinos (records.length voltar a 0 não pode reativar a semente) */
+  if(localStorage.getItem(SEEDED_KEY) === 'true') return;
+  if(records.length === 0){
+    records = parseDiarioTxt(SEED_TXT);
+    save();
+  }
+  localStorage.setItem(SEEDED_KEY, 'true');
 }
 
 /* =========================================================================

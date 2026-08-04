@@ -276,6 +276,7 @@ body.phone-preview nav.tabs-desktop{display:none !important;}
 body.phone-preview .fab-add{display:flex !important;}
 body.phone-preview{padding-bottom:72px !important;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -352,8 +353,11 @@ body.phone-preview{padding-bottom:72px !important;}
     <div class="filters-row">
       <select id="dashRange">
         <option value="7">Últimos 7 dias</option>
+        <option value="15">Últimos 15 dias</option>
         <option value="30" selected>Últimos 30 dias</option>
         <option value="90">Últimos 90 dias</option>
+        <option value="180">Últimos 6 meses</option>
+        <option value="365">Último 1 ano</option>
         <option value="all">Tudo</option>
       </select>
     </div>
@@ -425,6 +429,7 @@ body.phone-preview{padding-bottom:72px !important;}
     <div class="import-tabs">
       <button class="import-tab-btn active" data-pane="paste">📋 Colar texto</button>
       <button class="import-tab-btn" data-pane="file">📄 Arquivo .txt</button>
+      <button class="import-tab-btn" data-pane="excel">📊 Excel</button>
       <button class="import-tab-btn" data-pane="voice">🎤 Por voz</button>
       <button class="import-tab-btn" data-pane="manual">✍️ Manual</button>
     </div>
@@ -450,6 +455,18 @@ Intensidade:  Forte"></textarea>
         <input type="file" id="fileInput" accept=".txt,text/plain" />
       </div>
       <div id="filePreview"></div>
+    </div>
+
+    <div class="import-pane" id="pane-excel">
+      <div class="field">
+        <label>Selecione a planilha (.xlsx, .xls ou .csv)</label>
+        <input type="file" id="excelInput" accept=".xlsx,.xls,.csv" />
+      </div>
+      <p style="font-size:11.5px; color:var(--text-muted); line-height:1.5; margin:0 0 10px;">
+        Colunas aceitas (a ordem não importa, os nomes podem variar um pouco): <b>Data</b>, <b>Pessoa</b>, <b>Tipo</b>, <b>Duração (min)</b>, <b>Aparelhos</b>, <b>Séries</b>, <b>Reps</b>, <b>Bike (min)</b>, <b>Core (sim/não)</b>, <b>Séries Core</b>, <b>Reps Core</b>, <b>Intensidade</b>.
+      </p>
+      <button class="btn btn-secondary btn-block" id="btnDownloadTemplate">⬇️ Baixar modelo de planilha</button>
+      <div id="excelPreview"></div>
     </div>
 
     <div class="import-pane" id="pane-voice">
@@ -1424,8 +1441,9 @@ function renderHistory(){
           <div class="sub">${fmtDateLong(r.date)} · ${formatMin(r.durationMin)}</div>
         </div>
         <div class="hist-actions">
-          <button data-edit="${r.id}">✏️</button>
-          <button data-del="${r.id}">🗑️</button>
+          <button data-dup="${r.id}" title="Duplicar">📋</button>
+          <button data-edit="${r.id}" title="Editar">✏️</button>
+          <button data-del="${r.id}" title="Excluir">🗑️</button>
         </div>
       </div>
       <div class="badges">${badges.join('') || '<span class="badge">sem detalhes</span>'}</div>
@@ -1433,6 +1451,14 @@ function renderHistory(){
   }).join('');
 
   wrap.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', ()=> openManualModal(records.find(r=>r.id===b.dataset.edit))));
+  wrap.querySelectorAll('[data-dup]').forEach(b => b.addEventListener('click', ()=>{
+    const orig = records.find(r=>r.id===b.dataset.dup);
+    if(!orig) return;
+    const copy = normalizeRecord({ ...orig, id: null, date: todayISO() });
+    records.push(copy);
+    save(); renderAll();
+    toast('Treino duplicado para hoje 📋');
+  }));
   wrap.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', ()=>{
     if(confirm('Excluir este treino?')){
       records = records.filter(r=>r.id!==b.dataset.del);
@@ -1633,8 +1659,97 @@ document.getElementById('fileInput').addEventListener('change', e=>{
   reader.readAsText(file);
 });
 
+/* ---- excel import ---- */
+const EXCEL_COLUMN_MAP = [
+  { keys: ['data','date'], field: 'date' },
+  { keys: ['pessoa','nome','person'], field: 'person' },
+  { keys: ['tipo','rotulo','rótulo','label','treino'], field: 'label' },
+  { keys: ['duracao','duração','duracaomin','duração(min)','duration'], field: 'durationMin' },
+  { keys: ['aparelhos'], field: 'aparelhos' },
+  { keys: ['series','séries'], field: 'series' },
+  { keys: ['reps','repeticoes','repetições'], field: 'reps' },
+  { keys: ['bike','bikemin','bike(min)','cardio'], field: 'bikeMin' },
+  { keys: ['core','fezcore','core(sim/nao)','core(sim/não)'], field: 'hasCore' },
+  { keys: ['seriescore','sériescore'], field: 'coreSeries' },
+  { keys: ['repscore'], field: 'coreReps' },
+  { keys: ['intensidade','intensity'], field: 'intensity' }
+];
+function normalizeHeaderKey(h){ return String(h||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9()/]/g,''); }
+function excelDateToISO(val){
+  if(val instanceof Date && !isNaN(val)) return isoOfDate(val);
+  const s = String(val||'').trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  m = s.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/);
+  if(m){ const y = m[3].length===2 ? '20'+m[3] : m[3]; return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+  const n = Number(val);
+  if(!isNaN(n) && n > 20000 && n < 80000){
+    const d = new Date(Math.round((n - 25569) * 86400 * 1000));
+    return isoOfDate(d);
+  }
+  return todayISO();
+}
+function parseExcelRows(rows){
+  if(!rows.length) return [];
+  const headerRow = rows[0];
+  const colIndexByField = {};
+  headerRow.forEach((h,i)=>{
+    const key = normalizeHeaderKey(h);
+    const match = EXCEL_COLUMN_MAP.find(c => c.keys.some(k => normalizeHeaderKey(k) === key));
+    if(match) colIndexByField[match.field] = i;
+  });
+  const out = [];
+  for(let r=1; r<rows.length; r++){
+    const row = rows[r];
+    if(!row || row.every(c => c===undefined || c==='')) continue;
+    const g = f => colIndexByField[f]!==undefined ? row[colIndexByField[f]] : undefined;
+    const hasCoreRaw = String(g('hasCore')||'').trim().toLowerCase();
+    out.push(normalizeRecord({
+      date: excelDateToISO(g('date')),
+      person: g('person'),
+      label: g('label'),
+      durationMin: g('durationMin'),
+      aparelhos: g('aparelhos'),
+      series: g('series'),
+      reps: g('reps'),
+      bikeMin: g('bikeMin'),
+      hasCore: ['sim','s','true','1','yes','x'].includes(hasCoreRaw) || Number(g('coreSeries'))>0,
+      coreSeries: g('coreSeries'),
+      coreReps: g('coreReps'),
+      intensity: g('intensity')
+    }));
+  }
+  return out;
+}
+document.getElementById('excelInput').addEventListener('change', e=>{
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const data = new Uint8Array(ev.target.result);
+      const wb = XLSX.read(data, { type:'array', cellDates:true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+      const parsed = parseExcelRows(rows);
+      renderImportPreview('excelPreview', parsed);
+    } catch(err){
+      toast('Não foi possível ler a planilha: ' + err.message);
+    }
+    e.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+});
+document.getElementById('btnDownloadTemplate').addEventListener('click', ()=>{
+  const headers = ['Data','Pessoa','Tipo','Duração (min)','Aparelhos','Séries','Reps','Bike (min)','Core (sim/não)','Séries Core','Reps Core','Intensidade'];
+  const example = ['16/07/2026','Geovanil','Pernas',55,7,3,12,10,'sim',3,10,'Forte'];
+  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Treinos');
+  XLSX.writeFile(wb, 'modelo-diario-de-treino.xlsx');
+});
+
 /* ---- voice import ---- */
-let recognition = null, isRecording = false;
+let recognition = null, isRecording = false, voiceFinalTranscript = '';
 function startVoice(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SR){ toast('Reconhecimento de voz não suportado neste navegador. Use Chrome/Edge.'); return; }
@@ -1642,10 +1757,17 @@ function startVoice(){
   recognition.lang = 'pt-BR';
   recognition.interimResults = true;
   recognition.continuous = true;
+  voiceFinalTranscript = '';
+  /* usa resultIndex para processar só os resultados NOVOS deste evento — reprocessar
+     e.results inteiro a cada evento (como antes) é o que causava a fala repetida no texto */
   recognition.onresult = e=>{
-    let transcript = '';
-    for(let i=0;i<e.results.length;i++) transcript += e.results[i][0].transcript + ' ';
-    document.getElementById('voiceTranscript').value = transcript.trim();
+    let interim = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const chunk = e.results[i][0].transcript;
+      if(e.results[i].isFinal) voiceFinalTranscript += chunk + ' ';
+      else interim += chunk;
+    }
+    document.getElementById('voiceTranscript').value = (voiceFinalTranscript + interim).trim();
   };
   recognition.onerror = e=>{ document.getElementById('voiceStatus').textContent = 'Erro: ' + e.error; };
   recognition.onend = ()=>{

@@ -1,0 +1,25 @@
+# Dependências
+node_modules/
+.node_modules.lock
+
+# Build / saída
+dist/
+.output/
+.nitro/
+.vercel/
+.tanstack/
+.vite/
+
+# Logs e sistema
+*.log
+.DS_Store
+
+# Variáveis de ambiente (a plataforma injeta em produção)
+.env
+.env.*
+
+# Material do workspace Grok (não faz parte do app)
+.grok/
+screenshots/
+artifacts/
+attachments/

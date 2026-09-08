@@ -35,7 +35,7 @@ export function WorkoutCard({ workout }: { workout: Workout }) {
       <Link to="/treino/$id" params={{ id: workout.id }} className="block">
         <header className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">
+            <p className="text-2xl font-normal text-muted-foreground">
               {formatDayMonth(workout.date)} · {formatWeekday(workout.date)}
             </p>
             <h2 className="mt-1 font-display text-2xl font-medium tracking-tight text-foreground">
@@ -45,13 +45,13 @@ export function WorkoutCard({ workout }: { workout: Workout }) {
           <IntensityBadge intensity={workout.intensity} />
         </header>
 
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-3 text-2xl font-normal text-muted-foreground">
           <span className="tabular-nums text-foreground">{formatDuration(workout.durationMin)}</span>
           <span className="mx-2 text-faint">·</span>
           {workout.athletes.join(", ")}
         </p>
 
-        <dl className="mt-4 space-y-1.5 text-sm">
+        <dl className="mt-4 space-y-3 text-2xl font-normal leading-snug">
           <Row
             label="Musculação"
             value={
@@ -100,8 +100,8 @@ export function WorkoutCard({ workout }: { workout: Workout }) {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-3">
-      <dt className="w-28 shrink-0 text-faint">{label}</dt>
+    <div className="flex flex-col">
+      <dt className="text-faint">{label}</dt>
       <dd className="min-w-0 text-foreground">{value}</dd>
     </div>
   );

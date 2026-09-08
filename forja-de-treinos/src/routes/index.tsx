@@ -36,7 +36,7 @@ function Home() {
       <header className="mb-6">
         <p className="text-2xs font-medium uppercase tracking-widest text-accent">Diário</p>
         <h1 className="mt-1 font-display text-4xl font-medium tracking-tight">Forja de Treinos</h1>
-        <p className="mt-2 max-w-xs text-sm text-muted-foreground">Treinos de Cada Dia</p>
+        <p className="mt-2 max-w-xs text-2xl font-normal text-muted-foreground">Treinos de Cada Dia</p>
       </header>
 
       <div className="mb-5 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
@@ -67,7 +67,7 @@ function Home() {
         <div className="space-y-8">
           {groups.map(([month, list]) => (
             <section key={month} className="space-y-3">
-              <h2 className="text-2xs font-medium uppercase tracking-widest text-faint">
+              <h2 className="text-2xl font-normal text-faint">
                 {formatMonthYear(`${month}-01`)}
               </h2>
               {list.map((workout) => (

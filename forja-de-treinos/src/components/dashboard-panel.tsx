@@ -27,15 +27,21 @@ const ACCENT = "#c45c26";
 const WARN = "#c4a574";
 const OK = "#7d9478";
 
-function tooltipStyle() {
-  return {
-    background: "#141210",
-    border: "1px solid rgba(244,239,232,0.12)",
+// Shared Recharts tooltip styling. `contentStyle` alone does not color the
+// label / item text (Recharts sets those per-entry), so on the dark theme the
+// numbers rendered near-black and unreadable — force them here.
+const tooltipProps = {
+  contentStyle: {
+    background: "#211c18",
+    border: "1px solid rgba(244,239,232,0.16)",
     borderRadius: 12,
-    color: PAPER,
-    fontSize: 12,
-  };
-}
+    boxShadow: "0 10px 30px rgba(0,0,0,0.55)",
+    padding: "8px 12px",
+  },
+  itemStyle: { color: PAPER, fontSize: 12, padding: 0 },
+  labelStyle: { color: MUTED, fontSize: 11, marginBottom: 4 },
+  wrapperStyle: { outline: "none", zIndex: 20 },
+} as const;
 
 export function DashboardPanel({
   workouts,
@@ -108,7 +114,7 @@ export function DashboardPanel({
             <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis hide />
             <Tooltip
-              contentStyle={tooltipStyle()}
+              {...tooltipProps}
               formatter={(value) => [`${Number(value)} min`, "Volume"]}
             />
             <Bar dataKey="minutes" fill={PAPER} radius={[6, 6, 0, 0]} />
@@ -123,7 +129,7 @@ export function DashboardPanel({
             <XAxis dataKey="date" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis hide />
             <Tooltip
-              contentStyle={tooltipStyle()}
+              {...tooltipProps}
               formatter={(value) => [`${Number(value)} min`, "Duração"]}
             />
             <Line
@@ -147,7 +153,13 @@ export function DashboardPanel({
                     <Cell key={entry.name} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={tooltipStyle()} />
+                <Tooltip
+                  {...tooltipProps}
+                  formatter={(value, name) => [
+                    `${Number(value)} ${Number(value) === 1 ? "sessão" : "sessões"}`,
+                    name,
+                  ]}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -177,7 +189,7 @@ export function DashboardPanel({
               width={64}
             />
             <Tooltip
-              contentStyle={tooltipStyle()}
+              {...tooltipProps}
               formatter={(value) => [`${Number(value)} min`, "Volume"]}
             />
             <Bar dataKey="minutes" fill={PAPER} radius={[0, 8, 8, 0]} />

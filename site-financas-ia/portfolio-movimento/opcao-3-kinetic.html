@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Geovanil Barbosa de Lima | Interim CFO — Opcao 3 (Kinetic)</title>
+<meta name="description" content="Governanca financeira de alto nivel e FP&A autonomo por IA. Interim CFO e Controller de Transicao Digital na Baixada Santista.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#080a09;--panel:#101312;--fg:#f4f6f5;--fg-dim:rgba(244,246,245,.6);--fg-faint:rgba(244,246,245,.32);
+  --line:rgba(244,246,245,.12);--lime:#c6ff3d;
+  --disp:'Space Grotesk',system-ui,sans-serif;--sans:'Inter',system-ui,sans-serif;
+}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.6;overflow-x:hidden}
+::selection{background:var(--lime);color:#0a0a0a}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+
+.progress{position:fixed;top:0;left:0;height:3px;width:100%;background:var(--lime);transform:scaleX(0);transform-origin:0 50%;z-index:200}
+.cursor{position:fixed;top:0;left:0;width:36px;height:36px;border:1.5px solid var(--lime);border-radius:50%;
+  transform:translate(-50%,-50%);pointer-events:none;z-index:250;transition:width .2s,height .2s,background .2s,opacity .3s;opacity:0}
+.cursor.hot{width:64px;height:64px;background:rgba(198,255,61,.14)}
+@media(hover:none),(pointer:coarse){.cursor{display:none}}
+
+.wrap{max-width:1200px;margin:0 auto;padding:0 30px}
+
+header{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;transition:.35s;border-bottom:1px solid transparent}
+header.compact{padding:11px 0;background:rgba(8,10,9,.8);backdrop-filter:blur(14px);border-bottom-color:var(--line)}
+.nav{display:flex;align-items:center;justify-content:space-between}
+.brand{font-family:var(--disp);font-weight:700;font-size:14px;letter-spacing:.2em}
+.brand span{color:var(--lime)}
+.menu{display:flex;gap:26px}
+.menu a{font-family:var(--disp);font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--fg-dim);transition:letter-spacing .25s,color .25s}
+.menu a:hover{color:var(--fg);letter-spacing:.24em}
+.nav-cta{font-family:var(--disp);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  padding:11px 20px;border-radius:8px;background:var(--lime);color:#0a0a0a;transition:transform .25s}
+.nav-cta:hover{transform:translateY(-2px)}
+@media(max-width:880px){.menu{display:none}}
+
+/* line-mask reveal */
+.line-mask{overflow:hidden;display:block}
+.line-mask>span{display:block;transform:translateY(110%);transition:transform .9s cubic-bezier(.16,1,.3,1)}
+.line-mask.in>span{transform:none}
+.line-mask[data-d="1"]>span{transition-delay:.08s}.line-mask[data-d="2"]>span{transition-delay:.16s}
+.line-mask[data-d="3"]>span{transition-delay:.24s}
+.fade{opacity:0;transform:translateY(24px);transition:opacity .8s ease,transform .8s cubic-bezier(.16,1,.3,1)}
+.fade.in{opacity:1;transform:none}
+.fade[data-d="1"]{transition-delay:.1s}.fade[data-d="2"]{transition-delay:.2s}.fade[data-d="3"]{transition-delay:.3s}.fade[data-d="4"]{transition-delay:.4s}
+@media(prefers-reduced-motion:reduce){.line-mask>span{transform:none}.fade{opacity:1;transform:none}}
+
+/* HERO */
+.hero{min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:150px 0 60px}
+.eyebrow{font-family:var(--disp);font-size:12px;font-weight:500;letter-spacing:.3em;text-transform:uppercase;color:var(--lime)}
+.hero h1{font-family:var(--disp);font-weight:700;font-size:clamp(44px,10vw,140px);line-height:.92;letter-spacing:-.03em;
+  text-transform:uppercase;margin:22px 0 30px}
+.hero h1 em{font-style:normal;color:var(--lime)}
+.hero h1 .outline{-webkit-text-stroke:1.5px var(--fg);color:transparent}
+.hero-sub{max-width:560px;font-size:16px;color:var(--fg-dim);line-height:1.8}
+.hero-sub strong{color:var(--fg);font-weight:600}
+.cta-row{display:flex;flex-wrap:wrap;gap:14px;margin-top:32px}
+.btn{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:15px 26px;border-radius:9px;transition:transform .2s}
+.btn-p{background:var(--lime);color:#0a0a0a}
+.btn-p:hover{transform:translateY(-3px)}
+.btn-s{border:1px solid var(--line);color:var(--fg)}
+.btn-s:hover{transform:translateY(-3px);border-color:var(--lime)}
+
+/* MARQUEE */
+.marquee{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:18px 0;overflow:hidden;white-space:nowrap;margin-top:60px}
+.marquee .track{display:inline-block;animation:scrollx 26s linear infinite}
+.marquee:hover .track{animation-play-state:paused}
+.marquee span{font-family:var(--disp);font-weight:700;font-size:clamp(20px,3vw,34px);text-transform:uppercase;letter-spacing:.02em;color:var(--fg-faint)}
+.marquee span b{color:var(--lime);font-weight:700}
+.marquee .sep{color:var(--lime);margin:0 26px}
+@keyframes scrollx{to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.marquee .track{animation:none}}
+
+section{padding:110px 0;position:relative}
+.tag{font-family:var(--disp);font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--lime)}
+.h2{font-family:var(--disp);font-weight:700;font-size:clamp(30px,5.5vw,62px);text-transform:uppercase;letter-spacing:-.02em;margin:14px 0 16px;line-height:1}
+.sub{color:var(--fg-dim);max-width:620px;font-size:15px}
+
+/* KPI TICKER ROWS */
+.rows{margin-top:46px;border-top:1px solid var(--line)}
+.rw{display:grid;grid-template-columns:90px 1fr auto;gap:24px;align-items:center;padding:28px 6px;border-bottom:1px solid var(--line);
+  transition:background .3s,padding-left .3s}
+.rw:hover{background:var(--panel);padding-left:20px}
+.rw .idx{font-family:var(--disp);font-size:12px;color:var(--fg-faint);letter-spacing:.1em}
+.rw .big{font-family:var(--disp);font-weight:700;font-size:clamp(28px,4.4vw,52px);line-height:1;letter-spacing:-.02em}
+.rw:hover .big{color:var(--lime)}
+.rw .desc{font-size:13px;color:var(--fg-dim);max-width:340px;text-align:right}
+@media(max-width:720px){.rw{grid-template-columns:1fr;gap:8px}.rw .desc{text-align:left}}
+
+/* PILLARS */
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:46px;background:var(--line);border:1px solid var(--line)}
+.pillar{background:var(--bg);padding:34px 28px;transition:background .35s}
+.pillar:hover{background:var(--panel)}
+.pnum{font-family:var(--disp);font-weight:700;font-size:52px;line-height:1;color:var(--fg-faint);margin-bottom:18px}
+.pillar:hover .pnum{color:var(--lime)}
+.pillar h3{font-family:var(--disp);font-weight:600;font-size:18px;text-transform:uppercase;letter-spacing:.01em;margin-bottom:12px;line-height:1.2}
+.pillar p{font-size:13px;color:var(--fg-dim);line-height:1.7;margin-bottom:16px}
+.impact{font-size:12px;line-height:1.6;padding:13px 0;border-top:1px solid var(--line);color:var(--fg)}
+.impact strong{color:var(--lime)}
+@media(max-width:880px){.pillars{grid-template-columns:1fr}}
+
+/* MODELS */
+.models{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:44px}
+.model{border:1px solid var(--line);padding:26px;position:relative;transition:transform .35s,border-color .35s}
+.model:hover{transform:translateY(-6px);border-color:var(--lime)}
+.model.hot{border-color:var(--lime)}
+.model .k{font-family:var(--disp);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--lime)}
+.model h4{font-family:var(--disp);font-weight:600;font-size:16px;text-transform:uppercase;margin:10px 0 10px;line-height:1.2}
+.model p{font-size:12.5px;color:var(--fg-dim);line-height:1.65}
+.pill{position:absolute;top:-10px;right:16px;background:var(--lime);color:#0a0a0a;font-family:var(--disp);font-size:10px;
+  font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px}
+@media(max-width:880px){.models{grid-template-columns:1fr}}
+
+.contact{text-align:center}
+.chips{display:flex;flex-wrap:wrap;gap:0;justify-content:center;margin-top:36px;border:1px solid var(--line)}
+.chip{display:flex;flex-direction:column;gap:3px;padding:20px 30px;border-right:1px solid var(--line);font-size:13.5px;transition:background .3s}
+.chip:last-child{border-right:0}
+.chip:hover{background:var(--panel)}
+.chip b{font-family:var(--disp);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.chip small{color:var(--fg-faint);font-size:11px}
+@media(max-width:720px){.chips{flex-direction:column}.chip{border-right:0;border-bottom:1px solid var(--line)}}
+
+footer{border-top:1px solid var(--line);padding:34px 0;color:var(--fg-faint);font-size:12px}
+.foot{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;font-family:var(--disp);letter-spacing:.04em;text-transform:uppercase}
+
+.ribbon{position:fixed;left:14px;bottom:14px;z-index:120;background:rgba(8,10,9,.8);backdrop-filter:blur(10px);
+  border:1px solid var(--line);padding:8px 16px;font-family:var(--disp);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-dim)}
+.ribbon b{color:var(--lime)}
+</style>
+<noscript><style>.fade{opacity:1!important;transform:none!important}.line-mask>span{transform:none!important}</style></noscript>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="cursor" id="cursor"></div>
+
+<header id="hdr">
+  <div class="wrap nav">
+    <div class="brand">GEOVANIL <span>/</span> B. LIMA</div>
+    <nav class="menu">
+      <a href="#kpis" data-hot>Numeros</a><a href="#pilares" data-hot>Pilares</a><a href="#modelos" data-hot>Modelos</a><a href="#contato" data-hot>Contato</a>
+    </nav>
+    <a class="nav-cta" data-hot href="https://wa.me/5513981455052" target="_blank" rel="noopener">WhatsApp</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero" id="topo">
+    <span class="eyebrow fade in">Interim CFO · Controladoria de Transicao · FP&A & IA</span>
+    <h1>
+      <span class="line-mask" data-d="1"><span>Governanca</span></span>
+      <span class="line-mask" data-d="2"><span class="outline">financeira</span></span>
+      <span class="line-mask" data-d="3"><span><em>autonoma</em> por IA</span></span>
+    </h1>
+    <p class="hero-sub fade" data-d="2">22 anos de controladoria classica somados a agentes de IA generativa. <strong>Eficiencia de uma grande diretoria financeira por uma fracao do custo fixo</strong> — margem protegida, caixa previsivel, equipe livre do trabalho bracal.</p>
+    <div class="cta-row fade" data-d="3">
+      <a class="btn btn-p" data-hot href="#contato">Agendar diagnostico</a>
+      <a class="btn btn-s" data-hot href="#pilares">Pilares de atuacao</a>
+    </div>
+  </section>
+</main>
+
+<div class="marquee">
+  <div class="track">
+    <span><b>22 anos</b> de controladoria<span class="sep">/</span><b>R$ 25M</b> em portfolio<span class="sep">/</span><b>-12h</b> por semana<span class="sep">/</span><b>R$ 100k</b> a cada 20 dias<span class="sep">/</span>FP&A autonomo<span class="sep">/</span>Interim CFO<span class="sep">/</span></span>
+    <span><b>22 anos</b> de controladoria<span class="sep">/</span><b>R$ 25M</b> em portfolio<span class="sep">/</span><b>-12h</b> por semana<span class="sep">/</span><b>R$ 100k</b> a cada 20 dias<span class="sep">/</span>FP&A autonomo<span class="sep">/</span>Interim CFO<span class="sep">/</span></span>
+  </div>
+</div>
+
+<main class="wrap">
+  <section id="kpis">
+    <span class="tag fade">Resumo executivo</span>
+    <h2 class="h2 fade" data-d="1">Numeros<br>de 22 anos</h2>
+    <p class="sub fade" data-d="2">Holdings, industria, EPC e construcao civil — gestao simultanea de SPEs e centros de custo.</p>
+    <div class="rows">
+      <div class="rw fade" data-d="1"><span class="idx">01</span><span class="big">22 anos</span><span class="desc">Experiencia executiva em holdings, industria, EPC e construcao civil.</span></div>
+      <div class="rw fade" data-d="2"><span class="idx">02</span><span class="big">R$ 25M</span><span class="desc">Portfolio orcamentario sob gestao simultanea — SPEs e centros de custo.</span></div>
+      <div class="rw fade" data-d="3"><span class="idx">03</span><span class="big">-12h / sem</span><span class="desc">Trabalho bracal no fechamento eliminado com Forecast e Real vs. Orcado por IA.</span></div>
+      <div class="rw fade" data-d="4"><span class="idx">04</span><span class="big">R$ 100k</span><span class="desc">Recuperados a cada 20 dias em auditoria estrita de perdas industriais e CPV.</span></div>
+    </div>
+  </section>
+
+  <section id="pilares">
+    <span class="tag fade">Metodologia &amp; resultados</span>
+    <h2 class="h2 fade" data-d="1">Tres pilares</h2>
+    <p class="sub fade" data-d="2">Escopo tecnico de atuacao e o impacto real de tempo e margem gerado em projetos anteriores.</p>
+    <div class="pillars">
+      <div class="pillar fade" data-d="1"><div class="pnum">01</div><h3>Margem &amp; custos (CPV)</h3><p>Auditoria detalhada de custos operacionais, gargalos fabris, desvios orcamentarios e vazamentos de caixa.</p><div class="impact"><strong>Impacto:</strong> R$ 100k a cada 20 dias em industrias por governanca de estoques e insumos.</div></div>
+      <div class="pillar fade" data-d="2"><div class="pnum">02</div><h3>FP&A autonomo com IA</h3><p>Consolidacoes bracais substituidas por pipelines de analise com LLMs para reports de desvios.</p><div class="impact"><strong>Impacto:</strong> 12h/semana eliminadas em holdings com portfolios de R$ 25 milhoes.</div></div>
+      <div class="pillar fade" data-d="3"><div class="pnum">03</div><h3>Interim CFO &amp; transicao</h3><p>Lideranca financeira fracionada em reestruturacao, crescimento acelerado e auditoria de SPEs.</p><div class="impact"><strong>Impacto:</strong> contratos EPC de R$ 500k a R$ 2,5M com margem blindada por relatorios executivos.</div></div>
+    </div>
+  </section>
+
+  <section id="modelos">
+    <span class="tag fade">Engajamento</span>
+    <h2 class="h2 fade" data-d="1">Como<br>contratar</h2>
+    <p class="sub fade" data-d="2">Contratacao flexivel e orientada a ROI, ajustada a maturidade da sua empresa.</p>
+    <div class="models">
+      <div class="model fade" data-d="1"><span class="k">Modelo A</span><h4>Sprint de diagnostico &amp; IA</h4><p>15 a 30 dias: mapeamento de vazamentos de caixa, auditoria de CPV e roadmap de automacao do FP&A.</p></div>
+      <div class="model hot fade" data-d="2"><span class="pill">Mais procurado</span><span class="k">Modelo B</span><h4>Interim CFO fracionado</h4><p>Retainer mensal continuo — governanca, reunioes de resultado e automacao sob responsabilidade direta.</p></div>
+      <div class="model fade" data-d="3"><span class="k">Modelo C</span><h4>Turnkey de automacao</h4><p>Modernizacao completa do setor financeiro em poucas semanas, com fluxos automatizados em codigo e IA.</p></div>
+    </div>
+  </section>
+
+  <section id="contato" class="contact">
+    <span class="tag fade">Proximo passo</span>
+    <h2 class="h2 fade" data-d="1">Vamos<br>conversar</h2>
+    <p class="sub fade" data-d="2" style="margin:0 auto">15 minutos para entender o cenario e apontar os primeiros ganhos de caixa e de tempo.</p>
+    <div class="chips fade" data-d="3">
+      <a class="chip" data-hot href="https://wa.me/5513981455052" target="_blank" rel="noopener"><b>WhatsApp</b><small>(13) 98145-5052</small></a>
+      <a class="chip" data-hot href="mailto:geovanillima@gmail.com"><b>E-mail</b><small>geovanillima@gmail.com</small></a>
+      <a class="chip" data-hot href="https://linkedin.com/in/geovanilbarbosa-de-lima-07b33b22" target="_blank" rel="noopener"><b>LinkedIn</b><small>Perfil executivo</small></a>
+      <span class="chip"><b>Base</b><small>Praia Grande &amp; Santos, SP</small></span>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>Geovanil Barbosa de Lima</span>
+    <span>Praia Grande, SP · (13) 98145-5052</span>
+  </div>
+</footer>
+
+<div class="ribbon">Opcao <b>3</b> — Kinetic Typography</div>
+
+<script>
+(function(){
+  var rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var hdr = document.getElementById('hdr');
+  var prog = document.getElementById('progress');
+  window.addEventListener('scroll', function(){
+    var y = window.scrollY || 0;
+    hdr.classList.toggle('compact', y > 40);
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    prog.style.transform = 'scaleX(' + (h>0 ? y/h : 0) + ')';
+  }, {passive:true});
+
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }});
+  }, {threshold:.2, rootMargin:'0px 0px -6% 0px'});
+  document.querySelectorAll('.line-mask,.fade').forEach(function(el){ io.observe(el); });
+
+  // cursor follower
+  var cur = document.getElementById('cursor');
+  if(!rm && window.matchMedia('(pointer:fine)').matches){
+    var x=0,y=0,tx=0,ty=0;
+    window.addEventListener('mousemove', function(e){ x=e.clientX; y=e.clientY; cur.style.opacity=1; });
+    (function loop(){ tx+=(x-tx)*.18; ty+=(y-ty)*.18; cur.style.left=tx+'px'; cur.style.top=ty+'px'; requestAnimationFrame(loop); })();
+    document.querySelectorAll('[data-hot]').forEach(function(el){
+      el.addEventListener('mouseenter', function(){ cur.classList.add('hot'); });
+      el.addEventListener('mouseleave', function(){ cur.classList.remove('hot'); });
+    });
+  }
+})();
+</script>
+</body>
+</html>

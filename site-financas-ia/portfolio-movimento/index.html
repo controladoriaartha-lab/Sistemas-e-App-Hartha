@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Site com movimento — 3 opcoes | Geovanil Barbosa de Lima</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:#020617;color:#e2e8f0;font-family:'Inter',system-ui,sans-serif;line-height:1.6;padding:64px 28px 90px}
+.head{max-width:1080px;margin:0 auto 48px}
+.head .tag{font-family:'Sora',sans-serif;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#22c55e}
+.head h1{font-family:'Sora',sans-serif;font-weight:800;font-size:clamp(28px,5vw,46px);line-height:1.05;letter-spacing:-.02em;margin:12px 0 14px}
+.head p{color:rgba(226,232,240,.6);max-width:640px;font-size:15px}
+.grid{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.card{border:1px solid rgba(148,163,184,.16);border-radius:18px;overflow:hidden;background:#0f172a;text-decoration:none;color:inherit;
+  display:flex;flex-direction:column;transition:transform .3s,border-color .3s}
+.card:hover{transform:translateY(-8px);border-color:#22c55e}
+.swatch{height:150px;display:flex;align-items:flex-end;padding:18px;font-family:'Sora',sans-serif;font-weight:700;font-size:18px}
+.s1{background:radial-gradient(600px circle at 20% 10%,rgba(34,197,94,.35),transparent 60%),radial-gradient(500px circle at 90% 30%,rgba(99,102,241,.35),transparent 60%),#0b1120;color:#e2e8f0}
+.s2{background:conic-gradient(from 160deg at 30% 30%,#0ea5e9,#8b5cf6,#10b981,#f59e0b,#0ea5e9);color:#05131a}
+.s3{background:#080a09;color:#c6ff3d;border-bottom:1px solid rgba(198,255,61,.3)}
+.body{padding:22px 22px 26px}
+.body h2{font-family:'Sora',sans-serif;font-weight:700;font-size:19px;margin-bottom:8px}
+.body p{font-size:13px;color:rgba(226,232,240,.6);line-height:1.7}
+.tags{margin-top:14px;display:flex;flex-wrap:wrap;gap:6px}
+.tags span{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#86efac;border:1px solid rgba(34,197,94,.3);padding:3px 9px;border-radius:100px}
+.foot{max-width:1080px;margin:40px auto 0;font-size:12.5px;color:rgba(226,232,240,.4)}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="head">
+  <span class="tag">Portfolio executivo · Geovanil Barbosa de Lima</span>
+  <h1>Site com movimento — tres direcoes</h1>
+  <p>Mesmo conteudo (Interim CFO, 22 anos, R$ 25M, -12h/sem, R$ 100k/20d, 3 pilares, modelos de engajamento, contato), tres linguagens de animacao diferentes. Abra cada uma, role ate o fim e escolha — ou peca ajustes. A escolhida vira o site definitivo.</p>
+</div>
+<div class="grid">
+  <a class="card" href="opcao-1-parallax.html">
+    <div class="swatch s1">Parallax Executivo</div>
+    <div class="body">
+      <h2>1 · Parallax Executivo</h2>
+      <p>Base navy sobria. Grade de fundo em deriva, cards do hero com parallax no scroll, KPIs com contador animado, revelacao em cascata, barra de progresso e header que encolhe. Movimento discreto, tom institucional.</p>
+      <div class="tags"><span>Sobrio</span><span>Contador</span><span>Parallax scroll</span></div>
+    </div>
+  </a>
+  <a class="card" href="opcao-2-aurora.html">
+    <div class="swatch s2">Aurora Animada</div>
+    <div class="body">
+      <h2>2 · Aurora Animada</h2>
+      <p>Fundo aurora com blobs de gradiente em movimento continuo, cards de vidro (glassmorphism), titulo com palavra rotativa (caixa / margem / forecast), botao magnetico que segue o cursor e revelacao com desfoque. Moderno e vivo.</p>
+      <div class="tags"><span>Gradiente</span><span>Glass</span><span>Palavra rotativa</span></div>
+    </div>
+  </a>
+  <a class="card" href="opcao-3-kinetic.html">
+    <div class="swatch s3">Kinetic Typography</div>
+    <div class="body">
+      <h2>3 · Kinetic Typography</h2>
+      <p>Quase-preto com verde-limao eletrico. Tipografia grotesk gigante em caixa alta, revelacao por mascara de linha, marquee de numeros em loop, linhas de KPI que deslizam no hover e cursor em anel. Ousado e memoravel.</p>
+      <div class="tags"><span>Ousado</span><span>Marquee</span><span>Cursor custom</span></div>
+    </div>
+  </a>
+</div>
+<div class="foot">Depois de escolher, posso: publicar como Artifact, montar a pasta de deploy (SEO, favicon, manifest, GitHub Pages) ou ajustar cores, textos e nivel de animacao.</div>
+</body>
+</html>

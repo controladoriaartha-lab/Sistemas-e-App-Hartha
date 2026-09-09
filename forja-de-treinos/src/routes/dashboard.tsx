@@ -1,11 +1,14 @@
-import { useRef, type ChangeEvent } from "react";
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardPanel } from "@/components/dashboard-panel";
+import { FilterGroup, PillRow } from "@/components/filters";
 import { Button } from "@/components/ui/button";
 import { parseMarkdownDiary, workoutsToMarkdown } from "@/lib/diary-md";
 import { todayIso } from "@/lib/format";
+import { PERIODS, periodCutoffIso, type Period } from "@/lib/period";
+import { DEFAULT_ATHLETES } from "@/lib/types";
 import { useWorkoutStore } from "@/store/workouts";
 
 export const Route = createFileRoute("/dashboard")({ component: DashboardPage });
@@ -16,6 +19,33 @@ function DashboardPage() {
   const importWorkouts = useWorkoutStore((s) => s.importWorkouts);
   const restoreSeed = useWorkoutStore((s) => s.restoreSeed);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const [athlete, setAthlete] = useState<string>("todos");
+  const [period, setPeriod] = useState<Period>("tudo");
+
+  const athleteOptions = useMemo(() => {
+    const set = new Set<string>(DEFAULT_ATHLETES);
+    for (const w of workouts) for (const a of w.athletes) set.add(a);
+    for (const a of customAthletes) set.add(a);
+    return ["todos", ...set];
+  }, [workouts, customAthletes]);
+
+  const filtered = useMemo(() => {
+    let list = workouts;
+    if (athlete !== "todos") list = list.filter((w) => w.athletes.includes(athlete));
+    const cutoff = periodCutoffIso(period);
+    if (cutoff) list = list.filter((w) => w.date >= cutoff);
+    return list;
+  }, [workouts, athlete, period]);
+
+  const periodActive = period !== "tudo";
+  const singleAthlete = athlete !== "todos";
+  const filtersActive = periodActive || singleAthlete;
+
+  function clearFilters() {
+    setAthlete("todos");
+    setPeriod("tudo");
+  }
 
   function handleExport() {
     if (workouts.length === 0) return;
@@ -67,7 +97,50 @@ function DashboardPage() {
       {workouts.length === 0 ? (
         <p className="text-sm text-muted-foreground">Sem dados ainda. Lance o primeiro treino.</p>
       ) : (
-        <DashboardPanel workouts={workouts} extraAthletes={customAthletes} />
+        <>
+          <div className="mb-5 space-y-3">
+            <FilterGroup label="Atletas">
+              <PillRow
+                options={athleteOptions.map((name) => ({
+                  value: name,
+                  label: name === "todos" ? "Todos" : name,
+                }))}
+                value={athlete}
+                onChange={setAthlete}
+              />
+            </FilterGroup>
+            <FilterGroup label="Período">
+              <PillRow options={PERIODS} value={period} onChange={setPeriod} />
+            </FilterGroup>
+          </div>
+
+          {filtersActive && (
+            <div className="mb-4 flex items-center justify-between text-sm text-faint">
+              <span className="tabular-nums">
+                {filtered.length} {filtered.length === 1 ? "treino" : "treinos"}
+                {periodActive ? " no período" : ""}
+              </span>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="min-h-9 rounded-md px-2 font-medium text-muted-foreground"
+              >
+                Limpar filtros
+              </button>
+            </div>
+          )}
+
+          {filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum treino com esses filtros.</p>
+          ) : (
+            <DashboardPanel
+              workouts={filtered}
+              extraAthletes={customAthletes}
+              periodActive={periodActive}
+              singleAthlete={singleAthlete}
+            />
+          )}
+        </>
       )}
 
       <div className="mt-10 space-y-6 border-t border-border pt-6">

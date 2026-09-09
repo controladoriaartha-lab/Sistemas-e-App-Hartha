@@ -1,8 +1,9 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { format, subDays, subMonths } from "date-fns";
+import { FilterGroup, PillRow } from "@/components/filters";
 import { WorkoutCard } from "@/components/workout-card";
 import { formatMonthYear } from "@/lib/format";
+import { PERIODS, periodCutoffIso, type Period } from "@/lib/period";
 import { cn } from "@/lib/utils";
 import { sortedWorkouts, useWorkoutStore } from "@/store/workouts";
 import { DEFAULT_ATHLETES, type Focus } from "@/lib/types";
@@ -10,36 +11,6 @@ import { DEFAULT_ATHLETES, type Focus } from "@/lib/types";
 export const Route = createFileRoute("/")({ component: Home });
 
 type FocusFilter = "todos" | Focus;
-type Period = "tudo" | "semana" | "quinzenal" | "mes" | "trimestral" | "semestral" | "anual";
-
-const PERIODS: { value: Period; label: string }[] = [
-  { value: "tudo", label: "Tudo" },
-  { value: "semana", label: "Semana" },
-  { value: "quinzenal", label: "Quinzenal" },
-  { value: "mes", label: "Mês" },
-  { value: "trimestral", label: "Trimestral" },
-  { value: "semestral", label: "Semestral" },
-  { value: "anual", label: "Anual" },
-];
-
-function periodCutoffIso(period: Period): string | null {
-  const now = new Date();
-  const cutoff =
-    period === "semana"
-      ? subDays(now, 7)
-      : period === "quinzenal"
-        ? subDays(now, 15)
-        : period === "mes"
-          ? subMonths(now, 1)
-          : period === "trimestral"
-            ? subMonths(now, 3)
-            : period === "semestral"
-              ? subMonths(now, 6)
-              : period === "anual"
-                ? subMonths(now, 12)
-                : null;
-  return cutoff ? format(cutoff, "yyyy-MM-dd") : null;
-}
 
 function Home() {
   const workouts = useWorkoutStore((s) => s.workouts);
@@ -176,46 +147,6 @@ function Home() {
         </>
       )}
     </main>
-  );
-}
-
-function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <p className="mb-1.5 text-xs font-medium text-faint">{label}</p>
-      {children}
-    </div>
-  );
-}
-
-function PillRow<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {options.map((opt) => {
-        const on = opt.value === value;
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            className={cn(
-              "min-h-10 shrink-0 rounded-full px-4 text-sm font-medium transition-colors duration-150",
-              on ? "bg-paper text-ink" : "bg-muted text-muted-foreground",
-            )}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 

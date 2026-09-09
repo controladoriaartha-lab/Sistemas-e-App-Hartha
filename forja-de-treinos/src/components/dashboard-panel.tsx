@@ -46,9 +46,15 @@ const tooltipProps = {
 export function DashboardPanel({
   workouts,
   extraAthletes = [],
+  periodActive = false,
+  singleAthlete = false,
 }: {
   workouts: Workout[];
   extraAthletes?: string[];
+  /** A period filter is applied — hide the fixed "atual vs anterior" blocks. */
+  periodActive?: boolean;
+  /** A single athlete is selected — hide the per-athlete grid (redundant). */
+  singleAthlete?: boolean;
 }) {
   const stats = computeStats(workouts, new Date(), extraAthletes);
   const weekDelta = deltaPct(stats.week.minutes, stats.lastWeek.minutes);
@@ -82,30 +88,32 @@ export function DashboardPanel({
         />
       </section>
 
-      <Card className="p-4">
-        <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">
-          Esta semana
-        </p>
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div>
-            <p className="font-display text-3xl tabular-nums leading-none">{stats.week.count}</p>
-            <p className="mt-1 text-sm text-muted-foreground">sessões</p>
+      {!periodActive && (
+        <Card className="p-4">
+          <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">
+            Esta semana
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <p className="font-display text-3xl tabular-nums leading-none">{stats.week.count}</p>
+              <p className="mt-1 text-sm text-muted-foreground">sessões</p>
+            </div>
+            <div>
+              <p className="font-display text-3xl tabular-nums leading-none">
+                {formatDuration(stats.week.minutes)}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">em treino</p>
+            </div>
           </div>
-          <div>
-            <p className="font-display text-3xl tabular-nums leading-none">
-              {formatDuration(stats.week.minutes)}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">em treino</p>
-          </div>
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Volume semanal <Delta value={weekDelta} /> em relação à semana passada
-          {stats.lastWeek.count
-            ? ` (${stats.lastWeek.count} treinos, ${formatDuration(stats.lastWeek.minutes)})`
-            : " (sem treinos na semana anterior)"}
-          .
-        </p>
-      </Card>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Volume semanal <Delta value={weekDelta} /> em relação à semana passada
+            {stats.lastWeek.count
+              ? ` (${stats.lastWeek.count} treinos, ${formatDuration(stats.lastWeek.minutes)})`
+              : " (sem treinos na semana anterior)"}
+            .
+          </p>
+        </Card>
+      )}
 
       <ChartBlock title="Volume semanal" subtitle="minutos nas últimas 8 semanas">
         <ResponsiveContainer width="100%" height={200}>
@@ -205,59 +213,67 @@ export function DashboardPanel({
         </div>
       </ChartBlock>
 
-      <section>
-        <h2 className="font-display text-xl tracking-tight">Comparativos</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Semana, mês e atletas lado a lado.</p>
-        <div className="mt-3 space-y-2">
-          <CompareRow
-            title="Semana atual vs anterior"
-            leftLabel="agora"
-            rightLabel="passada"
-            left={`${stats.week.count} treinos · ${formatDuration(stats.week.minutes)}`}
-            right={`${stats.lastWeek.count} treinos · ${formatDuration(stats.lastWeek.minutes)}`}
-            delta={weekDelta}
-          />
-          <CompareRow
-            title="Mês atual vs anterior"
-            leftLabel="agora"
-            rightLabel="passado"
-            left={`${stats.month.count} treinos · ${formatDuration(stats.month.minutes)}`}
-            right={`${stats.lastMonth.count} treinos · ${formatDuration(stats.lastMonth.minutes)}`}
-            delta={monthDelta}
-          />
-          <CompareRow
-            title="Pernas vs braços"
-            leftLabel="pernas"
-            rightLabel="braços"
-            left={`${stats.byFocus.pernas.count} · ${formatDuration(stats.byFocus.pernas.minutes)}`}
-            right={`${stats.byFocus.bracos.count} · ${formatDuration(stats.byFocus.bracos.minutes)}`}
-            delta={deltaPct(stats.byFocus.pernas.minutes, stats.byFocus.bracos.minutes)}
-            deltaSuffix=" de pernas sobre braços"
-          />
-        </div>
-      </section>
+      {!periodActive && (
+        <section>
+          <h2 className="font-display text-xl tracking-tight">Comparativos</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Semana, mês e atletas lado a lado.</p>
+          <div className="mt-3 space-y-2">
+            <CompareRow
+              title="Semana atual vs anterior"
+              leftLabel="agora"
+              rightLabel="passada"
+              left={`${stats.week.count} treinos · ${formatDuration(stats.week.minutes)}`}
+              right={`${stats.lastWeek.count} treinos · ${formatDuration(stats.lastWeek.minutes)}`}
+              delta={weekDelta}
+            />
+            <CompareRow
+              title="Mês atual vs anterior"
+              leftLabel="agora"
+              rightLabel="passado"
+              left={`${stats.month.count} treinos · ${formatDuration(stats.month.minutes)}`}
+              right={`${stats.lastMonth.count} treinos · ${formatDuration(stats.lastMonth.minutes)}`}
+              delta={monthDelta}
+            />
+            <CompareRow
+              title="Pernas vs braços"
+              leftLabel="pernas"
+              rightLabel="braços"
+              left={`${stats.byFocus.pernas.count} · ${formatDuration(stats.byFocus.pernas.minutes)}`}
+              right={`${stats.byFocus.bracos.count} · ${formatDuration(stats.byFocus.bracos.minutes)}`}
+              delta={deltaPct(stats.byFocus.pernas.minutes, stats.byFocus.bracos.minutes)}
+              deltaSuffix=" de pernas sobre braços"
+            />
+          </div>
+        </section>
+      )}
 
-      <section>
-        <h2 className="font-display text-xl tracking-tight">Atletas</h2>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {stats.athletes.map((athlete) => (
-            <Card key={athlete.name} className="p-4">
-              <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">
-                {athlete.name}
-              </p>
-              <p className="mt-2 font-display text-2xl tabular-nums leading-none">{athlete.sessions}</p>
-              <p className="mt-1 text-sm text-muted-foreground">sessões</p>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Core <span className="tabular-nums text-foreground">{athlete.coreReps}</span> reps
-              </p>
-              <p className="text-sm text-muted-foreground">
-                <span className="tabular-nums text-foreground">{formatDuration(athlete.minutes)}</span> em
-                treino
-              </p>
-            </Card>
-          ))}
-        </div>
-      </section>
+      {!singleAthlete && (
+        <section>
+          <h2 className="font-display text-xl tracking-tight">Atletas</h2>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {stats.athletes.map((athlete) => (
+              <Card key={athlete.name} className="p-4">
+                <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">
+                  {athlete.name}
+                </p>
+                <p className="mt-2 font-display text-2xl tabular-nums leading-none">
+                  {athlete.sessions}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">sessões</p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Core <span className="tabular-nums text-foreground">{athlete.coreReps}</span> reps
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <span className="tabular-nums text-foreground">
+                    {formatDuration(athlete.minutes)}
+                  </span>{" "}
+                  em treino
+                </p>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Card className="p-4">
         <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">Cardio</p>
@@ -265,7 +281,9 @@ export function DashboardPanel({
           {formatDuration(stats.all.cardio)}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          bike e demais — {formatDuration(stats.week.cardio)} nesta semana
+          {periodActive
+            ? "bike e demais, no período"
+            : `bike e demais — ${formatDuration(stats.week.cardio)} nesta semana`}
         </p>
       </Card>
     </div>

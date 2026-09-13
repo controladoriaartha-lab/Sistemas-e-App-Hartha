@@ -48,6 +48,7 @@ export function DashboardPanel({
   extraAthletes = [],
   periodActive = false,
   singleAthlete = false,
+  periodLabel = "",
 }: {
   workouts: Workout[];
   extraAthletes?: string[];
@@ -55,6 +56,8 @@ export function DashboardPanel({
   periodActive?: boolean;
   /** A single athlete is selected — hide the per-athlete grid (redundant). */
   singleAthlete?: boolean;
+  /** "nesta semana" / "neste mês" / … — captions Core and Cardio to the filter. */
+  periodLabel?: string;
 }) {
   const stats = computeStats(workouts, new Date(), extraAthletes);
   const weekDelta = deltaPct(stats.week.minutes, stats.lastWeek.minutes);
@@ -130,6 +133,21 @@ export function DashboardPanel({
         </ResponsiveContainer>
       </ChartBlock>
 
+      <ChartBlock title="Evolução mensal" subtitle="minutos por mês, últimos 6 meses">
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={stats.months} barSize={22}>
+            <CartesianGrid vertical={false} stroke={GRID} />
+            <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis hide />
+            <Tooltip
+              {...tooltipProps}
+              formatter={(value) => [`${Number(value)} min`, "Volume"]}
+            />
+            <Bar dataKey="minutes" fill={ACCENT} radius={[6, 6, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartBlock>
+
       <ChartBlock title="Duração por sessão" subtitle="últimos treinos">
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={stats.recent}>
@@ -148,6 +166,21 @@ export function DashboardPanel({
               dot={{ r: 3, fill: ACCENT, stroke: INK, strokeWidth: 1 }}
             />
           </LineChart>
+        </ResponsiveContainer>
+      </ChartBlock>
+
+      <ChartBlock title="Core — evolução" subtitle="repetições por semana, últimas 8 semanas">
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={stats.weeks} barSize={18}>
+            <CartesianGrid vertical={false} stroke={GRID} />
+            <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis hide />
+            <Tooltip
+              {...tooltipProps}
+              formatter={(value) => [`${Number(value)} reps`, "Core"]}
+            />
+            <Bar dataKey="coreReps" fill={OK} radius={[6, 6, 0, 0]} />
+          </BarChart>
         </ResponsiveContainer>
       </ChartBlock>
 
@@ -275,17 +308,34 @@ export function DashboardPanel({
         </section>
       )}
 
-      <Card className="p-4">
-        <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">Cardio</p>
-        <p className="mt-2 font-display text-3xl tabular-nums leading-none">
-          {formatDuration(stats.all.cardio)}
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {periodActive
-            ? "bike e demais, no período"
-            : `bike e demais — ${formatDuration(stats.week.cardio)} nesta semana`}
-        </p>
-      </Card>
+      <section className="grid grid-cols-2 gap-2">
+        <Card className="p-4">
+          <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">
+            Core
+          </p>
+          <p className="mt-2 font-display text-3xl tabular-nums leading-none">
+            {stats.all.coreReps}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {periodActive
+              ? `reps ${periodLabel}`
+              : `reps no total — ${stats.week.coreReps} nesta semana`}
+          </p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">
+            Cardio
+          </p>
+          <p className="mt-2 font-display text-3xl tabular-nums leading-none">
+            {formatDuration(stats.all.cardio)}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {periodActive
+              ? `bike e demais, ${periodLabel}`
+              : `bike e demais — ${formatDuration(stats.week.cardio)} nesta semana`}
+          </p>
+        </Card>
+      </section>
     </div>
   );
 }

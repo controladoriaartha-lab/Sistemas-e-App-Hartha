@@ -7,7 +7,7 @@ import { FilterGroup, PillRow } from "@/components/filters";
 import { Button } from "@/components/ui/button";
 import { parseMarkdownDiary, workoutsToMarkdown } from "@/lib/diary-md";
 import { todayIso } from "@/lib/format";
-import { PERIODS, periodCutoffIso, type Period } from "@/lib/period";
+import { PERIOD_IN_PHRASE, PERIODS, periodCutoffIso, type Period } from "@/lib/period";
 import { DEFAULT_ATHLETES } from "@/lib/types";
 import { useWorkoutStore } from "@/store/workouts";
 
@@ -118,7 +118,7 @@ function DashboardPage() {
             <div className="mb-4 flex items-center justify-between text-sm text-faint">
               <span className="tabular-nums">
                 {filtered.length} {filtered.length === 1 ? "treino" : "treinos"}
-                {periodActive ? " no período" : ""}
+                {periodActive ? ` ${PERIOD_IN_PHRASE[period]}` : ""}
               </span>
               <button
                 type="button"
@@ -138,6 +138,7 @@ function DashboardPage() {
               extraAthletes={customAthletes}
               periodActive={periodActive}
               singleAthlete={singleAthlete}
+              periodLabel={PERIOD_IN_PHRASE[period]}
             />
           )}
         </>

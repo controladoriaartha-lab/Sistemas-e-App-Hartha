@@ -66,7 +66,8 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
     leve: sorted.filter((w) => w.intensity === "leve").length,
   };
 
-  const weeks: { key: string; label: string; minutes: number; count: number }[] = [];
+  const weeks: { key: string; label: string; minutes: number; count: number; coreReps: number }[] =
+    [];
   for (let i = 7; i >= 0; i -= 1) {
     const start = addDays(thisWeekStart, -7 * i);
     const end = addDays(start, 6);
@@ -75,6 +76,21 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
     weeks.push({
       key: format(start, "yyyy-MM-dd"),
       label: format(start, "d MMM", { locale: ptBR }).replace(".", ""),
+      minutes: totals.minutes,
+      count: totals.count,
+      coreReps: totals.coreReps,
+    });
+  }
+
+  const months: { key: string; label: string; minutes: number; count: number }[] = [];
+  for (let i = 5; i >= 0; i -= 1) {
+    const start = startOfMonth(addMonths(now, -i));
+    const end = endOfMonth(start);
+    const list = sorted.filter((w) => inRange(w.date, start, end));
+    const totals = sum(list);
+    months.push({
+      key: format(start, "yyyy-MM"),
+      label: format(start, "MMM", { locale: ptBR }).replace(".", ""),
       minutes: totals.minutes,
       count: totals.count,
     });
@@ -133,6 +149,7 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
     byFocus,
     byIntensity,
     weeks,
+    months,
     recent,
     athletes,
     streak,

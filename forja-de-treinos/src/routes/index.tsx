@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { FilterGroup, PillRow } from "@/components/filters";
 import { WorkoutCard } from "@/components/workout-card";
 import { formatMonthYear } from "@/lib/format";
-import { PERIODS, periodCutoffIso, type Period } from "@/lib/period";
+import { PERIOD_IN_PHRASE, PERIODS, periodCutoffIso, type Period } from "@/lib/period";
 import { cn } from "@/lib/utils";
 import { sortedWorkouts, useWorkoutStore } from "@/store/workouts";
 import { DEFAULT_ATHLETES, type Focus } from "@/lib/types";
@@ -124,6 +124,7 @@ function Home() {
             <div className="mb-4 flex items-center justify-between text-sm text-faint">
               <span className="tabular-nums">
                 {visible.length} {visible.length === 1 ? "treino" : "treinos"}
+                {period !== "tudo" ? ` ${PERIOD_IN_PHRASE[period]}` : ""}
               </span>
               <button
                 type="button"

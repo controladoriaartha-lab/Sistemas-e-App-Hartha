@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
 import { toast } from "sonner";
@@ -22,15 +22,22 @@ function Home() {
   const [athlete, setAthlete] = useState<string>("todos");
   const [period, setPeriod] = useState<Period>("tudo");
   const [showExit, setShowExit] = useState(false);
+  const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-hide the floating "Sair do app" button if it's not used.
-  useEffect(() => {
-    if (!showExit) return;
-    const t = setTimeout(() => setShowExit(false), 5000);
-    return () => clearTimeout(t);
-  }, [showExit]);
+  // Show (or re-arm) the floating "Sair do app" button; every tap on the
+  // header resets its 5s auto-hide instead of only the first one.
+  function revealExit() {
+    setShowExit(true);
+    if (exitTimer.current) clearTimeout(exitTimer.current);
+    exitTimer.current = setTimeout(() => setShowExit(false), 5000);
+  }
+
+  useEffect(() => () => {
+    if (exitTimer.current) clearTimeout(exitTimer.current);
+  }, []);
 
   function attemptExit() {
+    if (exitTimer.current) clearTimeout(exitTimer.current);
     setShowExit(false);
     window.close();
     // Browsers only let a script close a window/tab it opened itself — a PWA
@@ -81,7 +88,7 @@ function Home() {
     <main className="relative px-5 pb-28 pt-8">
       <header
         className="mb-6 cursor-pointer select-none"
-        onClick={() => setShowExit((v) => !v)}
+        onClick={revealExit}
         aria-label="Toque para opções do app"
       >
         <p className="text-2xs font-medium uppercase tracking-widest text-accent">Diário</p>
@@ -96,7 +103,8 @@ function Home() {
             e.stopPropagation();
             attemptExit();
           }}
-          className="fixed right-4 top-4 z-40 flex items-center gap-2 rounded-full bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.55)] ring-1 ring-border transition-opacity duration-150"
+          style={{ top: "max(1rem, calc(env(safe-area-inset-top) + 0.5rem))" }}
+          className="fixed right-4 z-50 flex items-center gap-2 rounded-full bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.55)] ring-1 ring-border"
         >
           <LogOut className="size-4" />
           Sair do app

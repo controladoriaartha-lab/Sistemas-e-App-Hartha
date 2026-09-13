@@ -26,6 +26,32 @@ function coreRepsFor(workout: Workout, athlete: string) {
   }, 0);
 }
 
+/**
+ * "Grupo muscular" is free text typed into the form (see seed.ts: "peito" vs
+ * "peitoral", "anteriores", "coxas" …), not a fixed enum — so a raw tally
+ * would fragment into near-duplicate slices. Classify each tag into the small
+ * set of categories the panel actually reports on, by keyword.
+ */
+const MUSCLE_CATEGORIES: { name: string; test: RegExp }[] = [
+  { name: "Peitoral", test: /peito/ },
+  { name: "Costas", test: /costa/ },
+  { name: "Braços", test: /braco/ },
+  { name: "Ombros", test: /ombro/ },
+  { name: "Pernas (ant.)", test: /anterior/ },
+  { name: "Pernas (post.)", test: /posterior/ },
+  { name: "Pernas", test: /coxa|panturrilha|perna/ },
+];
+
+function classifyMuscleGroup(raw: string): string {
+  const normalized = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim();
+  if (!normalized) return "Outro";
+  return MUSCLE_CATEGORIES.find((cat) => cat.test.test(normalized))?.name ?? "Outro";
+}
+
 export function computeStats(workouts: Workout[], now = new Date(), extraAthletes: string[] = []) {
   const sorted = [...workouts].sort((a, b) => b.date.localeCompare(a.date));
   const thisWeekStart = startOfWeek(now, WEEK_OPTS);
@@ -118,6 +144,19 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
     };
   });
 
+  const muscleGroupSessions = new Map<string, Set<string>>();
+  for (const w of sorted) {
+    const categories = new Set(w.muscleGroups.map(classifyMuscleGroup));
+    for (const category of categories) {
+      const ids = muscleGroupSessions.get(category) ?? new Set<string>();
+      ids.add(w.id);
+      muscleGroupSessions.set(category, ids);
+    }
+  }
+  const byMuscleGroup = [...muscleGroupSessions.entries()]
+    .map(([name, ids]) => ({ name, sessions: ids.size }))
+    .sort((a, b) => b.sessions - a.sessions);
+
   const uniqueDays = new Set(sorted.map((w) => w.date));
   let streak = 0;
   let cursor = now;
@@ -152,6 +191,7 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
     months,
     recent,
     athletes,
+    byMuscleGroup,
     streak,
     avgDuration: all.count ? Math.round(all.minutes / all.count) : 0,
     sessionsPerWeek: all.count / (spanDays / 7),

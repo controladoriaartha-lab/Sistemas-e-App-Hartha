@@ -239,12 +239,52 @@ export function DashboardPanel({
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           {focusData.map((row) => (
             <p key={row.name} className="text-muted-foreground">
-              <span className="text-foreground tabular-nums">{row.count}</span> sessões ·{" "}
-              {row.name.toLowerCase()}
+              <span className="text-foreground tabular-nums">{row.count}</span>{" "}
+              {row.count === 1 ? "sessão" : "sessões"} · {row.name.toLowerCase()}
             </p>
           ))}
         </div>
       </ChartBlock>
+
+      {stats.byMuscleGroup.length === 0 ? null : (
+        <ChartBlock
+          title="Grupo muscular"
+          subtitle={`sessões por grupo${periodActive ? ` ${periodLabel}` : ""}`}
+        >
+          <ResponsiveContainer width="100%" height={Math.max(140, stats.byMuscleGroup.length * 36)}>
+            <BarChart data={stats.byMuscleGroup} layout="vertical" barSize={18}>
+              <CartesianGrid horizontal={false} stroke={GRID} />
+              <XAxis type="number" hide allowDecimals={false} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fill: MUTED, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                width={92}
+              />
+              <Tooltip
+                {...tooltipProps}
+                formatter={(value) => [
+                  `${Number(value)} ${Number(value) === 1 ? "sessão" : "sessões"}`,
+                  "Grupo",
+                ]}
+              />
+              <Bar dataKey="sessions" fill={WARN} radius={[0, 8, 8, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <ul className="mt-3 space-y-1.5 text-sm">
+            {stats.byMuscleGroup.map((row) => (
+              <li key={row.name} className="flex items-center justify-between">
+                <span className="text-muted-foreground">{row.name}</span>
+                <span className="tabular-nums text-foreground">
+                  {row.sessions} {row.sessions === 1 ? "sessão" : "sessões"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </ChartBlock>
+      )}
 
       {!periodActive && (
         <section>

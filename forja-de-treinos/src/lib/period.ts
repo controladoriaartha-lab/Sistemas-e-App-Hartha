@@ -1,4 +1,5 @@
-import { format, startOfMonth, startOfQuarter, startOfWeek, startOfYear } from "date-fns";
+import { endOfMonth, format, startOfMonth, startOfQuarter, startOfWeek, startOfYear, subMonths } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export type Period =
   | "tudo"
@@ -67,4 +68,34 @@ export function periodCutoffIso(period: Period, now: Date = new Date()): string 
       return null;
   }
   return format(start, "yyyy-MM-dd");
+}
+
+/**
+ * First/last date (YYYY-MM-DD) of a specific month, `offset` months back from
+ * `now` (0 = the current month, 1 = last month, …). Used by the "Mês" period
+ * picker so choosing a past month doesn't also pull in every month after it —
+ * `periodCutoffIso` has no upper bound because it only ever means "since X",
+ * which only works for the *current* month (nothing is dated after today).
+ */
+export function monthRangeIso(
+  offset: number,
+  now: Date = new Date(),
+): { start: string; end: string } {
+  const anchor = startOfMonth(subMonths(now, offset));
+  return { start: format(anchor, "yyyy-MM-dd"), end: format(endOfMonth(anchor), "yyyy-MM-dd") };
+}
+
+/** "Setembro 2026", "Agosto 2026", … for the last `count` months (0 = current). */
+export function recentMonths(
+  count: number,
+  now: Date = new Date(),
+): { offset: number; label: string }[] {
+  return Array.from({ length: count }, (_, offset) => ({
+    offset,
+    label: capitalize(format(startOfMonth(subMonths(now, offset)), "MMMM yyyy", { locale: ptBR })),
+  }));
+}
+
+function capitalize(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }

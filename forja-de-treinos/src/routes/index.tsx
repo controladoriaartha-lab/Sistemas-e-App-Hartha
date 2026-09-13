@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { LogOut } from "lucide-react";
-import { toast } from "sonner";
 import { FilterGroup, PillRow } from "@/components/filters";
 import { WorkoutCard } from "@/components/workout-card";
 import { formatMonthYear } from "@/lib/format";
@@ -21,33 +19,6 @@ function Home() {
   const [focus, setFocus] = useState<FocusFilter>("todos");
   const [athlete, setAthlete] = useState<string>("todos");
   const [period, setPeriod] = useState<Period>("tudo");
-  const [showExit, setShowExit] = useState(false);
-  const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Show (or re-arm) the floating "Sair do app" button; every tap on the
-  // header resets its 5s auto-hide instead of only the first one.
-  function revealExit() {
-    setShowExit(true);
-    if (exitTimer.current) clearTimeout(exitTimer.current);
-    exitTimer.current = setTimeout(() => setShowExit(false), 5000);
-  }
-
-  useEffect(() => () => {
-    if (exitTimer.current) clearTimeout(exitTimer.current);
-  }, []);
-
-  function attemptExit() {
-    if (exitTimer.current) clearTimeout(exitTimer.current);
-    setShowExit(false);
-    window.close();
-    // Browsers only let a script close a window/tab it opened itself — a PWA
-    // launched from the home screen (or a tab the user opened) ignores this
-    // silently. If we're still here a beat later, tell the user how to
-    // actually leave instead of a button that looks broken.
-    setTimeout(() => {
-      toast.info("Para sair, use o botão Voltar do celular ou o gerenciador de apps.");
-    }, 150);
-  }
 
   const athleteOptions = useMemo(() => {
     const set = new Set<string>(DEFAULT_ATHLETES);
@@ -86,30 +57,11 @@ function Home() {
 
   return (
     <main className="relative px-5 pb-28 pt-8">
-      <header
-        className="mb-6 cursor-pointer select-none"
-        onClick={revealExit}
-        aria-label="Toque para opções do app"
-      >
+      <header className="mb-6">
         <p className="text-2xs font-medium uppercase tracking-widest text-accent">Diário</p>
         <h1 className="mt-1 font-display text-4xl font-medium tracking-tight">Forja de Treinos</h1>
         <p className="mt-2 max-w-xs text-2xl font-normal text-muted-foreground">Treinos de Cada Dia</p>
       </header>
-
-      {showExit && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            attemptExit();
-          }}
-          style={{ top: "max(1rem, calc(env(safe-area-inset-top) + 0.5rem))" }}
-          className="fixed right-4 z-50 flex items-center gap-2 rounded-full bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.55)] ring-1 ring-border"
-        >
-          <LogOut className="size-4" />
-          Sair do app
-        </button>
-      )}
 
       <div className="mb-5 space-y-3">
         <FilterGroup label="Foco">

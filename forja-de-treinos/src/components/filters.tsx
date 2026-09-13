@@ -1,4 +1,6 @@
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { CalendarDays, ChevronDown } from "lucide-react";
+import { recentMonths } from "@/lib/period";
 import { cn } from "@/lib/utils";
 
 /** Small labelled wrapper for a filter control. */
@@ -39,6 +41,61 @@ export function PillRow<T extends string>({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Small "menuzinho" next to the Período row, only relevant while "Mês" is the
+ * active period: lets you pick which of the last 12 months to look at instead
+ * of always the current one.
+ */
+export function MonthPicker({
+  offset,
+  onChange,
+}: {
+  offset: number;
+  onChange: (offset: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const months = recentMonths(12);
+  const current = months.find((m) => m.offset === offset) ?? months[0];
+
+  return (
+    <div className="relative mt-2 inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex min-h-10 items-center gap-1.5 rounded-lg bg-muted px-3 text-sm font-medium text-foreground"
+      >
+        <CalendarDays className="size-4 text-faint" />
+        {current.label}
+        <ChevronDown className="size-4 text-faint" />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} aria-hidden />
+          <div className="absolute left-0 top-full z-30 mt-1 max-h-64 w-48 overflow-y-auto rounded-xl bg-card p-1 shadow-[0_12px_32px_rgba(0,0,0,0.5)] ring-1 ring-border">
+            {months.map((m) => (
+              <button
+                key={m.offset}
+                type="button"
+                onClick={() => {
+                  onChange(m.offset);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "block w-full rounded-lg px-3 py-2 text-left text-sm",
+                  m.offset === offset ? "bg-paper text-ink" : "text-foreground",
+                )}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

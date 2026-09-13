@@ -3,11 +3,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardPanel } from "@/components/dashboard-panel";
-import { FilterGroup, PillRow } from "@/components/filters";
+import { FilterGroup, MonthPicker, PillRow } from "@/components/filters";
 import { Button } from "@/components/ui/button";
 import { parseMarkdownDiary, workoutsToMarkdown } from "@/lib/diary-md";
 import { todayIso } from "@/lib/format";
-import { PERIOD_IN_PHRASE, PERIODS, periodCutoffIso, type Period } from "@/lib/period";
+import {
+  monthRangeIso,
+  PERIOD_IN_PHRASE,
+  PERIODS,
+  periodCutoffIso,
+  recentMonths,
+  type Period,
+} from "@/lib/period";
 import { DEFAULT_ATHLETES } from "@/lib/types";
 import { useWorkoutStore } from "@/store/workouts";
 
@@ -22,6 +29,7 @@ function DashboardPage() {
 
   const [athlete, setAthlete] = useState<string>("todos");
   const [period, setPeriod] = useState<Period>("tudo");
+  const [monthOffset, setMonthOffset] = useState(0);
 
   const athleteOptions = useMemo(() => {
     const set = new Set<string>(DEFAULT_ATHLETES);
@@ -33,18 +41,33 @@ function DashboardPage() {
   const filtered = useMemo(() => {
     let list = workouts;
     if (athlete !== "todos") list = list.filter((w) => w.athletes.includes(athlete));
-    const cutoff = periodCutoffIso(period);
-    if (cutoff) list = list.filter((w) => w.date >= cutoff);
+    if (period === "mes" && monthOffset > 0) {
+      const { start, end } = monthRangeIso(monthOffset);
+      list = list.filter((w) => w.date >= start && w.date <= end);
+    } else {
+      const cutoff = periodCutoffIso(period);
+      if (cutoff) list = list.filter((w) => w.date >= cutoff);
+    }
     return list;
-  }, [workouts, athlete, period]);
+  }, [workouts, athlete, period, monthOffset]);
 
   const periodActive = period !== "tudo";
   const singleAthlete = athlete !== "todos";
   const filtersActive = periodActive || singleAthlete;
+  const periodLabel =
+    period === "mes" && monthOffset > 0
+      ? `em ${recentMonths(monthOffset + 1).at(-1)?.label}`
+      : PERIOD_IN_PHRASE[period];
+
+  function setPeriodFilter(value: Period) {
+    setPeriod(value);
+    if (value !== "mes") setMonthOffset(0);
+  }
 
   function clearFilters() {
     setAthlete("todos");
     setPeriod("tudo");
+    setMonthOffset(0);
   }
 
   function handleExport() {
@@ -110,7 +133,8 @@ function DashboardPage() {
               />
             </FilterGroup>
             <FilterGroup label="Período">
-              <PillRow options={PERIODS} value={period} onChange={setPeriod} />
+              <PillRow options={PERIODS} value={period} onChange={setPeriodFilter} />
+              {period === "mes" && <MonthPicker offset={monthOffset} onChange={setMonthOffset} />}
             </FilterGroup>
           </div>
 
@@ -118,7 +142,7 @@ function DashboardPage() {
             <div className="mb-4 flex items-center justify-between text-sm text-faint">
               <span className="tabular-nums">
                 {filtered.length} {filtered.length === 1 ? "treino" : "treinos"}
-                {periodActive ? ` ${PERIOD_IN_PHRASE[period]}` : ""}
+                {periodActive ? ` ${periodLabel}` : ""}
               </span>
               <button
                 type="button"
@@ -138,7 +162,7 @@ function DashboardPage() {
               extraAthletes={customAthletes}
               periodActive={periodActive}
               singleAthlete={singleAthlete}
-              periodLabel={PERIOD_IN_PHRASE[period]}
+              periodLabel={periodLabel}
             />
           )}
         </>

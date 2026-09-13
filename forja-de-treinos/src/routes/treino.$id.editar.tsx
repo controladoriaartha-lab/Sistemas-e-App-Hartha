@@ -47,7 +47,7 @@ function EditWorkoutPage() {
         onCancel={() => navigate({ to: "/treino/$id", params: { id: workout.id } })}
         onSubmit={(next) => {
           updateWorkout(workout.id, next);
-          toast.success("Alterações salvas");
+          toast.success("Alterações salvas no aparelho");
           void navigate({ to: "/treino/$id", params: { id: workout.id } });
         }}
       />

@@ -1,12 +1,22 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ClipboardList, LayoutDashboard, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { setPersistFailureHandler } from "@/store/workouts";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const hideNav = pathname.startsWith("/novo") || pathname.includes("/editar");
+
+  // Mounted once for the whole app: surfaces a local-storage write failure
+  // (private browsing, full quota, disabled storage) as a visible toast
+  // instead of it silently swallowing the save.
+  useEffect(() => {
+    setPersistFailureHandler((message) => toast.error(message, { duration: 8000 }));
+    return () => setPersistFailureHandler(null);
+  }, []);
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-lg bg-background text-foreground">

@@ -30,7 +30,7 @@ function NewWorkoutPage() {
         onCancel={() => navigate({ to: "/" })}
         onSubmit={(workout) => {
           addWorkout(workout);
-          toast.success("Treino registrado");
+          toast.success("Treino salvo no aparelho");
           void navigate({ to: "/treino/$id", params: { id: workout.id } });
         }}
       />

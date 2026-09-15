@@ -171,7 +171,7 @@ function DashboardPage() {
       <div className="mt-10 space-y-6 border-t border-border pt-6">
         <div>
           <p className="font-medium">Backup do diário</p>
-          <p className="mt-1 text-xs text-faint">
+          <p className="mt-1 text-sm text-faint">
             Exporta e importa no formato Markdown (.md), compatível com o caderno estruturado do
             Obsidian.
           </p>
@@ -195,7 +195,7 @@ function DashboardPage() {
         </div>
 
         <div>
-          <p className="text-xs text-faint">
+          <p className="text-sm text-faint">
             Os treinos ficam neste aparelho. Restaurar o diário original substitui o que você editou.
           </p>
           <Button
@@ -208,6 +208,22 @@ function DashboardPage() {
             }}
           >
             Restaurar diário original
+          </Button>
+          <Button
+            variant="destructive"
+            className="mt-2"
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Tem certeza que deseja excluir todo o diário de treino? Essa ação não pode ser desfeita.",
+                )
+              ) {
+                importWorkouts([]);
+                toast.success("Diário excluído");
+              }
+            }}
+          >
+            Excluir tudo
           </Button>
         </div>
       </div>

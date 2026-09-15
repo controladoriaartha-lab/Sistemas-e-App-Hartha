@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, Upload } from "lucide-react";
+import { Download, TriangleAlert, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardPanel } from "@/components/dashboard-panel";
 import { FilterGroup, MonthPicker, PillRow } from "@/components/filters";
@@ -171,10 +171,18 @@ function DashboardPage() {
       <div className="mt-10 space-y-6 border-t border-border pt-6">
         <div>
           <p className="font-medium">Backup do diário</p>
-          <p className="mt-1 text-sm text-faint">
+          <p className="mt-1 text-base text-faint">
             Exporta e importa no formato Markdown (.md), compatível com o caderno estruturado do
             Obsidian.
           </p>
+          <div className="mt-3 flex items-start gap-2 rounded-lg bg-warn/10 p-3">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" />
+            <p className="text-sm text-warn">
+              Os treinos ficam só neste aparelho. Exporte de vez em quando (toda semana, por
+              exemplo) e guarde o arquivo em local seguro — evita perder o diário se o aparelho
+              limpar o armazenamento.
+            </p>
+          </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Button variant="secondary" onClick={handleExport} disabled={workouts.length === 0}>
               <Download />

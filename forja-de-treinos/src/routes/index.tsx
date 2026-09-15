@@ -58,7 +58,10 @@ function Home() {
   return (
     <main className="relative px-5 pb-28 pt-8">
       <header className="mb-6">
-        <p className="text-[24px] font-medium uppercase tracking-widest text-accent">Diário</p>
+        <div className="flex items-center gap-2">
+          <p className="text-[24px] font-medium uppercase tracking-widest text-accent">Diário</p>
+          <img src="/artha-logo.png" alt="ARTHA" className="h-6 w-auto" />
+        </div>
         <h1 className="mt-1 font-display text-4xl font-medium tracking-tight">Forja de Treinos</h1>
         <p className="mt-2 max-w-xs text-2xl font-normal text-muted-foreground">Treinos de Cada Dia</p>
       </header>

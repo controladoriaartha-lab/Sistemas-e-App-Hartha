@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -43,6 +43,38 @@ const tooltipProps = {
   wrapperStyle: { outline: "none", zIndex: 20 },
 } as const;
 
+type StickyTooltip = {
+  label?: string;
+  payload: unknown[];
+  coordinate?: { x: number; y: number };
+};
+
+/**
+ * Recharts tooltips are hover-driven: on a phone there is no hover, so a tap
+ * shows the value only while the finger is down and it vanishes the instant
+ * you lift it — often before it's been read. This freezes whatever was
+ * tapped for `ms`, then lets the chart fall back to its normal behavior.
+ */
+function useStickyTooltip(ms = 4000) {
+  const [sticky, setSticky] = useState<StickyTooltip | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  function show(entry: StickyTooltip) {
+    setSticky(entry);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setSticky(null), ms);
+  }
+
+  return { sticky, show };
+}
+
 export function DashboardPanel({
   workouts,
   extraAthletes = [],
@@ -73,6 +105,15 @@ export function DashboardPanel({
     { name: "Pernas", minutes: stats.byFocus.pernas.minutes, count: stats.byFocus.pernas.count },
     { name: "Braços", minutes: stats.byFocus.bracos.minutes, count: stats.byFocus.bracos.count },
   ];
+
+  // One independent 4s "stay visible after tap" timer per chart.
+  const volumeTip = useStickyTooltip();
+  const monthsTip = useStickyTooltip();
+  const durationTip = useStickyTooltip();
+  const coreEvolutionTip = useStickyTooltip();
+  const intensityTip = useStickyTooltip();
+  const focusTip = useStickyTooltip();
+  const muscleGroupTip = useStickyTooltip();
 
   return (
     <div className="space-y-5">
@@ -120,12 +161,28 @@ export function DashboardPanel({
 
       <ChartBlock title="Volume semanal" subtitle="minutos nas últimas 8 semanas">
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={stats.weeks} barSize={18}>
+          <BarChart
+            data={stats.weeks}
+            barSize={18}
+            onClick={(state) => {
+              if (state?.activePayload) {
+                volumeTip.show({
+                  label: state.activeLabel,
+                  payload: state.activePayload,
+                  coordinate: state.activeCoordinate,
+                });
+              }
+            }}
+          >
             <CartesianGrid vertical={false} stroke={GRID} />
             <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
+              active={volumeTip.sticky ? true : undefined}
+              payload={volumeTip.sticky ? (volumeTip.sticky.payload as never) : undefined}
+              label={volumeTip.sticky ? volumeTip.sticky.label : undefined}
+              coordinate={volumeTip.sticky ? volumeTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} min`, "Volume"]}
             />
             <Bar dataKey="minutes" fill={PAPER} radius={[6, 6, 0, 0]} />
@@ -135,12 +192,28 @@ export function DashboardPanel({
 
       <ChartBlock title="Evolução mensal" subtitle="minutos por mês, últimos 6 meses">
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={stats.months} barSize={22}>
+          <BarChart
+            data={stats.months}
+            barSize={22}
+            onClick={(state) => {
+              if (state?.activePayload) {
+                monthsTip.show({
+                  label: state.activeLabel,
+                  payload: state.activePayload,
+                  coordinate: state.activeCoordinate,
+                });
+              }
+            }}
+          >
             <CartesianGrid vertical={false} stroke={GRID} />
             <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
+              active={monthsTip.sticky ? true : undefined}
+              payload={monthsTip.sticky ? (monthsTip.sticky.payload as never) : undefined}
+              label={monthsTip.sticky ? monthsTip.sticky.label : undefined}
+              coordinate={monthsTip.sticky ? monthsTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} min`, "Volume"]}
             />
             <Bar dataKey="minutes" fill={ACCENT} radius={[6, 6, 0, 0]} />
@@ -150,12 +223,27 @@ export function DashboardPanel({
 
       <ChartBlock title="Duração por sessão" subtitle="últimos treinos">
         <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={stats.recent}>
+          <LineChart
+            data={stats.recent}
+            onClick={(state) => {
+              if (state?.activePayload) {
+                durationTip.show({
+                  label: state.activeLabel,
+                  payload: state.activePayload,
+                  coordinate: state.activeCoordinate,
+                });
+              }
+            }}
+          >
             <CartesianGrid vertical={false} stroke={GRID} />
             <XAxis dataKey="date" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
+              active={durationTip.sticky ? true : undefined}
+              payload={durationTip.sticky ? (durationTip.sticky.payload as never) : undefined}
+              label={durationTip.sticky ? durationTip.sticky.label : undefined}
+              coordinate={durationTip.sticky ? durationTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} min`, "Duração"]}
             />
             <Line
@@ -171,12 +259,28 @@ export function DashboardPanel({
 
       <ChartBlock title="Core — evolução" subtitle="repetições por semana, últimas 8 semanas">
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={stats.weeks} barSize={18}>
+          <BarChart
+            data={stats.weeks}
+            barSize={18}
+            onClick={(state) => {
+              if (state?.activePayload) {
+                coreEvolutionTip.show({
+                  label: state.activeLabel,
+                  payload: state.activePayload,
+                  coordinate: state.activeCoordinate,
+                });
+              }
+            }}
+          >
             <CartesianGrid vertical={false} stroke={GRID} />
             <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
+              active={coreEvolutionTip.sticky ? true : undefined}
+              payload={coreEvolutionTip.sticky ? (coreEvolutionTip.sticky.payload as never) : undefined}
+              label={coreEvolutionTip.sticky ? coreEvolutionTip.sticky.label : undefined}
+              coordinate={coreEvolutionTip.sticky ? coreEvolutionTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} reps`, "Core"]}
             />
             <Bar dataKey="coreReps" fill={OK} radius={[6, 6, 0, 0]} />
@@ -189,13 +293,30 @@ export function DashboardPanel({
           <div className="h-40 w-40 shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={intensityData} dataKey="value" innerRadius={38} outerRadius={62} stroke="none">
+                <Pie
+                  data={intensityData}
+                  dataKey="value"
+                  innerRadius={38}
+                  outerRadius={62}
+                  stroke="none"
+                  onClick={(entry) => {
+                    intensityTip.show({
+                      label: entry.name,
+                      payload: [{ name: entry.name, value: entry.value }],
+                      coordinate: { x: 80, y: 80 },
+                    });
+                  }}
+                >
                   {intensityData.map((entry) => (
                     <Cell key={entry.name} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip
                   {...tooltipProps}
+                  active={intensityTip.sticky ? true : undefined}
+                  payload={intensityTip.sticky ? (intensityTip.sticky.payload as never) : undefined}
+                  label={intensityTip.sticky ? intensityTip.sticky.label : undefined}
+                  coordinate={intensityTip.sticky ? intensityTip.sticky.coordinate : undefined}
                   formatter={(value, name) => [
                     `${Number(value)} ${Number(value) === 1 ? "sessão" : "sessões"}`,
                     name,
@@ -218,7 +339,20 @@ export function DashboardPanel({
 
       <ChartBlock title="Pernas vs braços" subtitle="minutos acumulados">
         <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={focusData} layout="vertical" barSize={22}>
+          <BarChart
+            data={focusData}
+            layout="vertical"
+            barSize={22}
+            onClick={(state) => {
+              if (state?.activePayload) {
+                focusTip.show({
+                  label: state.activeLabel,
+                  payload: state.activePayload,
+                  coordinate: state.activeCoordinate,
+                });
+              }
+            }}
+          >
             <CartesianGrid horizontal={false} stroke={GRID} />
             <XAxis type="number" hide />
             <YAxis
@@ -231,6 +365,10 @@ export function DashboardPanel({
             />
             <Tooltip
               {...tooltipProps}
+              active={focusTip.sticky ? true : undefined}
+              payload={focusTip.sticky ? (focusTip.sticky.payload as never) : undefined}
+              label={focusTip.sticky ? focusTip.sticky.label : undefined}
+              coordinate={focusTip.sticky ? focusTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} min`, "Volume"]}
             />
             <Bar dataKey="minutes" fill={PAPER} radius={[0, 8, 8, 0]} />
@@ -252,7 +390,20 @@ export function DashboardPanel({
           subtitle={`sessões por grupo${periodActive ? ` ${periodLabel}` : ""}`}
         >
           <ResponsiveContainer width="100%" height={Math.max(140, stats.byMuscleGroup.length * 36)}>
-            <BarChart data={stats.byMuscleGroup} layout="vertical" barSize={18}>
+            <BarChart
+              data={stats.byMuscleGroup}
+              layout="vertical"
+              barSize={18}
+              onClick={(state) => {
+                if (state?.activePayload) {
+                  muscleGroupTip.show({
+                    label: state.activeLabel,
+                    payload: state.activePayload,
+                    coordinate: state.activeCoordinate,
+                  });
+                }
+              }}
+            >
               <CartesianGrid horizontal={false} stroke={GRID} />
               <XAxis type="number" hide allowDecimals={false} />
               <YAxis
@@ -265,6 +416,10 @@ export function DashboardPanel({
               />
               <Tooltip
                 {...tooltipProps}
+                active={muscleGroupTip.sticky ? true : undefined}
+                payload={muscleGroupTip.sticky ? (muscleGroupTip.sticky.payload as never) : undefined}
+                label={muscleGroupTip.sticky ? muscleGroupTip.sticky.label : undefined}
+                coordinate={muscleGroupTip.sticky ? muscleGroupTip.sticky.coordinate : undefined}
                 formatter={(value) => [
                   `${Number(value)} ${Number(value) === 1 ? "sessão" : "sessões"}`,
                   "Grupo",

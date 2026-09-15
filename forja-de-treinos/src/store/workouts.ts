@@ -67,6 +67,8 @@ type WorkoutState = {
   deleteWorkout: (id: string) => void;
   duplicateWorkout: (id: string) => string | null;
   addAthlete: (name: string) => void;
+  /** Drops any custom athlete no workout actually references. */
+  pruneUnusedAthletes: () => void;
   importWorkouts: (workouts: Workout[]) => void;
   restoreSeed: () => void;
 };
@@ -111,12 +113,30 @@ export const useWorkoutStore = create<WorkoutState>()(
         if (known || get().customAthletes.includes(clean)) return;
         set({ customAthletes: [...get().customAthletes, clean] });
       },
+      pruneUnusedAthletes: () => {
+        const { workouts, customAthletes } = get();
+        if (customAthletes.length === 0) return;
+        const referenced = new Set<string>();
+        for (const w of workouts) for (const a of w.athletes) referenced.add(a);
+        const kept = customAthletes.filter((name) => referenced.has(name));
+        if (kept.length !== customAthletes.length) set({ customAthletes: kept });
+      },
       importWorkouts: (workouts) => set({ workouts }),
       restoreSeed: () => set({ workouts: SEED_WORKOUTS }),
     }),
     { name: STORAGE_KEY, version: 1, storage: createJSONStorage(resilientStorage) },
   ),
 );
+
+// A custom athlete only exists to be picked in the form that created them;
+// one you add and never actually log a workout for is clutter in every
+// filter and in the Painel's Atletas grid. Sweep it on each app start — this
+// runs once persisted state is loaded (synchronously for localStorage, but
+// registering the callback covers any storage that hydrates asynchronously).
+useWorkoutStore.getState().pruneUnusedAthletes();
+useWorkoutStore.persist.onFinishHydration(() => {
+  useWorkoutStore.getState().pruneUnusedAthletes();
+});
 
 export function createBlankWorkout(): Workout {
   return {

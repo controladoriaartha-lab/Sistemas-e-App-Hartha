@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <p className="mb-1.5 text-xs font-medium text-faint">{label}</p>
+      <p className="mb-1.5 text-[24px] font-medium text-faint">{label}</p>
       {children}
     </div>
   );
@@ -33,7 +33,7 @@ export function PillRow<T extends string>({
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "min-h-10 shrink-0 rounded-full px-4 text-sm font-medium transition-colors duration-150",
+              "min-h-10 shrink-0 rounded-full px-4 text-[28px] font-medium transition-colors duration-150",
               on ? "bg-paper text-ink" : "bg-muted text-muted-foreground",
             )}
           >
@@ -66,7 +66,7 @@ export function MonthPicker({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex min-h-10 items-center gap-1.5 rounded-lg bg-muted px-3 text-sm font-medium text-foreground"
+        className="flex min-h-10 items-center gap-1.5 rounded-lg bg-muted px-3 text-[28px] font-medium text-foreground"
       >
         <CalendarDays className="size-4 text-faint" />
         {current.label}
@@ -86,7 +86,7 @@ export function MonthPicker({
                   setOpen(false);
                 }}
                 className={cn(
-                  "block w-full rounded-lg px-3 py-2 text-left text-sm",
+                  "block w-full rounded-lg px-3 py-2 text-left text-[28px]",
                   m.offset === offset ? "bg-paper text-ink" : "text-foreground",
                 )}
               >

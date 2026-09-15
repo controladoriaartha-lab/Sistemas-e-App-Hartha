@@ -444,7 +444,7 @@ export function DashboardPanel({
 
       {!periodActive && (
         <section>
-          <h2 className="font-display text-xl tracking-tight">Comparativos</h2>
+          <h2 className="font-display text-[24px] tracking-tight">Comparativos</h2>
           <p className="mt-1 text-[21px] text-muted-foreground">Semana, mês e atletas lado a lado.</p>
           <div className="mt-3 space-y-2">
             <CompareRow
@@ -557,7 +557,7 @@ function ChartBlock({
 }) {
   return (
     <Card className="p-4">
-      <p className="font-medium text-foreground">{title}</p>
+      <p className="text-[24px] font-medium text-foreground">{title}</p>
       <p className="mb-3 text-[24px] font-normal text-faint">{subtitle}</p>
       <div className="min-w-0">{children}</div>
     </Card>
@@ -594,7 +594,7 @@ function CompareRow({
 }) {
   return (
     <Card className="p-4">
-      <p className="font-medium">{title}</p>
+      <p className="text-[24px] font-medium">{title}</p>
       <div className="mt-3 grid grid-cols-2 gap-3 text-[24px]">
         <div>
           <p className="text-[18px] uppercase tracking-widest text-faint">{leftLabel}</p>

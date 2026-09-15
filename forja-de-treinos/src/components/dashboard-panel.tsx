@@ -134,7 +134,7 @@ export function DashboardPanel({
 
       {!periodActive && (
         <Card className="p-4">
-          <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
             Esta semana
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
@@ -429,7 +429,7 @@ export function DashboardPanel({
               <Bar dataKey="sessions" fill={WARN} radius={[0, 8, 8, 0]} />
             </BarChart>
           </ResponsiveContainer>
-          <ul className="mt-3 space-y-1.5 text-sm">
+          <ul className="mt-3 space-y-1.5 text-base">
             {stats.byMuscleGroup.map((row) => (
               <li key={row.name} className="flex items-center justify-between">
                 <span className="text-muted-foreground">{row.name}</span>
@@ -482,7 +482,7 @@ export function DashboardPanel({
           <div className="mt-3 grid grid-cols-2 gap-2">
             {stats.athletes.map((athlete) => (
               <Card key={athlete.name} className="p-4">
-                <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   {athlete.name}
                 </p>
                 <p className="mt-2 font-display text-2xl tabular-nums leading-none">
@@ -506,7 +506,7 @@ export function DashboardPanel({
 
       <section className="grid grid-cols-2 gap-2">
         <Card className="p-4">
-          <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
             Core
           </p>
           <p className="mt-2 font-display text-3xl tabular-nums leading-none">
@@ -519,7 +519,7 @@ export function DashboardPanel({
           </p>
         </Card>
         <Card className="p-4">
-          <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
             Cardio
           </p>
           <p className="mt-2 font-display text-3xl tabular-nums leading-none">
@@ -539,9 +539,9 @@ export function DashboardPanel({
 function Kpi({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <Card className="p-3.5">
-      <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
       <p className="mt-2 font-display text-2xl tabular-nums leading-none tracking-tight">{value}</p>
-      <p className="mt-1.5 text-xs text-faint">{hint}</p>
+      <p className="mt-1.5 text-sm text-faint">{hint}</p>
     </Card>
   );
 }
@@ -558,7 +558,7 @@ function ChartBlock({
   return (
     <Card className="p-4">
       <p className="font-medium text-foreground">{title}</p>
-      <p className="mb-3 text-xs text-faint">{subtitle}</p>
+      <p className="mb-3 text-base font-normal text-faint">{subtitle}</p>
       <div className="min-w-0">{children}</div>
     </Card>
   );
@@ -595,13 +595,13 @@ function CompareRow({
   return (
     <Card className="p-4">
       <p className="font-medium">{title}</p>
-      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+      <div className="mt-3 grid grid-cols-2 gap-3 text-base">
         <div>
-          <p className="text-2xs uppercase tracking-widest text-faint">{leftLabel}</p>
+          <p className="text-xs uppercase tracking-widest text-faint">{leftLabel}</p>
           <p className="mt-1 text-foreground">{left}</p>
         </div>
         <div>
-          <p className="text-2xs uppercase tracking-widest text-faint">{rightLabel}</p>
+          <p className="text-xs uppercase tracking-widest text-faint">{rightLabel}</p>
           <p className="mt-1 text-foreground">{right}</p>
         </div>
       </div>

@@ -39,7 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
  * gesture, so there is nothing to fail to discover. Positioned with
  * env(safe-area-inset-top) so it clears the status bar / notch on an
  * installed PWA (this app opts into edge-to-edge via viewport-fit=cover).
- * Theme toggle sits to the left of the exit button, which stays the
+ * Logo, then theme toggle, then the exit button, which stays the
  * outermost/rightmost control.
  */
 function TopControls() {
@@ -48,6 +48,11 @@ function TopControls() {
       className="fixed right-3 z-50 flex items-center gap-2"
       style={{ top: "max(0.75rem, calc(env(safe-area-inset-top) + 0.375rem))" }}
     >
+      <img
+        src="/artha-logo.png"
+        alt="ARTHA"
+        className="h-9 w-auto drop-shadow-[0_4px_10px_rgba(0,0,0,0.45)]"
+      />
       <ThemeToggleButton />
       <ExitAppButton />
     </div>

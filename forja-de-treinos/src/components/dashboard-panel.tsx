@@ -134,22 +134,22 @@ export function DashboardPanel({
 
       {!periodActive && (
         <Card className="p-4">
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          <p className="text-[36px] font-bold uppercase tracking-widest text-muted-foreground">
             Esta semana
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <p className="font-display text-3xl tabular-nums leading-none">{stats.week.count}</p>
-              <p className="mt-1 text-sm text-muted-foreground">sessões</p>
+              <p className="mt-1 text-[42px] text-muted-foreground">sessões</p>
             </div>
             <div>
               <p className="font-display text-3xl tabular-nums leading-none">
                 {formatDuration(stats.week.minutes)}
               </p>
-              <p className="mt-1 text-sm text-muted-foreground">em treino</p>
+              <p className="mt-1 text-[42px] text-muted-foreground">em treino</p>
             </div>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">
+          <p className="mt-3 text-[42px] text-muted-foreground">
             Volume semanal <Delta value={weekDelta} /> em relação à semana passada
             {stats.lastWeek.count
               ? ` (${stats.lastWeek.count} treinos, ${formatDuration(stats.lastWeek.minutes)})`
@@ -326,7 +326,7 @@ export function DashboardPanel({
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <ul className="space-y-2 text-sm">
+          <ul className="space-y-2 text-[42px]">
             {intensityData.map((row) => (
               <li key={row.name} className="flex items-center gap-2">
                 <span className="size-2 rounded-full" style={{ background: row.color }} />
@@ -375,7 +375,7 @@ export function DashboardPanel({
             <Bar dataKey="minutes" fill={PAPER} radius={[0, 8, 8, 0]} />
           </BarChart>
         </ResponsiveContainer>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+        <div className="mt-3 grid grid-cols-2 gap-2 text-[42px]">
           {focusData.map((row) => (
             <p key={row.name} className="text-muted-foreground">
               <span className="text-foreground tabular-nums">{row.count}</span>{" "}
@@ -429,7 +429,7 @@ export function DashboardPanel({
               <Bar dataKey="sessions" fill={WARN} radius={[0, 8, 8, 0]} />
             </BarChart>
           </ResponsiveContainer>
-          <ul className="mt-3 space-y-1.5 text-base">
+          <ul className="mt-3 space-y-1.5 text-[48px]">
             {stats.byMuscleGroup.map((row) => (
               <li key={row.name} className="flex items-center justify-between">
                 <span className="text-muted-foreground">{row.name}</span>
@@ -445,7 +445,7 @@ export function DashboardPanel({
       {!periodActive && (
         <section>
           <h2 className="font-display text-xl tracking-tight">Comparativos</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Semana, mês e atletas lado a lado.</p>
+          <p className="mt-1 text-[42px] text-muted-foreground">Semana, mês e atletas lado a lado.</p>
           <div className="mt-3 space-y-2">
             <CompareRow
               title="Semana atual vs anterior"
@@ -482,17 +482,17 @@ export function DashboardPanel({
           <div className="mt-3 grid grid-cols-2 gap-2">
             {stats.athletes.map((athlete) => (
               <Card key={athlete.name} className="p-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                <p className="text-[36px] font-bold uppercase tracking-widest text-muted-foreground">
                   {athlete.name}
                 </p>
                 <p className="mt-2 font-display text-2xl tabular-nums leading-none">
                   {athlete.sessions}
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground">sessões</p>
-                <p className="mt-3 text-sm text-muted-foreground">
+                <p className="mt-1 text-[42px] text-muted-foreground">sessões</p>
+                <p className="mt-3 text-[42px] text-muted-foreground">
                   Core <span className="tabular-nums text-foreground">{athlete.coreReps}</span> reps
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-[42px] text-muted-foreground">
                   <span className="tabular-nums text-foreground">
                     {formatDuration(athlete.minutes)}
                   </span>{" "}
@@ -506,26 +506,26 @@ export function DashboardPanel({
 
       <section className="grid grid-cols-2 gap-2">
         <Card className="p-4">
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          <p className="text-[36px] font-bold uppercase tracking-widest text-muted-foreground">
             Core
           </p>
           <p className="mt-2 font-display text-3xl tabular-nums leading-none">
             {stats.all.coreReps}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-[42px] text-muted-foreground">
             {periodActive
               ? `reps ${periodLabel}`
               : `reps no total — ${stats.week.coreReps} nesta semana`}
           </p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          <p className="text-[36px] font-bold uppercase tracking-widest text-muted-foreground">
             Cardio
           </p>
           <p className="mt-2 font-display text-3xl tabular-nums leading-none">
             {formatDuration(stats.all.cardio)}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-[42px] text-muted-foreground">
             {periodActive
               ? `bike e demais, ${periodLabel}`
               : `bike e demais — ${formatDuration(stats.week.cardio)} nesta semana`}
@@ -539,9 +539,9 @@ export function DashboardPanel({
 function Kpi({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <Card className="p-3.5">
-      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="text-[36px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
       <p className="mt-2 font-display text-2xl tabular-nums leading-none tracking-tight">{value}</p>
-      <p className="mt-1.5 text-sm text-faint">{hint}</p>
+      <p className="mt-1.5 text-[42px] text-faint">{hint}</p>
     </Card>
   );
 }
@@ -558,7 +558,7 @@ function ChartBlock({
   return (
     <Card className="p-4">
       <p className="font-medium text-foreground">{title}</p>
-      <p className="mb-3 text-base font-normal text-faint">{subtitle}</p>
+      <p className="mb-3 text-[48px] font-normal text-faint">{subtitle}</p>
       <div className="min-w-0">{children}</div>
     </Card>
   );
@@ -595,17 +595,17 @@ function CompareRow({
   return (
     <Card className="p-4">
       <p className="font-medium">{title}</p>
-      <div className="mt-3 grid grid-cols-2 gap-3 text-base">
+      <div className="mt-3 grid grid-cols-2 gap-3 text-[48px]">
         <div>
-          <p className="text-xs uppercase tracking-widest text-faint">{leftLabel}</p>
+          <p className="text-[36px] uppercase tracking-widest text-faint">{leftLabel}</p>
           <p className="mt-1 text-foreground">{left}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-widest text-faint">{rightLabel}</p>
+          <p className="text-[36px] uppercase tracking-widest text-faint">{rightLabel}</p>
           <p className="mt-1 text-foreground">{right}</p>
         </div>
       </div>
-      <p className="mt-3 text-sm text-muted-foreground">
+      <p className="mt-3 text-[42px] text-muted-foreground">
         <Delta value={delta} />
         {deltaSuffix}
       </p>

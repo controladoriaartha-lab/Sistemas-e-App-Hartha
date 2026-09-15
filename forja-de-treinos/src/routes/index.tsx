@@ -58,7 +58,7 @@ function Home() {
   return (
     <main className="relative px-5 pb-28 pt-8">
       <header className="mb-6">
-        <p className="text-2xs font-medium uppercase tracking-widest text-accent">Diário</p>
+        <p className="text-[24px] font-medium uppercase tracking-widest text-accent">Diário</p>
         <h1 className="mt-1 font-display text-4xl font-medium tracking-tight">Forja de Treinos</h1>
         <p className="mt-2 max-w-xs text-2xl font-normal text-muted-foreground">Treinos de Cada Dia</p>
       </header>
@@ -78,7 +78,7 @@ function Home() {
                 type="button"
                 onClick={() => setFocus(opt.value)}
                 className={cn(
-                  "min-h-10 rounded-md text-sm font-medium transition-colors duration-150",
+                  "min-h-10 rounded-md text-[24px] font-medium transition-colors duration-150",
                   focus === opt.value ? "bg-paper text-ink" : "text-muted-foreground",
                 )}
               >

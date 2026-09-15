@@ -110,9 +110,9 @@ function DashboardPage() {
   return (
     <main className="relative px-5 pb-28 pt-8">
       <header className="mb-6">
-        <p className="text-[22px] font-medium uppercase tracking-widest text-accent">Painel</p>
+        <p className="text-[24px] font-medium uppercase tracking-widest text-accent">Painel</p>
         <h1 className="mt-1 font-display text-4xl font-medium tracking-tight">Números</h1>
-        <p className="mt-2 max-w-sm text-[28px] text-muted-foreground">
+        <p className="mt-2 max-w-sm text-[24px] text-muted-foreground">
           KPIs, volume, intensidade e comparativos entre semanas, meses e atletas.
         </p>
       </header>

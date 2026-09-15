@@ -179,7 +179,7 @@ export function DashboardPanel({
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
-              active={volumeTip.sticky ? true : undefined}
+              active={volumeTip.sticky ? true : false}
               payload={volumeTip.sticky ? (volumeTip.sticky.payload as never) : undefined}
               label={volumeTip.sticky ? volumeTip.sticky.label : undefined}
               coordinate={volumeTip.sticky ? volumeTip.sticky.coordinate : undefined}
@@ -210,7 +210,7 @@ export function DashboardPanel({
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
-              active={monthsTip.sticky ? true : undefined}
+              active={monthsTip.sticky ? true : false}
               payload={monthsTip.sticky ? (monthsTip.sticky.payload as never) : undefined}
               label={monthsTip.sticky ? monthsTip.sticky.label : undefined}
               coordinate={monthsTip.sticky ? monthsTip.sticky.coordinate : undefined}
@@ -240,7 +240,7 @@ export function DashboardPanel({
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
-              active={durationTip.sticky ? true : undefined}
+              active={durationTip.sticky ? true : false}
               payload={durationTip.sticky ? (durationTip.sticky.payload as never) : undefined}
               label={durationTip.sticky ? durationTip.sticky.label : undefined}
               coordinate={durationTip.sticky ? durationTip.sticky.coordinate : undefined}
@@ -252,6 +252,7 @@ export function DashboardPanel({
               stroke={ACCENT}
               strokeWidth={2}
               dot={{ r: 3, fill: ACCENT, stroke: INK, strokeWidth: 1 }}
+              activeDot={false}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -277,7 +278,7 @@ export function DashboardPanel({
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
-              active={coreEvolutionTip.sticky ? true : undefined}
+              active={coreEvolutionTip.sticky ? true : false}
               payload={coreEvolutionTip.sticky ? (coreEvolutionTip.sticky.payload as never) : undefined}
               label={coreEvolutionTip.sticky ? coreEvolutionTip.sticky.label : undefined}
               coordinate={coreEvolutionTip.sticky ? coreEvolutionTip.sticky.coordinate : undefined}
@@ -313,7 +314,7 @@ export function DashboardPanel({
                 </Pie>
                 <Tooltip
                   {...tooltipProps}
-                  active={intensityTip.sticky ? true : undefined}
+                  active={intensityTip.sticky ? true : false}
                   payload={intensityTip.sticky ? (intensityTip.sticky.payload as never) : undefined}
                   label={intensityTip.sticky ? intensityTip.sticky.label : undefined}
                   coordinate={intensityTip.sticky ? intensityTip.sticky.coordinate : undefined}
@@ -365,7 +366,7 @@ export function DashboardPanel({
             />
             <Tooltip
               {...tooltipProps}
-              active={focusTip.sticky ? true : undefined}
+              active={focusTip.sticky ? true : false}
               payload={focusTip.sticky ? (focusTip.sticky.payload as never) : undefined}
               label={focusTip.sticky ? focusTip.sticky.label : undefined}
               coordinate={focusTip.sticky ? focusTip.sticky.coordinate : undefined}
@@ -416,7 +417,7 @@ export function DashboardPanel({
               />
               <Tooltip
                 {...tooltipProps}
-                active={muscleGroupTip.sticky ? true : undefined}
+                active={muscleGroupTip.sticky ? true : false}
                 payload={muscleGroupTip.sticky ? (muscleGroupTip.sticky.payload as never) : undefined}
                 label={muscleGroupTip.sticky ? muscleGroupTip.sticky.label : undefined}
                 coordinate={muscleGroupTip.sticky ? muscleGroupTip.sticky.coordinate : undefined}

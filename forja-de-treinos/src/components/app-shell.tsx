@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ClipboardList, LayoutDashboard, LogOut, Plus } from "lucide-react";
+import { ClipboardList, LayoutDashboard, LogOut, Moon, Plus, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
+import { toggleTheme, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { setPersistFailureHandler } from "@/store/workouts";
 
@@ -25,7 +26,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(80%_80%_at_50%_-20%,rgba(196,92,38,0.16),transparent_70%)]"
       />
-      <ExitAppButton />
+      <TopControls />
       {children}
       {!hideNav && <BottomNav pathname={pathname} />}
       <Toaster />
@@ -34,11 +35,43 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 /**
- * Always-on floating button, on every screen — not hidden behind a tap
+ * Always-on floating controls, on every screen — not hidden behind a tap
  * gesture, so there is nothing to fail to discover. Positioned with
  * env(safe-area-inset-top) so it clears the status bar / notch on an
  * installed PWA (this app opts into edge-to-edge via viewport-fit=cover).
- *
+ * Theme toggle sits to the left of the exit button, which stays the
+ * outermost/rightmost control.
+ */
+function TopControls() {
+  return (
+    <div
+      className="fixed right-3 z-50 flex items-center gap-2"
+      style={{ top: "max(0.75rem, calc(env(safe-area-inset-top) + 0.375rem))" }}
+    >
+      <ThemeToggleButton />
+      <ExitAppButton />
+    </div>
+  );
+}
+
+function ThemeToggleButton() {
+  const theme = useTheme();
+  const isDark = theme === "dark";
+
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={isDark ? "Mudar para tema claro" : "Mudar para tema escuro"}
+      title={isDark ? "Tema claro" : "Tema escuro"}
+      className="flex size-9 items-center justify-center rounded-full bg-card text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.55)] ring-1 ring-border"
+    >
+      {isDark ? <Moon className="size-4" /> : <Sun className="size-4" />}
+    </button>
+  );
+}
+
+/**
  * No browser lets a script close a window/tab it did not open itself — an
  * installed PWA or a tab the user opened ignores window.close() outright, on
  * every phone, in every browser. That's not a bug to work around here; it's
@@ -56,8 +89,7 @@ function ExitAppButton() {
         onClick={() => setOpen(true)}
         aria-label="Sair do app"
         title="Sair do app"
-        style={{ top: "max(0.75rem, calc(env(safe-area-inset-top) + 0.375rem))" }}
-        className="fixed right-3 z-50 flex size-9 items-center justify-center rounded-full bg-card text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.55)] ring-1 ring-border"
+        className="flex size-9 items-center justify-center rounded-full bg-card text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.55)] ring-1 ring-border"
       >
         <LogOut className="size-4" />
       </button>
@@ -106,7 +138,7 @@ function BottomNav({ pathname }: { pathname: string }) {
         <NavLink to="/" active={onHome} label="Treinos" icon={<ClipboardList />} />
         <Link
           to="/novo"
-          className="mx-auto flex size-12 items-center justify-center rounded-full bg-paper text-ink shadow-[0_8px_24px_rgba(12,11,10,0.45)] transition-transform duration-150 active:scale-95"
+          className="mx-auto flex size-12 items-center justify-center rounded-full bg-foreground text-background shadow-[0_8px_24px_rgba(12,11,10,0.45)] transition-transform duration-150 active:scale-95"
           aria-label="Novo treino"
         >
           <Plus className="size-6" strokeWidth={2.2} />

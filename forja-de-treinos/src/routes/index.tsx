@@ -79,7 +79,7 @@ function Home() {
                 onClick={() => setFocus(opt.value)}
                 className={cn(
                   "min-h-10 rounded-md text-[24px] font-medium transition-colors duration-150",
-                  focus === opt.value ? "bg-paper text-ink" : "text-muted-foreground",
+                  focus === opt.value ? "bg-foreground text-background" : "text-muted-foreground",
                 )}
               >
                 {opt.label}
@@ -113,7 +113,7 @@ function Home() {
           <button
             type="button"
             onClick={clearFilters}
-            className="mt-5 inline-flex min-h-11 items-center rounded-md bg-paper px-4 text-sm font-medium text-ink"
+            className="mt-5 inline-flex min-h-11 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background"
           >
             Limpar filtros
           </button>
@@ -158,7 +158,7 @@ function EmptyState() {
       <p className="mt-2 text-sm text-muted-foreground">Registre o primeiro dia na Forja de Treinos.</p>
       <Link
         to="/novo"
-        className="mt-5 inline-flex min-h-11 items-center rounded-md bg-paper px-4 text-sm font-medium text-ink"
+        className="mt-5 inline-flex min-h-11 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background"
       >
         Novo treino
       </Link>

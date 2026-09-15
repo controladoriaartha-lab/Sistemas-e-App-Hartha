@@ -119,7 +119,7 @@ export function WorkoutForm({
                 onClick={() => toggleAthlete(name)}
                 className={cn(
                   "min-h-11 rounded-full px-4 text-sm font-medium transition-colors duration-150",
-                  on ? "bg-paper text-ink" : "bg-muted text-muted-foreground",
+                  on ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
                 )}
               >
                 {name}
@@ -383,7 +383,7 @@ function Segmented<T extends string>({
             onClick={() => onChange(opt.value)}
             className={cn(
               "min-h-10 rounded-md text-sm font-medium transition-colors duration-150",
-              on ? "bg-paper text-ink" : "text-muted-foreground",
+              on ? "bg-foreground text-background" : "text-muted-foreground",
             )}
           >
             {opt.label}

@@ -16,31 +16,42 @@ import {
 import { Card } from "@/components/ui/card";
 import { computeStats, deltaPct } from "@/lib/stats";
 import { formatDuration, formatHours } from "@/lib/format";
+import { useTheme } from "@/lib/theme";
 import type { Workout } from "@/lib/types";
 import { INTENSITY_LABEL } from "@/lib/types";
 
-const INK = "#0c0b0a";
-const PAPER = "#f4efe8";
-const MUTED = "#9a9086";
-const GRID = "rgba(244,239,232,0.08)";
-const ACCENT = "#c45c26";
-const WARN = "#c4a574";
-const OK = "#7d9478";
-
-// Shared Recharts tooltip styling. `contentStyle` alone does not color the
-// label / item text (Recharts sets those per-entry), so on the dark theme the
-// numbers rendered near-black and unreadable — force them here.
-const tooltipProps = {
-  contentStyle: {
-    background: "#211c18",
-    border: "1px solid rgba(244,239,232,0.16)",
-    borderRadius: 12,
-    boxShadow: "0 10px 30px rgba(0,0,0,0.55)",
-    padding: "8px 12px",
+// Recharts needs literal colors (SVG fill/stroke), not CSS variables, so
+// chart colors can't just ride the theme's CSS custom properties like the
+// rest of the app does. Same "paper/ink" duality as everywhere else: a
+// paper-colored bar pops on the dark background, an ink-colored one pops on
+// the light one.
+const CHART_COLORS = {
+  dark: {
+    ink: "#0c0b0a",
+    barPrimary: "#f4efe8",
+    muted: "#9a9086",
+    grid: "rgba(244,239,232,0.08)",
+    accent: "#c45c26",
+    warn: "#c4a574",
+    ok: "#7d9478",
+    tooltipBg: "#211c18",
+    tooltipBorder: "rgba(244,239,232,0.16)",
+    tooltipItem: "#f4efe8",
+    tooltipLabel: "#9a9086",
   },
-  itemStyle: { color: PAPER, fontSize: 12, padding: 0 },
-  labelStyle: { color: MUTED, fontSize: 11, marginBottom: 4 },
-  wrapperStyle: { outline: "none", zIndex: 20 },
+  light: {
+    ink: "#0c0b0a",
+    barPrimary: "#0c0b0a",
+    muted: "#6b645c",
+    grid: "rgba(12,11,10,0.1)",
+    accent: "#b8511e",
+    warn: "#93672c",
+    ok: "#4f6a49",
+    tooltipBg: "#ffffff",
+    tooltipBorder: "rgba(12,11,10,0.12)",
+    tooltipItem: "#241f1a",
+    tooltipLabel: "#6b645c",
+  },
 } as const;
 
 type StickyTooltip = {
@@ -91,6 +102,24 @@ export function DashboardPanel({
   /** "nesta semana" / "neste mês" / … — captions Core and Cardio to the filter. */
   periodLabel?: string;
 }) {
+  const theme = useTheme();
+  const c = CHART_COLORS[theme];
+  // `contentStyle` alone does not color the label / item text (Recharts sets
+  // those per-entry), so on a dark background the numbers rendered near-black
+  // and unreadable — force them here, per theme.
+  const tooltipProps = {
+    contentStyle: {
+      background: c.tooltipBg,
+      border: `1px solid ${c.tooltipBorder}`,
+      borderRadius: 12,
+      boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+      padding: "8px 12px",
+    },
+    itemStyle: { color: c.tooltipItem, fontSize: 12, padding: 0 },
+    labelStyle: { color: c.tooltipLabel, fontSize: 11, marginBottom: 4 },
+    wrapperStyle: { outline: "none", zIndex: 20 },
+  } as const;
+
   const stats = computeStats(workouts, new Date(), extraAthletes);
   const weekDelta = deltaPct(stats.week.minutes, stats.lastWeek.minutes);
   const monthDelta = deltaPct(stats.month.count, stats.lastMonth.count);
@@ -98,7 +127,7 @@ export function DashboardPanel({
   const intensityData = (["forte", "medio", "leve"] as const).map((key) => ({
     name: INTENSITY_LABEL[key],
     value: stats.byIntensity[key],
-    color: key === "forte" ? ACCENT : key === "medio" ? WARN : OK,
+    color: key === "forte" ? c.accent : key === "medio" ? c.warn : c.ok,
   }));
 
   const focusData = [
@@ -174,8 +203,8 @@ export function DashboardPanel({
               }
             }}
           >
-            <CartesianGrid vertical={false} stroke={GRID} />
-            <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <CartesianGrid vertical={false} stroke={c.grid} />
+            <XAxis dataKey="label" tick={{ fill: c.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
@@ -185,7 +214,7 @@ export function DashboardPanel({
               coordinate={volumeTip.sticky ? volumeTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} min`, "Volume"]}
             />
-            <Bar dataKey="minutes" fill={PAPER} radius={[6, 6, 0, 0]} />
+            <Bar dataKey="minutes" fill={c.barPrimary} radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartBlock>
@@ -205,8 +234,8 @@ export function DashboardPanel({
               }
             }}
           >
-            <CartesianGrid vertical={false} stroke={GRID} />
-            <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <CartesianGrid vertical={false} stroke={c.grid} />
+            <XAxis dataKey="label" tick={{ fill: c.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
@@ -216,7 +245,7 @@ export function DashboardPanel({
               coordinate={monthsTip.sticky ? monthsTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} min`, "Volume"]}
             />
-            <Bar dataKey="minutes" fill={ACCENT} radius={[6, 6, 0, 0]} />
+            <Bar dataKey="minutes" fill={c.accent} radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartBlock>
@@ -235,8 +264,8 @@ export function DashboardPanel({
               }
             }}
           >
-            <CartesianGrid vertical={false} stroke={GRID} />
-            <XAxis dataKey="date" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <CartesianGrid vertical={false} stroke={c.grid} />
+            <XAxis dataKey="date" tick={{ fill: c.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
@@ -249,9 +278,9 @@ export function DashboardPanel({
             <Line
               type="monotone"
               dataKey="minutes"
-              stroke={ACCENT}
+              stroke={c.accent}
               strokeWidth={2}
-              dot={{ r: 3, fill: ACCENT, stroke: INK, strokeWidth: 1 }}
+              dot={{ r: 3, fill: c.accent, stroke: c.ink, strokeWidth: 1 }}
               activeDot={false}
             />
           </LineChart>
@@ -273,8 +302,8 @@ export function DashboardPanel({
               }
             }}
           >
-            <CartesianGrid vertical={false} stroke={GRID} />
-            <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <CartesianGrid vertical={false} stroke={c.grid} />
+            <XAxis dataKey="label" tick={{ fill: c.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
@@ -284,7 +313,7 @@ export function DashboardPanel({
               coordinate={coreEvolutionTip.sticky ? coreEvolutionTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} reps`, "Core"]}
             />
-            <Bar dataKey="coreReps" fill={OK} radius={[6, 6, 0, 0]} />
+            <Bar dataKey="coreReps" fill={c.ok} radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartBlock>
@@ -354,12 +383,12 @@ export function DashboardPanel({
               }
             }}
           >
-            <CartesianGrid horizontal={false} stroke={GRID} />
+            <CartesianGrid horizontal={false} stroke={c.grid} />
             <XAxis type="number" hide />
             <YAxis
               type="category"
               dataKey="name"
-              tick={{ fill: MUTED, fontSize: 12 }}
+              tick={{ fill: c.muted, fontSize: 12 }}
               axisLine={false}
               tickLine={false}
               width={64}
@@ -372,7 +401,7 @@ export function DashboardPanel({
               coordinate={focusTip.sticky ? focusTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} min`, "Volume"]}
             />
-            <Bar dataKey="minutes" fill={PAPER} radius={[0, 8, 8, 0]} />
+            <Bar dataKey="minutes" fill={c.barPrimary} radius={[0, 8, 8, 0]} />
           </BarChart>
         </ResponsiveContainer>
         <div className="mt-3 grid grid-cols-2 gap-2 text-[21px]">
@@ -405,12 +434,12 @@ export function DashboardPanel({
                 }
               }}
             >
-              <CartesianGrid horizontal={false} stroke={GRID} />
+              <CartesianGrid horizontal={false} stroke={c.grid} />
               <XAxis type="number" hide allowDecimals={false} />
               <YAxis
                 type="category"
                 dataKey="name"
-                tick={{ fill: MUTED, fontSize: 11 }}
+                tick={{ fill: c.muted, fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 width={92}
@@ -426,7 +455,7 @@ export function DashboardPanel({
                   "Grupo",
                 ]}
               />
-              <Bar dataKey="sessions" fill={WARN} radius={[0, 8, 8, 0]} />
+              <Bar dataKey="sessions" fill={c.warn} radius={[0, 8, 8, 0]} />
             </BarChart>
           </ResponsiveContainer>
           <ul className="mt-3 space-y-1.5 text-[24px]">

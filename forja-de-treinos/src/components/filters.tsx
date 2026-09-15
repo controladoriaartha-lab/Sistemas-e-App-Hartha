@@ -34,7 +34,7 @@ export function PillRow<T extends string>({
             onClick={() => onChange(opt.value)}
             className={cn(
               "min-h-10 shrink-0 rounded-full px-4 text-[24px] font-medium transition-colors duration-150",
-              on ? "bg-paper text-ink" : "bg-muted text-muted-foreground",
+              on ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
             )}
           >
             {opt.label}
@@ -87,7 +87,7 @@ export function MonthPicker({
                 }}
                 className={cn(
                   "block w-full rounded-lg px-3 py-2 text-left text-[24px]",
-                  m.offset === offset ? "bg-paper text-ink" : "text-foreground",
+                  m.offset === offset ? "bg-foreground text-background" : "text-foreground",
                 )}
               >
                 {m.label}

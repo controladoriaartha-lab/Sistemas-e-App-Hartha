@@ -138,6 +138,33 @@ useWorkoutStore.persist.onFinishHydration(() => {
   useWorkoutStore.getState().pruneUnusedAthletes();
 });
 
+if (typeof window !== "undefined") {
+  // Two instances of the app can easily be alive at once on a phone (the
+  // installed icon left running in the background, plus a browser tab, or
+  // Android just not killing a backgrounded tab) — each holding its own
+  // in-memory copy loaded at open time. Without this, whichever instance
+  // next writes ANYTHING (even something unrelated, like editing an old
+  // workout) persists its own stale snapshot and silently erases whatever
+  // a newer instance had already saved — the most recent entries vanish
+  // even though nothing was ever "cleared". The browser's `storage` event
+  // fires in every OTHER same-origin tab/instance whenever localStorage
+  // changes, so re-pull the persisted state here to keep every open
+  // instance current instead of letting a stale one clobber a newer write.
+  window.addEventListener("storage", (event) => {
+    if (event.key === STORAGE_KEY) {
+      void useWorkoutStore.persist.rehydrate();
+    }
+  });
+
+  // Ask the browser to mark this origin's storage as "persistent" — best
+  // effort, no user prompt on Chrome/Android when the site is installed or
+  // has enough engagement — which makes Android far less likely to evict it
+  // automatically under storage pressure.
+  if (navigator.storage?.persist) {
+    void navigator.storage.persist();
+  }
+}
+
 export function createBlankWorkout(): Workout {
   return {
     id: newId(),

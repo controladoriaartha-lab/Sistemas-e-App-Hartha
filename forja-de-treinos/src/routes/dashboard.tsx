@@ -111,7 +111,8 @@ function DashboardPage() {
 
   async function handleLogout() {
     await syncNow();
-    if (!window.confirm("Sair da conta neste aparelho? Seus treinos continuam guardados na nuvem.")) return;
+    if (!window.confirm("Sair da conta neste aparelho? Seus treinos continuam guardados na nuvem."))
+      return;
     await supabase.auth.signOut();
     resetSyncForLogout();
   }
@@ -126,9 +127,9 @@ function DashboardPage() {
         </p>
         {workouts.length > 0 && (
           <Button asChild variant="secondary" className="mt-4 h-12 text-base">
-            <Link to="/relatorio">
+            <Link to="/relatorio" search={{ atleta: singleAthlete ? athlete : undefined }}>
               <Printer />
-              Imprimir PDF de todo o treino
+              {singleAthlete ? `Imprimir PDF de ${athlete}` : "Imprimir PDF de todo o treino"}
             </Link>
           </Button>
         )}
@@ -195,8 +196,8 @@ function DashboardPage() {
           <div className="mt-3 flex items-start gap-2 rounded-lg bg-warn/10 p-3">
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" />
             <p className="text-sm text-warn">
-              Seu diário fica guardado na nuvem, ligado à sua conta. Ainda assim, exporte de vez
-              em quando e guarde o arquivo em local seguro como cópia extra.
+              Seu diário fica guardado na nuvem, ligado à sua conta. Ainda assim, exporte de vez em
+              quando e guarde o arquivo em local seguro como cópia extra.
             </p>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -210,9 +211,9 @@ function DashboardPage() {
             </Button>
           </div>
           <Button asChild variant="default" className="mt-2 w-full">
-            <Link to="/relatorio">
+            <Link to="/relatorio" search={{ atleta: singleAthlete ? athlete : undefined }}>
               <Printer />
-              Imprimir PDF (relatório completo)
+              {singleAthlete ? `Imprimir PDF de ${athlete}` : "Imprimir PDF (relatório completo)"}
             </Link>
           </Button>
           <input

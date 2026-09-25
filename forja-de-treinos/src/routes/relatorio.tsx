@@ -23,7 +23,12 @@ import { deltaPct } from "@/lib/stats";
 import { INTENSITY_LABEL } from "@/lib/types";
 import { sortedWorkouts, useWorkoutStore } from "@/store/workouts";
 
-export const Route = createFileRoute("/relatorio")({ component: ReportPage });
+export const Route = createFileRoute("/relatorio")({
+  component: ReportPage,
+  validateSearch: (search: Record<string, unknown>): { atleta?: string } => ({
+    atleta: typeof search.atleta === "string" && search.atleta ? search.atleta : undefined,
+  }),
+});
 
 // A4 retrato: 794px de folha, 45px de margem => 704px de area util (= 186mm
 // na impressao com margem de 12mm). Os graficos usam essa largura fixa, entao
@@ -62,7 +67,9 @@ function Card({
     <section
       className={`report-avoid rounded-lg border border-[color:var(--rp-line)] bg-white p-3.5 ${className}`}
     >
-      <h3 className="text-[13px] font-semibold leading-tight text-[color:var(--rp-ink)]">{title}</h3>
+      <h3 className="text-[13px] font-semibold leading-tight text-[color:var(--rp-ink)]">
+        {title}
+      </h3>
       {subtitle && <p className="mb-2 text-[10.5px] text-[color:var(--rp-muted)]">{subtitle}</p>}
       {children}
     </section>
@@ -134,7 +141,13 @@ function Heatmap({ data }: { data: ReturnType<typeof buildReport> }) {
         </text>
       ))}
       {data.heatMonths.map((m) => (
-        <text key={`${m.col}-${m.label}`} x={left + m.col * (cell + gap)} y={10} fontSize="9" fill={C.muted}>
+        <text
+          key={`${m.col}-${m.label}`}
+          x={left + m.col * (cell + gap)}
+          y={10}
+          fontSize="9"
+          fill={C.muted}
+        >
           {m.label}
         </text>
       ))}
@@ -163,8 +176,20 @@ function Delta({ value }: { value: number }) {
   );
 }
 
-function Sheet() {
-  const workouts = useWorkoutStore((s) => s.workouts);
+function Sheet({ athlete }: { athlete?: string }) {
+  const allWorkouts = useWorkoutStore((s) => s.workouts);
+  // Com um atleta escolhido, o relatorio so leva os treinos dele e, nos
+  // treinos em dupla, so as linhas de core dele (ou sem dono definido).
+  const workouts = useMemo(() => {
+    if (!athlete) return allWorkouts;
+    return allWorkouts
+      .filter((w) => w.athletes.includes(athlete))
+      .map((w) => ({
+        ...w,
+        athletes: [athlete],
+        core: w.core.filter((r) => !r.athlete || r.athlete === athlete),
+      }));
+  }, [allWorkouts, athlete]);
   const data = useMemo(() => buildReport(workouts), [workouts]);
   const { stats } = data;
   const list = useMemo(() => sortedWorkouts(workouts), [workouts]);
@@ -209,13 +234,18 @@ function Sheet() {
         <img src="/artha-logo.png" alt="ARTHA" className="h-[74px] w-auto" />
         <div className="min-w-0 flex-1">
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.22em] text-[color:var(--rp-accent)]">
-            Relatório do diário de treino
+            {athlete ? `Relatório individual · ${athlete}` : "Relatório do diário de treino"}
           </p>
           <h1 className="font-display text-[30px] font-medium leading-tight tracking-tight">
             Forja de Treinos
           </h1>
           <p className="text-[12px] text-[color:var(--rp-muted)]">
-            {periodText} · {stats.all.count} treinos · {stats.athletes.map((a) => a.name).join(" e ")}
+            {periodText} · {stats.all.count} treinos ·{" "}
+            {athlete ??
+              stats.athletes
+                .filter((a) => a.sessions > 0)
+                .map((a) => a.name)
+                .join(" e ")}
           </p>
         </div>
         <p className="self-start text-right text-[10px] leading-snug text-[color:var(--rp-faint)]">
@@ -229,17 +259,33 @@ function Sheet() {
       <SectionTitle n="1">Indicadores gerais</SectionTitle>
       <div className="grid grid-cols-4 gap-2.5">
         <Kpi label="Treinos" value={String(stats.all.count)} hint="no diário todo" />
-        <Kpi label="Horas" value={formatHours(stats.all.minutes)} hint={formatDuration(stats.all.minutes)} />
+        <Kpi
+          label="Horas"
+          value={formatHours(stats.all.minutes)}
+          hint={formatDuration(stats.all.minutes)}
+        />
         <Kpi label="Média" value={formatDuration(stats.avgDuration)} hint="por sessão" />
-        <Kpi label="Frequência" value={stats.sessionsPerWeek.toFixed(1).replace(".", ",")} hint="treinos / semana" />
-        <Kpi label="Constância" value={`${data.consistency}%`} hint={`${data.activeWeeks} semanas ativas`} />
+        <Kpi
+          label="Frequência"
+          value={stats.sessionsPerWeek.toFixed(1).replace(".", ",")}
+          hint="treinos / semana"
+        />
+        <Kpi
+          label="Constância"
+          value={`${data.consistency}%`}
+          hint={`${data.activeWeeks} semanas ativas`}
+        />
         <Kpi label="Sequência atual" value={`${stats.streak}`} hint="dias seguidos" />
         <Kpi label="Maior sequência" value={`${data.longestStreak}`} hint="dias seguidos" />
         <Kpi label="Semanas fortes" value={`${data.strongWeeks}`} hint="3 ou mais treinos" />
         <Kpi label="Aparelhos" value={`${data.totalMachines}`} hint="no total" />
         <Kpi label="Core" value={`${stats.all.coreReps}`} hint="repetições" />
         <Kpi label="Cardio" value={formatDuration(stats.all.cardio)} hint="no total" />
-        <Kpi label="Sessão mais longa" value={formatDuration(data.longest?.durationMin ?? 0)} hint={`menor: ${formatDuration(data.minDuration)}`} />
+        <Kpi
+          label="Sessão mais longa"
+          value={formatDuration(data.longest?.durationMin ?? 0)}
+          hint={`menor: ${formatDuration(data.minDuration)}`}
+        />
       </div>
 
       <Card title="Leitura rápida" subtitle="Resumo automático dos seus números" className="mt-3">
@@ -258,29 +304,55 @@ function Sheet() {
       <SectionTitle n="2">Evolução no tempo</SectionTitle>
       <div className="space-y-3">
         <Card title="Volume semanal" subtitle="Minutos treinados por semana (últimas 20)">
-          <BarChart width={W - 28} height={170} data={data.weeksShown} margin={{ top: 16, right: 4, left: 4, bottom: 0 }}>
+          <BarChart
+            width={W - 28}
+            height={170}
+            data={data.weeksShown}
+            margin={{ top: 16, right: 4, left: 4, bottom: 0 }}
+          >
             <CartesianGrid vertical={false} stroke={C.grid} />
             <XAxis dataKey="label" tick={TICK} axisLine={false} tickLine={false} interval={0} />
             <YAxis hide />
             <Bar dataKey="minutes" fill={C.ink} radius={[3, 3, 0, 0]} isAnimationActive={false}>
-              <LabelList dataKey="minutes" position="top" fontSize={8.5} fill={C.muted} formatter={(v: number) => (v ? v : "")} />
+              <LabelList
+                dataKey="minutes"
+                position="top"
+                fontSize={8.5}
+                fill={C.muted}
+                formatter={(v: number) => (v ? v : "")}
+              />
             </Bar>
           </BarChart>
         </Card>
 
         <div className="grid grid-cols-2 gap-3.5">
           <Card title="Evolução mensal" subtitle="Minutos por mês">
-            <BarChart width={HALF - 28} height={160} data={data.months} margin={{ top: 16, right: 4, left: 4, bottom: 0 }}>
+            <BarChart
+              width={HALF - 28}
+              height={160}
+              data={data.months}
+              margin={{ top: 16, right: 4, left: 4, bottom: 0 }}
+            >
               <CartesianGrid vertical={false} stroke={C.grid} />
               <XAxis dataKey="label" tick={TICK} axisLine={false} tickLine={false} />
               <YAxis hide />
-              <Bar dataKey="minutes" fill={C.accent} radius={[3, 3, 0, 0]} isAnimationActive={false}>
+              <Bar
+                dataKey="minutes"
+                fill={C.accent}
+                radius={[3, 3, 0, 0]}
+                isAnimationActive={false}
+              >
                 <LabelList dataKey="minutes" position="top" fontSize={9} fill={C.muted} />
               </Bar>
             </BarChart>
           </Card>
           <Card title="Treinos por mês" subtitle="Quantidade de sessões">
-            <BarChart width={HALF - 28} height={160} data={data.months} margin={{ top: 16, right: 4, left: 4, bottom: 0 }}>
+            <BarChart
+              width={HALF - 28}
+              height={160}
+              data={data.months}
+              margin={{ top: 16, right: 4, left: 4, bottom: 0 }}
+            >
               <CartesianGrid vertical={false} stroke={C.grid} />
               <XAxis dataKey="label" tick={TICK} axisLine={false} tickLine={false} />
               <YAxis hide />
@@ -292,15 +364,37 @@ function Sheet() {
         </div>
 
         <Card title="Duração por sessão" subtitle="Minutos de cada treino, do primeiro ao último">
-          <LineChart width={W - 28} height={160} data={data.durationSeries} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+          <LineChart
+            width={W - 28}
+            height={160}
+            data={data.durationSeries}
+            margin={{ top: 8, right: 8, left: 8, bottom: 0 }}
+          >
             <CartesianGrid vertical={false} stroke={C.grid} />
-            <XAxis dataKey="label" tick={TICK} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={26} />
+            <XAxis
+              dataKey="label"
+              tick={TICK}
+              axisLine={false}
+              tickLine={false}
+              interval="preserveStartEnd"
+              minTickGap={26}
+            />
             <YAxis hide domain={["dataMin - 10", "dataMax + 10"]} />
-            <Line type="monotone" dataKey="minutes" stroke={C.accent} strokeWidth={2} dot={{ r: 2.5, fill: C.accent, stroke: "#fff", strokeWidth: 1 }} isAnimationActive={false} />
+            <Line
+              type="monotone"
+              dataKey="minutes"
+              stroke={C.accent}
+              strokeWidth={2}
+              dot={{ r: 2.5, fill: C.accent, stroke: "#fff", strokeWidth: 1 }}
+              isAnimationActive={false}
+            />
           </LineChart>
         </Card>
 
-        <Card title="Calendário de treinos" subtitle="Cada quadrado é um dia — quanto mais escuro, mais minutos treinados (últimas 26 semanas)">
+        <Card
+          title="Calendário de treinos"
+          subtitle="Cada quadrado é um dia — quanto mais escuro, mais minutos treinados (últimas 26 semanas)"
+        >
           <Heatmap data={data} />
           <div className="mt-2 flex items-center gap-1.5 text-[10px] text-[color:var(--rp-muted)]">
             <span>menos</span>
@@ -318,7 +412,12 @@ function Sheet() {
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3.5">
           <Card title="Dia da semana" subtitle="Em que dias você mais treina">
-            <BarChart width={HALF - 28} height={160} data={data.weekday} margin={{ top: 16, right: 4, left: 4, bottom: 0 }}>
+            <BarChart
+              width={HALF - 28}
+              height={160}
+              data={data.weekday}
+              margin={{ top: 16, right: 4, left: 4, bottom: 0 }}
+            >
               <CartesianGrid vertical={false} stroke={C.grid} />
               <XAxis dataKey="label" tick={TICK} axisLine={false} tickLine={false} />
               <YAxis hide />
@@ -330,7 +429,14 @@ function Sheet() {
           <Card title="Intensidade" subtitle="Distribuição das sessões">
             <div className="flex items-center gap-3">
               <PieChart width={130} height={130}>
-                <Pie data={intensityData} dataKey="value" innerRadius={36} outerRadius={60} stroke="none" isAnimationActive={false}>
+                <Pie
+                  data={intensityData}
+                  dataKey="value"
+                  innerRadius={36}
+                  outerRadius={60}
+                  stroke="none"
+                  isAnimationActive={false}
+                >
                   {intensityData.map((e) => (
                     <Cell key={e.name} fill={e.color} />
                   ))}
@@ -351,11 +457,36 @@ function Sheet() {
 
         <div className="grid grid-cols-2 gap-3.5">
           <Card title="Pernas vs braços" subtitle="Sessões e tempo por foco">
-            <BarChart width={HALF - 28} height={110} data={focusData} layout="vertical" margin={{ top: 4, right: 40, left: 0, bottom: 0 }}>
+            <BarChart
+              width={HALF - 28}
+              height={110}
+              data={focusData}
+              layout="vertical"
+              margin={{ top: 4, right: 40, left: 0, bottom: 0 }}
+            >
               <XAxis type="number" hide />
-              <YAxis type="category" dataKey="name" tick={{ ...TICK, fontSize: 11 }} axisLine={false} tickLine={false} width={52} />
-              <Bar dataKey="minutes" fill={C.ink} radius={[0, 4, 4, 0]} barSize={18} isAnimationActive={false}>
-                <LabelList dataKey="minutes" position="right" fontSize={10} fill={C.muted} formatter={(v: number) => formatDuration(v)} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ ...TICK, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                width={52}
+              />
+              <Bar
+                dataKey="minutes"
+                fill={C.ink}
+                radius={[0, 4, 4, 0]}
+                barSize={18}
+                isAnimationActive={false}
+              >
+                <LabelList
+                  dataKey="minutes"
+                  position="right"
+                  fontSize={10}
+                  fill={C.muted}
+                  formatter={(v: number) => formatDuration(v)}
+                />
               </Bar>
             </BarChart>
             <p className="mt-1 text-[11px] text-[color:var(--rp-muted)]">
@@ -363,7 +494,10 @@ function Sheet() {
               {data.avgByFocus.pernas} / {data.avgByFocus.bracos} min
             </p>
           </Card>
-          <Card title="Grupo muscular" subtitle="Sessões por grupo (inclui o que foi anotado em Extra)">
+          <Card
+            title="Grupo muscular"
+            subtitle="Sessões por grupo (inclui o que foi anotado em Extra)"
+          >
             <BarChart
               width={HALF - 28}
               height={Math.max(110, stats.byMuscleGroup.length * 24 + 10)}
@@ -372,21 +506,49 @@ function Sheet() {
               margin={{ top: 2, right: 26, left: 0, bottom: 0 }}
             >
               <XAxis type="number" hide />
-              <YAxis type="category" dataKey="name" tick={{ ...TICK, fontSize: 10 }} axisLine={false} tickLine={false} width={84} interval={0} />
-              <Bar dataKey="sessions" fill={C.gold} radius={[0, 4, 4, 0]} barSize={13} isAnimationActive={false}>
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ ...TICK, fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                width={84}
+                interval={0}
+              />
+              <Bar
+                dataKey="sessions"
+                fill={C.gold}
+                radius={[0, 4, 4, 0]}
+                barSize={13}
+                isAnimationActive={false}
+              >
                 <LabelList dataKey="sessions" position="right" fontSize={9.5} fill={C.muted} />
               </Bar>
             </BarChart>
           </Card>
         </div>
 
-        <Card title="Core — repetições por semana" subtitle="Séries × repetições somadas em cada semana (últimas 20)">
-          <BarChart width={W - 28} height={150} data={data.weeksShown} margin={{ top: 16, right: 4, left: 4, bottom: 0 }}>
+        <Card
+          title="Core — repetições por semana"
+          subtitle="Séries × repetições somadas em cada semana (últimas 20)"
+        >
+          <BarChart
+            width={W - 28}
+            height={150}
+            data={data.weeksShown}
+            margin={{ top: 16, right: 4, left: 4, bottom: 0 }}
+          >
             <CartesianGrid vertical={false} stroke={C.grid} />
             <XAxis dataKey="label" tick={TICK} axisLine={false} tickLine={false} interval={0} />
             <YAxis hide />
             <Bar dataKey="coreReps" fill={C.green} radius={[3, 3, 0, 0]} isAnimationActive={false}>
-              <LabelList dataKey="coreReps" position="top" fontSize={8.5} fill={C.muted} formatter={(v: number) => (v ? v : "")} />
+              <LabelList
+                dataKey="coreReps"
+                position="top"
+                fontSize={8.5}
+                fill={C.muted}
+                formatter={(v: number) => (v ? v : "")}
+              />
             </Bar>
           </BarChart>
         </Card>
@@ -396,32 +558,34 @@ function Sheet() {
       <div className="report-break" />
       <SectionTitle n="4">Comparativos</SectionTitle>
       <div className="space-y-3">
-        <Card title="Atletas" subtitle="Desempenho de cada um">
-          <table className="w-full text-[11.5px]">
-            <thead>
-              <tr className="border-b border-[color:var(--rp-line)] text-left text-[10px] uppercase tracking-wider text-[color:var(--rp-muted)]">
-                <th className="py-1.5 font-semibold">Atleta</th>
-                <th className="py-1.5 text-right font-semibold">Sessões</th>
-                <th className="py-1.5 text-right font-semibold">Tempo</th>
-                <th className="py-1.5 text-right font-semibold">Média</th>
-                <th className="py-1.5 text-right font-semibold">Core (reps)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.athletes.map((a) => (
-                <tr key={a.name} className="border-b border-[color:var(--rp-line)] last:border-0">
-                  <td className="py-1.5 font-medium">{a.name}</td>
-                  <td className="py-1.5 text-right tabular-nums">{a.sessions}</td>
-                  <td className="py-1.5 text-right tabular-nums">{formatDuration(a.minutes)}</td>
-                  <td className="py-1.5 text-right tabular-nums">
-                    {formatDuration(a.sessions ? Math.round(a.minutes / a.sessions) : 0)}
-                  </td>
-                  <td className="py-1.5 text-right tabular-nums">{a.coreReps}</td>
+        {!athlete && (
+          <Card title="Comparação entre atletas" subtitle="Desempenho de cada um">
+            <table className="w-full text-[11.5px]">
+              <thead>
+                <tr className="border-b border-[color:var(--rp-line)] text-left text-[10px] uppercase tracking-wider text-[color:var(--rp-muted)]">
+                  <th className="py-1.5 font-semibold">Atleta</th>
+                  <th className="py-1.5 text-right font-semibold">Sessões</th>
+                  <th className="py-1.5 text-right font-semibold">Tempo</th>
+                  <th className="py-1.5 text-right font-semibold">Média</th>
+                  <th className="py-1.5 text-right font-semibold">Core (reps)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+              </thead>
+              <tbody>
+                {stats.athletes.map((a) => (
+                  <tr key={a.name} className="border-b border-[color:var(--rp-line)] last:border-0">
+                    <td className="py-1.5 font-medium">{a.name}</td>
+                    <td className="py-1.5 text-right tabular-nums">{a.sessions}</td>
+                    <td className="py-1.5 text-right tabular-nums">{formatDuration(a.minutes)}</td>
+                    <td className="py-1.5 text-right tabular-nums">
+                      {formatDuration(a.sessions ? Math.round(a.minutes / a.sessions) : 0)}
+                    </td>
+                    <td className="py-1.5 text-right tabular-nums">{a.coreReps}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        )}
 
         <div className="grid grid-cols-2 gap-3.5">
           <Card title="Semana atual vs anterior">
@@ -429,7 +593,8 @@ function Sheet() {
               Agora: <b>{stats.week.count}</b> treinos · {formatDuration(stats.week.minutes)}
             </p>
             <p className="text-[12px]">
-              Anterior: <b>{stats.lastWeek.count}</b> treinos · {formatDuration(stats.lastWeek.minutes)}
+              Anterior: <b>{stats.lastWeek.count}</b> treinos ·{" "}
+              {formatDuration(stats.lastWeek.minutes)}
             </p>
             <p className="mt-1 text-[12px]">
               Tempo: <Delta value={weekDelta} />
@@ -440,7 +605,8 @@ function Sheet() {
               Agora: <b>{stats.month.count}</b> treinos · {formatDuration(stats.month.minutes)}
             </p>
             <p className="text-[12px]">
-              Anterior: <b>{stats.lastMonth.count}</b> treinos · {formatDuration(stats.lastMonth.minutes)}
+              Anterior: <b>{stats.lastMonth.count}</b> treinos ·{" "}
+              {formatDuration(stats.lastMonth.minutes)}
             </p>
             <p className="mt-1 text-[12px]">
               Treinos: <Delta value={monthDelta} />
@@ -459,7 +625,9 @@ function Sheet() {
                 }))}
               />
             ) : (
-              <p className="text-[11.5px] text-[color:var(--rp-muted)]">Nenhum cardio registrado.</p>
+              <p className="text-[11.5px] text-[color:var(--rp-muted)]">
+                Nenhum cardio registrado.
+              </p>
             )}
           </Card>
           <Card title="Core por exercício" subtitle="Repetições acumuladas">
@@ -494,14 +662,21 @@ function Sheet() {
         <tbody>
           {list.map((w) => {
             const details: string[] = [];
-            if (w.machines) details.push(`Musculação: ${w.machines} aparelhos (${w.sets}×${w.reps})`);
+            if (w.machines)
+              details.push(`Musculação: ${w.machines} aparelhos (${w.sets}×${w.reps})`);
             if (w.muscleGroups.length) details.push(`Grupo: ${w.muscleGroups.join(", ")}`);
             if (w.extras) details.push(`Extra: ${w.extras}`);
-            for (const r of w.core) details.push(`Core: ${r.exercise} (${r.sets}×${r.reps})${r.athlete ? ` ${r.athlete}` : ""}`);
+            for (const r of w.core)
+              details.push(
+                `Core: ${r.exercise} (${r.sets}×${r.reps})${r.athlete ? ` ${r.athlete}` : ""}`,
+              );
             for (const c of w.cardio) details.push(`Cardio: ${c.kind} (${c.minutes} min)`);
             if (w.notes) details.push(`Nota: ${w.notes}`);
             return (
-              <tr key={w.id} className="report-avoid border-b border-[color:var(--rp-line)] align-top">
+              <tr
+                key={w.id}
+                className="report-avoid border-b border-[color:var(--rp-line)] align-top"
+              >
                 <td className="py-1.5 pr-2">
                   <b className="tabular-nums">{format(parseDate(w.date), "dd/MM/yyyy")}</b>
                   <br />
@@ -526,13 +701,16 @@ function Sheet() {
 
       <footer className="mt-6 flex items-center justify-between border-t border-[color:var(--rp-line)] pt-3 text-[10px] text-[color:var(--rp-faint)]">
         <span>ARTHA · Forja de Treinos</span>
-        <span>{stats.all.count} treinos · gerado em {generated}</span>
+        <span>
+          {stats.all.count} treinos · gerado em {generated}
+        </span>
       </footer>
     </div>
   );
 }
 
 function ReportPage() {
+  const { atleta: athlete } = Route.useSearch();
   const [root, setRoot] = useState<HTMLElement | null>(null);
   const [zoom, setZoom] = useState(1);
 
@@ -573,7 +751,7 @@ function ReportPage() {
         Página A4 em retrato. Na janela de impressão, escolha “Salvar como PDF”.
       </p>
       <div className="py-4" style={{ zoom }}>
-        <Sheet />
+        <Sheet athlete={athlete} />
       </div>
     </div>,
     root,

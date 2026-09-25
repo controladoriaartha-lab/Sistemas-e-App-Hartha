@@ -3,6 +3,7 @@ import { createJSONStorage, persist, type StateStorage } from "zustand/middlewar
 import { SEED_WORKOUTS } from "@/lib/seed";
 import { DEFAULT_ATHLETES, type Workout } from "@/lib/types";
 import { todayIso } from "@/lib/format";
+import { markDelete, markDirty, markReplace, registerSyncIO } from "@/lib/sync";
 
 const STORAGE_KEY = "forja-workouts-v1";
 
@@ -83,13 +84,20 @@ export const useWorkoutStore = create<WorkoutState>()(
     (set, get) => ({
       workouts: SEED_WORKOUTS,
       customAthletes: [],
-      addWorkout: (workout) =>
-        set({ workouts: [workout, ...get().workouts.filter((w) => w.id !== workout.id)] }),
-      updateWorkout: (id, patch) =>
+      addWorkout: (workout) => {
+        set({ workouts: [workout, ...get().workouts.filter((w) => w.id !== workout.id)] });
+        markDirty();
+      },
+      updateWorkout: (id, patch) => {
         set({
           workouts: get().workouts.map((w) => (w.id === id ? { ...w, ...patch } : w)),
-        }),
-      deleteWorkout: (id) => set({ workouts: get().workouts.filter((w) => w.id !== id) }),
+        });
+        markDirty();
+      },
+      deleteWorkout: (id) => {
+        set({ workouts: get().workouts.filter((w) => w.id !== id) });
+        markDelete(id);
+      },
       duplicateWorkout: (id) => {
         const src = get().workouts.find((w) => w.id === id);
         if (!src) return null;
@@ -104,6 +112,7 @@ export const useWorkoutStore = create<WorkoutState>()(
           muscleGroups: [...src.muscleGroups],
         };
         set({ workouts: [copy, ...get().workouts] });
+        markDirty();
         return copy.id;
       },
       addAthlete: (name) => {
@@ -121,8 +130,14 @@ export const useWorkoutStore = create<WorkoutState>()(
         const kept = customAthletes.filter((name) => referenced.has(name));
         if (kept.length !== customAthletes.length) set({ customAthletes: kept });
       },
-      importWorkouts: (workouts) => set({ workouts }),
-      restoreSeed: () => set({ workouts: SEED_WORKOUTS }),
+      importWorkouts: (workouts) => {
+        set({ workouts });
+        markReplace();
+      },
+      restoreSeed: () => {
+        set({ workouts: SEED_WORKOUTS });
+        markReplace();
+      },
     }),
     { name: STORAGE_KEY, version: 1, storage: createJSONStorage(resilientStorage) },
   ),
@@ -136,6 +151,11 @@ export const useWorkoutStore = create<WorkoutState>()(
 useWorkoutStore.getState().pruneUnusedAthletes();
 useWorkoutStore.persist.onFinishHydration(() => {
   useWorkoutStore.getState().pruneUnusedAthletes();
+});
+
+registerSyncIO({
+  getLocal: () => useWorkoutStore.getState().workouts,
+  setLocal: (workouts) => useWorkoutStore.setState({ workouts }),
 });
 
 if (typeof window !== "undefined") {

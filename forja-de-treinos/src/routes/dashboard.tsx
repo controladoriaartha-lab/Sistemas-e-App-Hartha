@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, TriangleAlert, Upload } from "lucide-react";
+import { Download, LogOut, TriangleAlert, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardPanel } from "@/components/dashboard-panel";
 import { FilterGroup, MonthPicker, PillRow } from "@/components/filters";
@@ -16,6 +16,8 @@ import {
   type Period,
 } from "@/lib/period";
 import { DEFAULT_ATHLETES } from "@/lib/types";
+import { supabase } from "@/lib/cloud";
+import { resetSyncForLogout, syncNow } from "@/lib/sync";
 import { useWorkoutStore } from "@/store/workouts";
 
 export const Route = createFileRoute("/dashboard")({ component: DashboardPage });
@@ -97,7 +99,7 @@ function DashboardPage() {
         return;
       }
       const ok = window.confirm(
-        `Importar ${parsed.length} treino(s)? Isso substitui o diário atual neste aparelho.`,
+        `Importar ${parsed.length} treino(s)? Isso substitui o diário atual (também na nuvem).`,
       );
       if (!ok) return;
       importWorkouts(parsed);
@@ -105,6 +107,13 @@ function DashboardPage() {
     } catch {
       toast.error("Falha ao ler o arquivo");
     }
+  }
+
+  async function handleLogout() {
+    await syncNow();
+    if (!window.confirm("Sair da conta neste aparelho? Seus treinos continuam guardados na nuvem.")) return;
+    await supabase.auth.signOut();
+    resetSyncForLogout();
   }
 
   return (
@@ -178,9 +187,8 @@ function DashboardPage() {
           <div className="mt-3 flex items-start gap-2 rounded-lg bg-warn/10 p-3">
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn" />
             <p className="text-sm text-warn">
-              Os treinos ficam só neste aparelho. Exporte de vez em quando (toda semana, por
-              exemplo) e guarde o arquivo em local seguro — evita perder o diário se o aparelho
-              limpar o armazenamento.
+              Seu diário fica guardado na nuvem, ligado à sua conta. Ainda assim, exporte de vez
+              em quando e guarde o arquivo em local seguro como cópia extra.
             </p>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -204,7 +212,7 @@ function DashboardPage() {
 
         <div>
           <p className="text-sm text-faint">
-            Os treinos ficam neste aparelho. Restaurar o diário original substitui o que você editou.
+            Restaurar o diário original substitui o que você editou.
           </p>
           <Button
             variant="ghost"
@@ -232,6 +240,14 @@ function DashboardPage() {
             }}
           >
             Excluir tudo
+          </Button>
+          <Button
+            variant="ghost"
+            className="mt-2 block text-faint"
+            onClick={() => void handleLogout()}
+          >
+            <LogOut />
+            Sair da conta
           </Button>
         </div>
       </div>

@@ -3,7 +3,7 @@
 -- usuario autenticado (owner_id) e so ele enxerga/edita (RLS).
 
 create table if not exists public.workouts (
-  id            uuid primary key default gen_random_uuid(),
+  id            text not null,
   owner_id      uuid not null default auth.uid() references auth.users (id) on delete cascade,
   workout_date  date not null,
   focus         text not null check (focus in ('pernas', 'bracos', 'outro')),
@@ -20,7 +20,8 @@ create table if not exists public.workouts (
   cardio        jsonb not null default '[]'::jsonb,   -- [{kind, minutes}]
   notes         text not null default '',
   created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
+  updated_at    timestamptz not null default now(),
+  primary key (owner_id, id)
 );
 
 create index if not exists workouts_owner_date_idx

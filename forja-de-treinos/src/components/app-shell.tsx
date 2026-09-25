@@ -3,6 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { ClipboardList, LayoutDashboard, LogOut, Moon, Plus, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { AuthGate } from "@/components/auth-gate";
 import { Toaster } from "@/components/ui/sonner";
 import { toggleTheme, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -27,8 +28,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(80%_80%_at_50%_-20%,rgba(196,92,38,0.16),transparent_70%)]"
       />
       <TopControls />
-      {children}
-      {!hideNav && <BottomNav pathname={pathname} />}
+      <AuthGate>
+        {children}
+        {!hideNav && <BottomNav pathname={pathname} />}
+      </AuthGate>
       <Toaster />
     </div>
   );

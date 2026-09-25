@@ -154,6 +154,9 @@
   .report-avoid {
     break-inside: avoid;
   }
+  .report-keep {
+    break-after: avoid;
+  }
   thead {
     display: table-header-group;
   }

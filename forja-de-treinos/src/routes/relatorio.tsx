@@ -78,7 +78,7 @@ function Card({
 
 function SectionTitle({ n, children }: { n: string; children: ReactNode }) {
   return (
-    <div className="mb-3 mt-6 flex items-center gap-2.5">
+    <div className="report-avoid report-keep mb-3 mt-5 flex items-center gap-2.5">
       <span className="flex size-6 items-center justify-center rounded-full bg-[color:var(--rp-accent)] text-[11px] font-semibold text-white">
         {n}
       </span>
@@ -303,8 +303,6 @@ function Sheet({ athlete }: { athlete?: string }) {
         </ul>
       </Card>
 
-      {/* 2. Evolucao */}
-      <div className="report-break" />
       <SectionTitle n="2">Evolução no tempo</SectionTitle>
       <div className="space-y-3">
         <Card title="Volume semanal" subtitle="Minutos treinados por semana (últimas 20)">
@@ -410,8 +408,6 @@ function Sheet({ athlete }: { athlete?: string }) {
         </Card>
       </div>
 
-      {/* 3. Perfil do treino */}
-      <div className="report-break" />
       <SectionTitle n="3">Perfil do treino</SectionTitle>
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3.5">
@@ -558,8 +554,6 @@ function Sheet({ athlete }: { athlete?: string }) {
         </Card>
       </div>
 
-      {/* 4. Comparativos */}
-      <div className="report-break" />
       <SectionTitle n="4">Comparativos</SectionTitle>
       <div className="space-y-3">
         {!athlete && (
@@ -654,8 +648,6 @@ function Sheet({ athlete }: { athlete?: string }) {
         </div>
       </div>
 
-      {/* 5. Registro completo */}
-      <div className="report-break" />
       <SectionTitle n="5">Registro completo dos treinos</SectionTitle>
       <table className="w-full border-collapse text-[10.5px] leading-snug">
         <thead>

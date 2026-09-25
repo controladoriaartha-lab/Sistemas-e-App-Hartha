@@ -148,19 +148,19 @@ export function buildReport(workouts: Workout[], now = new Date()) {
   const insights: string[] = [];
   if (asc.length) {
     insights.push(
-      `${asc.length} treinos em ${weeks.length} semanas: em ${consistency}% delas houve pelo menos uma sessão, e ${strongWeeks} semanas tiveram 3 ou mais.`,
+      `${asc.length} ${asc.length === 1 ? "treino" : "treinos"} em ${weeks.length} ${weeks.length === 1 ? "semana" : "semanas"}: em ${consistency}% delas houve pelo menos uma sessão, e ${strongWeeks} ${strongWeeks === 1 ? "semana teve" : "semanas tiveram"} 3 ou mais.`,
     );
     insights.push(
       `Duração média de ${formatDuration(stats.avgDuration)} por sessão; a mais longa foi de ${formatDuration(longest.durationMin)} (${format(parseDate(longest.date), "dd/MM/yyyy")}).`,
     );
     if (bestWeekday.count) {
-      insights.push(`O dia mais frequente é ${bestWeekday.label.toLowerCase()}, com ${bestWeekday.count} treinos.`);
+      insights.push(`O dia mais frequente é ${bestWeekday.label.toLowerCase()}, com ${bestWeekday.count} ${bestWeekday.count === 1 ? "treino" : "treinos"}.`);
     }
     if (topGroup) {
-      insights.push(`O grupo mais trabalhado é ${topGroup.name.toLowerCase()}, presente em ${topGroup.sessions} sessões.`);
+      insights.push(`O grupo mais trabalhado é ${topGroup.name.toLowerCase()}, presente em ${topGroup.sessions} ${topGroup.sessions === 1 ? "sessão" : "sessões"}.`);
     }
     insights.push(
-      `Maior sequência de dias seguidos: ${longestStreak}. Melhor semana: ${bestWeek.count} treinos (semana de ${bestWeek.label}).`,
+      `Maior sequência de dias seguidos: ${longestStreak}. Melhor semana: ${bestWeek.count} ${bestWeek.count === 1 ? "treino" : "treinos"} (semana de ${bestWeek.label}).`,
     );
   }
 

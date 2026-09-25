@@ -21,7 +21,7 @@ import { formatDuration, formatHours, formatWeekday, parseDate } from "@/lib/for
 import { forAthlete } from "@/lib/athlete-view";
 import { buildReport } from "@/lib/report";
 import { filterByPeriod, PERIODS, recentMonths, type Period } from "@/lib/period";
-import { deltaPct } from "@/lib/stats";
+import { computeStats, deltaPct } from "@/lib/stats";
 import { INTENSITY_LABEL } from "@/lib/types";
 import { sortedWorkouts, useWorkoutStore } from "@/store/workouts";
 
@@ -206,6 +206,8 @@ function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; 
     return buildReport(workouts, lastDate ? parseDate(lastDate) : new Date());
   }, [workouts, periodo]);
   const { stats } = data;
+  // Mesma definicao de frequencia do Painel (ate hoje), para os dois baterem.
+  const perWeek = useMemo(() => computeStats(workouts).sessionsPerWeek, [workouts]);
   const list = useMemo(() => sortedWorkouts(workouts), [workouts]);
   const generated = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
   const periodText =
@@ -286,7 +288,7 @@ function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; 
         <Kpi label="Média" value={formatDuration(stats.avgDuration)} hint="por sessão" />
         <Kpi
           label="Frequência"
-          value={stats.sessionsPerWeek.toFixed(1).replace(".", ",")}
+          value={perWeek.toFixed(1).replace(".", ",")}
           hint="treinos / semana"
         />
         <Kpi

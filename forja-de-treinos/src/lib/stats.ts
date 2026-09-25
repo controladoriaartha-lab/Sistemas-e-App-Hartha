@@ -59,7 +59,7 @@ function labelFromFreeText(raw: string): string {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
 }
 
-function classifyMuscleGroup(raw: string): string {
+export function classifyMuscleGroup(raw: string): string {
   const normalized = raw
     .toLowerCase()
     .normalize("NFD")
@@ -71,7 +71,7 @@ function classifyMuscleGroup(raw: string): string {
 }
 
 /** Every item typed in "Extra" gets its own entry, named as typed. */
-function extraCategories(extras: string): string[] {
+export function extraCategories(extras: string): string[] {
   return extras
     .split(/[,;+]|\s+e\s+/i)
     .map((part) => classifyMuscleGroup(part))

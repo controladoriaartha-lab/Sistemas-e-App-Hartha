@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { Download, LogOut, TriangleAlert, Upload } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Download, LogOut, Printer, TriangleAlert, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardPanel } from "@/components/dashboard-panel";
 import { FilterGroup, MonthPicker, PillRow } from "@/components/filters";
@@ -124,6 +124,14 @@ function DashboardPage() {
         <p className="mt-2 max-w-sm text-[24px] text-muted-foreground">
           KPIs, volume, intensidade e comparativos entre semanas, meses e atletas.
         </p>
+        {workouts.length > 0 && (
+          <Button asChild variant="secondary" className="mt-4 h-12 text-base">
+            <Link to="/relatorio">
+              <Printer />
+              Imprimir PDF de todo o treino
+            </Link>
+          </Button>
+        )}
       </header>
 
       {workouts.length === 0 ? (
@@ -201,6 +209,12 @@ function DashboardPage() {
               Importar
             </Button>
           </div>
+          <Button asChild variant="default" className="mt-2 w-full">
+            <Link to="/relatorio">
+              <Printer />
+              Imprimir PDF (relatório completo)
+            </Link>
+          </Button>
           <input
             ref={fileRef}
             type="file"

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as NovoRouteImport } from './routes/novo'
+import { Route as RelatorioRouteImport } from './routes/relatorio'
 import { Route as TreinoIdRouteImport } from './routes/treino.$id'
 import { Route as TreinoIdIndexRouteImport } from './routes/treino.$id.index'
 import { Route as TreinoIdEditarRouteImport } from './routes/treino.$id.editar'
@@ -29,6 +30,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const NovoRoute = NovoRouteImport.update({
   id: '/novo',
   path: '/novo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RelatorioRoute = RelatorioRouteImport.update({
+  id: '/relatorio',
+  path: '/relatorio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TreinoIdRoute = TreinoIdRouteImport.update({
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/novo': typeof NovoRoute
+  '/relatorio': typeof RelatorioRoute
   '/treino/$id': typeof TreinoIdRouteWithChildren
   '/treino/$id/editar': typeof TreinoIdEditarRoute
   '/treino/$id/': typeof TreinoIdIndexRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/novo': typeof NovoRoute
+  '/relatorio': typeof RelatorioRoute
   '/treino/$id/editar': typeof TreinoIdEditarRoute
   '/treino/$id': typeof TreinoIdIndexRoute
 }
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/novo': typeof NovoRoute
+  '/relatorio': typeof RelatorioRoute
   '/treino/$id': typeof TreinoIdRouteWithChildren
   '/treino/$id/editar': typeof TreinoIdEditarRoute
   '/treino/$id/': typeof TreinoIdIndexRoute
@@ -77,16 +86,24 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/novo'
+    | '/relatorio'
     | '/treino/$id'
     | '/treino/$id/editar'
     | '/treino/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/novo' | '/treino/$id/editar' | '/treino/$id'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/novo'
+    | '/relatorio'
+    | '/treino/$id/editar'
+    | '/treino/$id'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
     | '/novo'
+    | '/relatorio'
     | '/treino/$id'
     | '/treino/$id/editar'
     | '/treino/$id/'
@@ -96,6 +113,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   NovoRoute: typeof NovoRoute
+  RelatorioRoute: typeof RelatorioRoute
   TreinoIdRoute: typeof TreinoIdRouteWithChildren
 }
 
@@ -120,6 +138,13 @@ declare module '@tanstack/react-router' {
       path: '/novo'
       fullPath: '/novo'
       preLoaderRoute: typeof NovoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/relatorio': {
+      id: '/relatorio'
+      path: '/relatorio'
+      fullPath: '/relatorio'
+      preLoaderRoute: typeof RelatorioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/treino/$id': {
@@ -164,6 +189,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   NovoRoute: NovoRoute,
+  RelatorioRoute: RelatorioRoute,
   TreinoIdRoute: TreinoIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport

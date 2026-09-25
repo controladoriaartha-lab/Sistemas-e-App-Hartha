@@ -111,3 +111,53 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Relatorio em PDF: folha A4 retrato, sempre em cores claras de papel. */
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fbf8f3 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  body.report-open > *:not(#report-root) {
+    display: none !important;
+  }
+  body.report-open #report-root {
+    position: static !important;
+    inset: auto !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+  .report-toolbar {
+    display: none !important;
+  }
+  #report-root > div {
+    zoom: 1 !important;
+    padding: 0 !important;
+  }
+  .report-sheet {
+    width: auto !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+  .report-break {
+    break-after: page;
+  }
+  .report-avoid {
+    break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

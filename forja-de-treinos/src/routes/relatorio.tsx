@@ -192,7 +192,7 @@ function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; 
   const workouts = useMemo(() => {
     const byPeriod = periodo ? filterByPeriod(allWorkouts, periodo, mes ?? 0) : allWorkouts;
     if (!athlete) return byPeriod;
-    return forAthlete(byPeriod, athlete).map((w) => ({ ...w, athletes: [athlete] }));
+    return forAthlete(byPeriod, athlete);
   }, [allWorkouts, athlete, periodo, mes]);
   const periodLabel = !periodo
     ? ""

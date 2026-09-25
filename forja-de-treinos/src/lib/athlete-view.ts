@@ -11,15 +11,16 @@ export function sameAthlete(a: string | undefined, b: string): boolean {
 
 /**
  * Visao de um unico atleta: o treino continua o mesmo, mas as linhas de core
- * marcadas para OUTRO atleta saem (linhas sem atleta valem para todos). Assim
- * cartao, painel e relatorio nunca somam nem mostram o core de quem nao foi
- * filtrado.
+ * marcadas para OUTRO atleta saem (linhas sem atleta valem para todos) e o
+ * nome exibido passa a ser so o do atleta filtrado. Assim cartao, painel e
+ * relatorio nunca somam nem mostram dados de quem nao foi filtrado.
  */
 export function forAthlete(list: Workout[], athlete: string): Workout[] {
   return list
     .filter((w) => w.athletes.some((a) => sameAthlete(a, athlete)))
     .map((w) => ({
       ...w,
+      athletes: [athlete],
       core: w.core.filter((r) => !r.athlete || sameAthlete(r.athlete, athlete)),
     }));
 }

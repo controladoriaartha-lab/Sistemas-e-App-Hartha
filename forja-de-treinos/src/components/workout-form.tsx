@@ -144,36 +144,42 @@ export function WorkoutForm({
             min={1}
             max={300}
             required
-            value={draft.durationMin}
+            value={draft.durationMin || ""}
+            placeholder="0"
             onChange={(e) => patch({ durationMin: Number(e.target.value) || 0 })}
           />
-          <p className="mt-1 text-[24px] text-faint tabular-nums">{formatDuration(draft.durationMin)}</p>
+          <p className="mt-1 text-[24px] text-faint tabular-nums">
+            {formatDuration(draft.durationMin)}
+          </p>
         </Field>
         <Field label="Aparelhos">
           <Input
             type="number"
             min={0}
             max={20}
-            value={draft.machines}
+            value={draft.machines || ""}
+            placeholder="0"
             onChange={(e) => patch({ machines: Number(e.target.value) || 0 })}
           />
         </Field>
         <Field label="Séries">
           <Input
             type="number"
-            min={1}
+            min={0}
             max={10}
-            value={draft.sets}
-            onChange={(e) => patch({ sets: Number(e.target.value) || 1 })}
+            value={draft.sets || ""}
+            placeholder="0"
+            onChange={(e) => patch({ sets: Number(e.target.value) || 0 })}
           />
         </Field>
         <Field label="Repetições">
           <Input
             type="number"
-            min={1}
+            min={0}
             max={50}
-            value={draft.reps}
-            onChange={(e) => patch({ reps: Number(e.target.value) || 1 })}
+            value={draft.reps || ""}
+            placeholder="0"
+            onChange={(e) => patch({ reps: Number(e.target.value) || 0 })}
           />
         </Field>
       </div>
@@ -234,22 +240,24 @@ export function WorkoutForm({
                 <Input
                   className="col-span-5"
                   type="number"
-                  min={1}
-                  value={row.sets}
+                  min={0}
+                  value={row.sets || ""}
+                  placeholder="0"
                   onChange={(e) => {
                     const next = [...draft.core];
-                    next[index] = { ...row, sets: Number(e.target.value) || 1 };
+                    next[index] = { ...row, sets: Number(e.target.value) || 0 };
                     patch({ core: next });
                   }}
                 />
                 <Input
                   className="col-span-5"
                   type="number"
-                  min={1}
-                  value={row.reps}
+                  min={0}
+                  value={row.reps || ""}
+                  placeholder="0"
                   onChange={(e) => {
                     const next = [...draft.core];
-                    next[index] = { ...row, reps: Number(e.target.value) || 1 };
+                    next[index] = { ...row, reps: Number(e.target.value) || 0 };
                     patch({ core: next });
                   }}
                 />
@@ -287,7 +295,7 @@ export function WorkoutForm({
             size="sm"
             variant="ghost"
             className="h-12 text-[24px] [&_svg]:size-6"
-            onClick={() => patch({ cardio: [...draft.cardio, { kind: "Bike", minutes: 10 }] })}
+            onClick={() => patch({ cardio: [...draft.cardio, { kind: "Bike", minutes: 0 }] })}
           >
             <Plus />
             Linha
@@ -311,11 +319,12 @@ export function WorkoutForm({
                 <Input
                   className="col-span-4"
                   type="number"
-                  min={1}
-                  value={row.minutes}
+                  min={0}
+                  value={row.minutes || ""}
+                  placeholder="0"
                   onChange={(e) => {
                     const next = [...draft.cardio];
-                    next[index] = { ...row, minutes: Number(e.target.value) || 1 };
+                    next[index] = { ...row, minutes: Number(e.target.value) || 0 };
                     patch({ cardio: next });
                   }}
                 />
@@ -345,7 +354,12 @@ export function WorkoutForm({
       </Field>
 
       <div className="sticky bottom-0 -mx-5 mt-2 flex gap-2 border-t border-border bg-background/95 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
-        <Button type="button" variant="secondary" className="h-14 flex-1 text-[24px]" onClick={onCancel}>
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-14 flex-1 text-[24px]"
+          onClick={onCancel}
+        >
           Cancelar
         </Button>
         <Button type="submit" className="h-14 flex-1 text-[24px]">

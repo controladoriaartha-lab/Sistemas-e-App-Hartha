@@ -8,10 +8,9 @@ import { Button } from "@/components/ui/button";
 import { parseMarkdownDiary, workoutsToMarkdown } from "@/lib/diary-md";
 import { todayIso } from "@/lib/format";
 import {
-  monthRangeIso,
+  filterByPeriod,
   PERIOD_IN_PHRASE,
   PERIODS,
-  periodCutoffIso,
   recentMonths,
   type Period,
 } from "@/lib/period";
@@ -43,13 +42,7 @@ function DashboardPage() {
   const filtered = useMemo(() => {
     let list = workouts;
     if (athlete !== "todos") list = list.filter((w) => w.athletes.includes(athlete));
-    if (period === "mes" && monthOffset > 0) {
-      const { start, end } = monthRangeIso(monthOffset);
-      list = list.filter((w) => w.date >= start && w.date <= end);
-    } else {
-      const cutoff = periodCutoffIso(period);
-      if (cutoff) list = list.filter((w) => w.date >= cutoff);
-    }
+    list = filterByPeriod(list, period, monthOffset);
     return list;
   }, [workouts, athlete, period, monthOffset]);
 
@@ -60,6 +53,12 @@ function DashboardPage() {
     period === "mes" && monthOffset > 0
       ? `em ${recentMonths(monthOffset + 1).at(-1)?.label}`
       : PERIOD_IN_PHRASE[period];
+
+  const reportSearch = {
+    atleta: singleAthlete ? athlete : undefined,
+    periodo: periodActive ? period : undefined,
+    mes: period === "mes" && monthOffset > 0 ? monthOffset : undefined,
+  };
 
   function setPeriodFilter(value: Period) {
     setPeriod(value);
@@ -127,7 +126,7 @@ function DashboardPage() {
         </p>
         {workouts.length > 0 && (
           <Button asChild variant="secondary" className="mt-4 h-12 text-base">
-            <Link to="/relatorio" search={{ atleta: singleAthlete ? athlete : undefined }}>
+            <Link to="/relatorio" search={reportSearch}>
               <Printer />
               {singleAthlete ? `Imprimir PDF de ${athlete}` : "Imprimir PDF de todo o treino"}
             </Link>
@@ -211,7 +210,7 @@ function DashboardPage() {
             </Button>
           </div>
           <Button asChild variant="default" className="mt-2 w-full">
-            <Link to="/relatorio" search={{ atleta: singleAthlete ? athlete : undefined }}>
+            <Link to="/relatorio" search={reportSearch}>
               <Printer />
               {singleAthlete ? `Imprimir PDF de ${athlete}` : "Imprimir PDF (relatório completo)"}
             </Link>

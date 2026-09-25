@@ -60,11 +60,7 @@ function labelFromFreeText(raw: string): string {
 }
 
 export function classifyMuscleGroup(raw: string): string {
-  const normalized = raw
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim();
+  const normalized = raw.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
   if (!normalized) return "Outro";
   const known = MUSCLE_CATEGORIES.find((cat) => cat.test.test(normalized))?.name;
   return known ?? (labelFromFreeText(raw) || "Outro");
@@ -94,10 +90,7 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
     minutes: list.reduce((s, w) => s + w.durationMin, 0),
     machines: list.reduce((s, w) => s + w.machines, 0),
     cardio: list.reduce((s, w) => s + w.cardio.reduce((c, x) => c + x.minutes, 0), 0),
-    coreReps: list.reduce(
-      (s, w) => s + w.core.reduce((c, x) => c + x.sets * x.reps, 0),
-      0,
-    ),
+    coreReps: list.reduce((s, w) => s + w.core.reduce((c, x) => c + x.sets * x.reps, 0), 0),
   });
 
   const week = sum(sorted.filter((w) => inRange(w.date, thisWeekStart, thisWeekEnd)));
@@ -148,13 +141,16 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
     });
   }
 
-  const recent = [...sorted].reverse().slice(-16).map((w) => ({
-    date: format(parseDate(w.date), "d/M"),
-    minutes: w.durationMin,
-    machines: w.machines,
-    focus: w.focus,
-    intensity: w.intensity,
-  }));
+  const recent = [...sorted]
+    .reverse()
+    .slice(-16)
+    .map((w) => ({
+      date: format(parseDate(w.date), "d/M"),
+      minutes: w.durationMin,
+      machines: w.machines,
+      focus: w.focus,
+      intensity: w.intensity,
+    }));
 
   const athleteNames = new Set<string>(["Geovanil", "Vânia"]);
   for (const w of sorted) for (const name of w.athletes) athleteNames.add(name);
@@ -171,6 +167,7 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
   });
 
   const muscleGroupSessions = new Map<string, Set<string>>();
+  const dateById = new Map(sorted.map((w) => [w.id, w.date]));
   for (const w of sorted) {
     const categories = new Set([
       ...w.muscleGroups.map(classifyMuscleGroup),
@@ -183,7 +180,15 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
     }
   }
   const byMuscleGroup = [...muscleGroupSessions.entries()]
-    .map(([name, ids]) => ({ name, sessions: ids.size }))
+    .map(([name, ids]) => ({
+      name,
+      sessions: ids.size,
+      // datas dos treinos que originam o grupo (ajuda a achar o registro para editar)
+      dates: [...ids]
+        .map((id) => dateById.get(id) ?? "")
+        .sort()
+        .reverse(),
+    }))
     .sort((a, b) => b.sessions - a.sessions);
 
   const uniqueDays = new Set(sorted.map((w) => w.date));

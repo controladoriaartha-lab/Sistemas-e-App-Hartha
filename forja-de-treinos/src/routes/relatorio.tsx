@@ -19,14 +19,22 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatDuration, formatHours, formatWeekday, parseDate } from "@/lib/format";
 import { buildReport } from "@/lib/report";
+import { filterByPeriod, PERIODS, recentMonths, type Period } from "@/lib/period";
 import { deltaPct } from "@/lib/stats";
 import { INTENSITY_LABEL } from "@/lib/types";
 import { sortedWorkouts, useWorkoutStore } from "@/store/workouts";
 
 export const Route = createFileRoute("/relatorio")({
   component: ReportPage,
-  validateSearch: (search: Record<string, unknown>): { atleta?: string } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { atleta?: string; periodo?: Period; mes?: number } => ({
     atleta: typeof search.atleta === "string" && search.atleta ? search.atleta : undefined,
+    periodo:
+      typeof search.periodo === "string" && PERIODS.some((p) => p.value === search.periodo)
+        ? (search.periodo as Period)
+        : undefined,
+    mes: Number(search.mes) > 0 ? Math.floor(Number(search.mes)) : undefined,
   }),
 });
 
@@ -176,20 +184,26 @@ function Delta({ value }: { value: number }) {
   );
 }
 
-function Sheet({ athlete }: { athlete?: string }) {
+function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; mes?: number }) {
   const allWorkouts = useWorkoutStore((s) => s.workouts);
   // Com um atleta escolhido, o relatorio so leva os treinos dele e, nos
   // treinos em dupla, so as linhas de core dele (ou sem dono definido).
   const workouts = useMemo(() => {
-    if (!athlete) return allWorkouts;
-    return allWorkouts
+    const byPeriod = periodo ? filterByPeriod(allWorkouts, periodo, mes ?? 0) : allWorkouts;
+    if (!athlete) return byPeriod;
+    return byPeriod
       .filter((w) => w.athletes.includes(athlete))
       .map((w) => ({
         ...w,
         athletes: [athlete],
         core: w.core.filter((r) => !r.athlete || r.athlete === athlete),
       }));
-  }, [allWorkouts, athlete]);
+  }, [allWorkouts, athlete, periodo, mes]);
+  const periodLabel = !periodo
+    ? ""
+    : periodo === "mes" && mes
+      ? (recentMonths(mes + 1).at(-1)?.label ?? "")
+      : (PERIODS.find((p) => p.value === periodo)?.label ?? "");
   const data = useMemo(() => buildReport(workouts), [workouts]);
   const { stats } = data;
   const list = useMemo(() => sortedWorkouts(workouts), [workouts]);
@@ -240,7 +254,8 @@ function Sheet({ athlete }: { athlete?: string }) {
             Forja de Treinos
           </h1>
           <p className="text-[12px] text-[color:var(--rp-muted)]">
-            {periodText} · {stats.all.count} treinos ·{" "}
+            {periodLabel ? `${periodLabel} · ` : ""}
+            {periodText} · {stats.all.count} {stats.all.count === 1 ? "treino" : "treinos"} ·{" "}
             {athlete ??
               stats.athletes
                 .filter((a) => a.sessions > 0)
@@ -261,7 +276,7 @@ function Sheet({ athlete }: { athlete?: string }) {
         <Kpi
           label="Treinos"
           value={String(stats.all.count)}
-          hint={athlete ? `de ${athlete}` : "no diário todo"}
+          hint={athlete ? `de ${athlete}` : periodo ? "no período" : "no diário todo"}
         />
         <Kpi
           label="Horas"
@@ -585,36 +600,38 @@ function Sheet({ athlete }: { athlete?: string }) {
           </Card>
         )}
 
-        <div className="grid grid-cols-2 gap-3.5">
-          <Card title="Semana atual vs anterior">
-            <p className="text-[12px]">
-              Agora: <b>{stats.week.count}</b> {stats.week.count === 1 ? "treino" : "treinos"} ·{" "}
-              {formatDuration(stats.week.minutes)}
-            </p>
-            <p className="text-[12px]">
-              Anterior: <b>{stats.lastWeek.count}</b>{" "}
-              {stats.lastWeek.count === 1 ? "treino" : "treinos"} ·{" "}
-              {formatDuration(stats.lastWeek.minutes)}
-            </p>
-            <p className="mt-1 text-[12px]">
-              Tempo: <Delta value={weekDelta} />
-            </p>
-          </Card>
-          <Card title="Mês atual vs anterior">
-            <p className="text-[12px]">
-              Agora: <b>{stats.month.count}</b> {stats.month.count === 1 ? "treino" : "treinos"} ·{" "}
-              {formatDuration(stats.month.minutes)}
-            </p>
-            <p className="text-[12px]">
-              Anterior: <b>{stats.lastMonth.count}</b>{" "}
-              {stats.lastMonth.count === 1 ? "treino" : "treinos"} ·{" "}
-              {formatDuration(stats.lastMonth.minutes)}
-            </p>
-            <p className="mt-1 text-[12px]">
-              Treinos: <Delta value={monthDelta} />
-            </p>
-          </Card>
-        </div>
+        {!periodo && (
+          <div className="grid grid-cols-2 gap-3.5">
+            <Card title="Semana atual vs anterior">
+              <p className="text-[12px]">
+                Agora: <b>{stats.week.count}</b> {stats.week.count === 1 ? "treino" : "treinos"} ·{" "}
+                {formatDuration(stats.week.minutes)}
+              </p>
+              <p className="text-[12px]">
+                Anterior: <b>{stats.lastWeek.count}</b>{" "}
+                {stats.lastWeek.count === 1 ? "treino" : "treinos"} ·{" "}
+                {formatDuration(stats.lastWeek.minutes)}
+              </p>
+              <p className="mt-1 text-[12px]">
+                Tempo: <Delta value={weekDelta} />
+              </p>
+            </Card>
+            <Card title="Mês atual vs anterior">
+              <p className="text-[12px]">
+                Agora: <b>{stats.month.count}</b> {stats.month.count === 1 ? "treino" : "treinos"} ·{" "}
+                {formatDuration(stats.month.minutes)}
+              </p>
+              <p className="text-[12px]">
+                Anterior: <b>{stats.lastMonth.count}</b>{" "}
+                {stats.lastMonth.count === 1 ? "treino" : "treinos"} ·{" "}
+                {formatDuration(stats.lastMonth.minutes)}
+              </p>
+              <p className="mt-1 text-[12px]">
+                Treinos: <Delta value={monthDelta} />
+              </p>
+            </Card>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3.5">
           <Card title="Cardio por tipo" subtitle="Minutos e sessões">
@@ -710,7 +727,7 @@ function Sheet({ athlete }: { athlete?: string }) {
 }
 
 function ReportPage() {
-  const { atleta: athlete } = Route.useSearch();
+  const { atleta: athlete, periodo, mes } = Route.useSearch();
   const [root, setRoot] = useState<HTMLElement | null>(null);
   const [zoom, setZoom] = useState(1);
 
@@ -751,7 +768,7 @@ function ReportPage() {
         Página A4 em retrato. Na janela de impressão, escolha “Salvar como PDF”.
       </p>
       <div className="py-4" style={{ zoom }}>
-        <Sheet athlete={athlete} />
+        <Sheet athlete={athlete} periodo={periodo} mes={mes} />
       </div>
     </div>,
     root,

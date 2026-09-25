@@ -1,14 +1,15 @@
-import { endOfMonth, format, startOfMonth, startOfQuarter, startOfWeek, startOfYear, subMonths } from "date-fns";
+import {
+  endOfMonth,
+  format,
+  startOfMonth,
+  startOfQuarter,
+  startOfWeek,
+  startOfYear,
+  subMonths,
+} from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-export type Period =
-  | "tudo"
-  | "semana"
-  | "quinzenal"
-  | "mes"
-  | "trimestral"
-  | "semestral"
-  | "anual";
+export type Period = "tudo" | "semana" | "quinzenal" | "mes" | "trimestral" | "semestral" | "anual";
 
 export const PERIODS: { value: Period; label: string }[] = [
   { value: "tudo", label: "Tudo" },
@@ -98,4 +99,18 @@ export function recentMonths(
 
 function capitalize(text: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Aplica o filtro de periodo do Painel (inclusive o mes escolhido) a uma lista de treinos. */
+export function filterByPeriod<T extends { date: string }>(
+  list: T[],
+  period: Period,
+  monthOffset = 0,
+): T[] {
+  if (period === "mes" && monthOffset > 0) {
+    const { start, end } = monthRangeIso(monthOffset);
+    return list.filter((w) => w.date >= start && w.date <= end);
+  }
+  const cutoff = periodCutoffIso(period);
+  return cutoff ? list.filter((w) => w.date >= cutoff) : list;
 }

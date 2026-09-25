@@ -204,7 +204,12 @@ export function DashboardPanel({
             }}
           >
             <CartesianGrid vertical={false} stroke={c.grid} />
-            <XAxis dataKey="label" tick={{ fill: c.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: c.muted, fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
@@ -235,7 +240,12 @@ export function DashboardPanel({
             }}
           >
             <CartesianGrid vertical={false} stroke={c.grid} />
-            <XAxis dataKey="label" tick={{ fill: c.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: c.muted, fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
@@ -265,7 +275,12 @@ export function DashboardPanel({
             }}
           >
             <CartesianGrid vertical={false} stroke={c.grid} />
-            <XAxis dataKey="date" tick={{ fill: c.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <XAxis
+              dataKey="date"
+              tick={{ fill: c.muted, fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
@@ -303,12 +318,19 @@ export function DashboardPanel({
             }}
           >
             <CartesianGrid vertical={false} stroke={c.grid} />
-            <XAxis dataKey="label" tick={{ fill: c.muted, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: c.muted, fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis hide />
             <Tooltip
               {...tooltipProps}
               active={coreEvolutionTip.sticky ? true : false}
-              payload={coreEvolutionTip.sticky ? (coreEvolutionTip.sticky.payload as never) : undefined}
+              payload={
+                coreEvolutionTip.sticky ? (coreEvolutionTip.sticky.payload as never) : undefined
+              }
               label={coreEvolutionTip.sticky ? coreEvolutionTip.sticky.label : undefined}
               coordinate={coreEvolutionTip.sticky ? coreEvolutionTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} reps`, "Core"]}
@@ -447,7 +469,9 @@ export function DashboardPanel({
               <Tooltip
                 {...tooltipProps}
                 active={muscleGroupTip.sticky ? true : false}
-                payload={muscleGroupTip.sticky ? (muscleGroupTip.sticky.payload as never) : undefined}
+                payload={
+                  muscleGroupTip.sticky ? (muscleGroupTip.sticky.payload as never) : undefined
+                }
                 label={muscleGroupTip.sticky ? muscleGroupTip.sticky.label : undefined}
                 coordinate={muscleGroupTip.sticky ? muscleGroupTip.sticky.coordinate : undefined}
                 formatter={(value) => [
@@ -460,11 +484,18 @@ export function DashboardPanel({
           </ResponsiveContainer>
           <ul className="mt-3 space-y-1.5 text-[24px]">
             {stats.byMuscleGroup.map((row) => (
-              <li key={row.name} className="flex items-center justify-between">
-                <span className="text-muted-foreground">{row.name}</span>
-                <span className="tabular-nums text-foreground">
-                  {row.sessions} {row.sessions === 1 ? "sessão" : "sessões"}
-                </span>
+              <li key={row.name}>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{row.name}</span>
+                  <span className="tabular-nums text-foreground">
+                    {row.sessions} {row.sessions === 1 ? "sessão" : "sessões"}
+                  </span>
+                </div>
+                {row.sessions <= 3 && (
+                  <p className="text-[16px] tabular-nums text-faint">
+                    {row.dates.map((d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`).join(" · ")}
+                  </p>
+                )}
               </li>
             ))}
           </ul>
@@ -474,7 +505,9 @@ export function DashboardPanel({
       {!periodActive && (
         <section>
           <h2 className="font-display text-[24px] tracking-tight">Comparativos</h2>
-          <p className="mt-1 text-[21px] text-muted-foreground">Semana, mês e atletas lado a lado.</p>
+          <p className="mt-1 text-[21px] text-muted-foreground">
+            Semana, mês e atletas lado a lado.
+          </p>
           <div className="mt-3 space-y-2">
             <CompareRow
               title="Semana atual vs anterior"
@@ -568,7 +601,9 @@ export function DashboardPanel({
 function Kpi({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <Card className="p-3.5">
-      <p className="text-[18px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="text-[18px] font-bold uppercase tracking-widest text-muted-foreground">
+        {label}
+      </p>
       <p className="mt-2 font-display text-2xl tabular-nums leading-none tracking-tight">{value}</p>
       <p className="mt-1.5 text-[21px] text-faint">{hint}</p>
     </Card>

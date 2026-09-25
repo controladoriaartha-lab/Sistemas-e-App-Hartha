@@ -258,7 +258,11 @@ function Sheet({ athlete }: { athlete?: string }) {
       {/* 1. Indicadores */}
       <SectionTitle n="1">Indicadores gerais</SectionTitle>
       <div className="grid grid-cols-4 gap-2.5">
-        <Kpi label="Treinos" value={String(stats.all.count)} hint="no diário todo" />
+        <Kpi
+          label="Treinos"
+          value={String(stats.all.count)}
+          hint={athlete ? `de ${athlete}` : "no diário todo"}
+        />
         <Kpi
           label="Horas"
           value={formatHours(stats.all.minutes)}
@@ -590,10 +594,12 @@ function Sheet({ athlete }: { athlete?: string }) {
         <div className="grid grid-cols-2 gap-3.5">
           <Card title="Semana atual vs anterior">
             <p className="text-[12px]">
-              Agora: <b>{stats.week.count}</b> treinos · {formatDuration(stats.week.minutes)}
+              Agora: <b>{stats.week.count}</b> {stats.week.count === 1 ? "treino" : "treinos"} ·{" "}
+              {formatDuration(stats.week.minutes)}
             </p>
             <p className="text-[12px]">
-              Anterior: <b>{stats.lastWeek.count}</b> treinos ·{" "}
+              Anterior: <b>{stats.lastWeek.count}</b>{" "}
+              {stats.lastWeek.count === 1 ? "treino" : "treinos"} ·{" "}
               {formatDuration(stats.lastWeek.minutes)}
             </p>
             <p className="mt-1 text-[12px]">
@@ -602,10 +608,12 @@ function Sheet({ athlete }: { athlete?: string }) {
           </Card>
           <Card title="Mês atual vs anterior">
             <p className="text-[12px]">
-              Agora: <b>{stats.month.count}</b> treinos · {formatDuration(stats.month.minutes)}
+              Agora: <b>{stats.month.count}</b> {stats.month.count === 1 ? "treino" : "treinos"} ·{" "}
+              {formatDuration(stats.month.minutes)}
             </p>
             <p className="text-[12px]">
-              Anterior: <b>{stats.lastMonth.count}</b> treinos ·{" "}
+              Anterior: <b>{stats.lastMonth.count}</b>{" "}
+              {stats.lastMonth.count === 1 ? "treino" : "treinos"} ·{" "}
               {formatDuration(stats.lastMonth.minutes)}
             </p>
             <p className="mt-1 text-[12px]">

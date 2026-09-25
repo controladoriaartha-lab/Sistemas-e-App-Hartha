@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,8 @@ export function WorkoutForm({
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState<Workout>(initial);
+  const [durationError, setDurationError] = useState("");
+  const durationRef = useRef<HTMLInputElement>(null);
   const customAthletes = useWorkoutStore((s) => s.customAthletes);
   const addAthlete = useWorkoutStore((s) => s.addAthlete);
 
@@ -61,16 +63,40 @@ export function WorkoutForm({
     patch({ focus, focusLabel: FOCUS_LABEL[focus] });
   }
 
+  const cardioRows = draft.cardio.filter((row) => row.kind.trim() && row.minutes > 0);
+  const cardioTotal = cardioRows.reduce((sum, row) => sum + row.minutes, 0);
+  const coreRows = draft.core.filter((row) => row.exercise.trim());
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!draft.date || draft.durationMin <= 0) return;
+    if (!draft.date) return;
+
+    // Duracao so e exigida quando nao ha outra referencia de tempo: o cardio
+    // ja traz os proprios minutos; musculacao e core nao.
+    let durationMin = draft.durationMin;
+    if (durationMin <= 0) {
+      if (cardioTotal > 0) {
+        durationMin = cardioTotal;
+      } else {
+        const what =
+          draft.machines > 0 ? "da musculação" : coreRows.length > 0 ? "do core" : "do treino";
+        setDurationError(
+          `Por favor, informe o tempo de duração ${what} (em minutos). Sem cardio com tempo, não há outra referência de duração.`,
+        );
+        durationRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+        durationRef.current?.focus({ preventScroll: true });
+        return;
+      }
+    }
+    setDurationError("");
     onSubmit({
       ...draft,
+      durationMin,
       muscleGroups: draft.muscleGroups.map((g) => g.trim()).filter(Boolean),
       extras: draft.extras.trim(),
       notes: draft.notes.trim(),
-      core: draft.core.filter((row) => row.exercise.trim()),
-      cardio: draft.cardio.filter((row) => row.kind.trim() && row.minutes > 0),
+      core: coreRows,
+      cardio: cardioRows,
     });
   }
 
@@ -183,6 +209,15 @@ export function WorkoutForm({
           />
         </Field>
       </div>
+
+      {durationError && (
+        <p
+          role="alert"
+          className="rounded-lg bg-danger/10 px-4 py-3 text-[24px] leading-snug text-danger"
+        >
+          {durationError}
+        </p>
+      )}
 
       <Field label="Grupo muscular">
         <Input

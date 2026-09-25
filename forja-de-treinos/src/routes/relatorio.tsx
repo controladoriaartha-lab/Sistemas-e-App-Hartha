@@ -199,7 +199,12 @@ function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; 
     : periodo === "mes" && mes
       ? (recentMonths(mes + 1).at(-1)?.label ?? "")
       : (PERIODS.find((p) => p.value === periodo)?.label ?? "");
-  const data = useMemo(() => buildReport(workouts), [workouts]);
+  // Com periodo filtrado, "hoje" passa a ser o ultimo treino do recorte: a
+  // sequencia e a frequencia refletem o periodo, nao os dias sem treino depois dele.
+  const data = useMemo(() => {
+    const lastDate = periodo ? workouts.reduce((m, w) => (w.date > m ? w.date : m), "") : "";
+    return buildReport(workouts, lastDate ? parseDate(lastDate) : new Date());
+  }, [workouts, periodo]);
   const { stats } = data;
   const list = useMemo(() => sortedWorkouts(workouts), [workouts]);
   const generated = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
@@ -289,7 +294,11 @@ function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; 
           value={`${data.consistency}%`}
           hint={`${data.activeWeeks} semanas ativas`}
         />
-        <Kpi label="Sequência atual" value={`${stats.streak}`} hint="dias seguidos" />
+        <Kpi
+          label={periodo ? "Sequência final" : "Sequência atual"}
+          value={`${stats.streak}`}
+          hint={periodo ? "dias seguidos até o último treino" : "dias seguidos"}
+        />
         <Kpi label="Maior sequência" value={`${data.longestStreak}`} hint="dias seguidos" />
         <Kpi label="Semanas fortes" value={`${data.strongWeeks}`} hint="3 ou mais treinos" />
         <Kpi label="Aparelhos" value={`${data.totalMachines}`} hint="no total" />

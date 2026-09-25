@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { FilterGroup, PillRow } from "@/components/filters";
+import { forAthlete } from "@/lib/athlete-view";
 import { WorkoutCard } from "@/components/workout-card";
 import { formatMonthYear } from "@/lib/format";
 import { PERIOD_IN_PHRASE, PERIODS, periodCutoffIso, type Period } from "@/lib/period";
@@ -32,7 +33,7 @@ function Home() {
   const visible = useMemo(() => {
     let list = sortedWorkouts(workouts);
     if (focus !== "todos") list = list.filter((w) => w.focus === focus);
-    if (athlete !== "todos") list = list.filter((w) => w.athletes.includes(athlete));
+    if (athlete !== "todos") list = forAthlete(list, athlete);
     const cutoff = periodCutoffIso(period);
     if (cutoff) list = list.filter((w) => w.date >= cutoff);
     return list;
@@ -60,7 +61,9 @@ function Home() {
       <header className="mb-6">
         <p className="text-[24px] font-medium uppercase tracking-widest text-accent">Diário</p>
         <h1 className="mt-1 font-display text-4xl font-medium tracking-tight">Forja de Treinos</h1>
-        <p className="mt-2 max-w-xs text-2xl font-normal text-muted-foreground">Treinos de Cada Dia</p>
+        <p className="mt-2 max-w-xs text-2xl font-normal text-muted-foreground">
+          Treinos de Cada Dia
+        </p>
       </header>
 
       <div className="mb-5 space-y-3">
@@ -138,7 +141,9 @@ function Home() {
           <div className="space-y-8">
             {groups.map(([month, list]) => (
               <section key={month} className="space-y-3">
-                <h2 className="text-2xl font-normal text-faint">{formatMonthYear(`${month}-01`)}</h2>
+                <h2 className="text-2xl font-normal text-faint">
+                  {formatMonthYear(`${month}-01`)}
+                </h2>
                 {list.map((workout) => (
                   <WorkoutCard key={workout.id} workout={workout} />
                 ))}
@@ -155,7 +160,9 @@ function EmptyState() {
   return (
     <div className="rounded-xl bg-card px-5 py-10 text-center shadow-[0_0_0_1px_rgba(244,239,232,0.08)]">
       <p className="font-display text-2xl">Nenhum treino</p>
-      <p className="mt-2 text-sm text-muted-foreground">Registre o primeiro dia na Forja de Treinos.</p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Registre o primeiro dia na Forja de Treinos.
+      </p>
       <Link
         to="/novo"
         className="mt-5 inline-flex min-h-11 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background"

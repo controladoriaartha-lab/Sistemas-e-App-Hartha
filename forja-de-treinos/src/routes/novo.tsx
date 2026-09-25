@@ -16,7 +16,12 @@ function NewWorkoutPage() {
   return (
     <main className="relative px-5 pb-4 pt-6">
       <header className="mb-6 flex items-center gap-2">
-        <Button variant="ghost" size="icon" aria-label="Voltar" onClick={() => navigate({ to: "/" })}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Voltar"
+          onClick={() => navigate({ to: "/" })}
+        >
           <ArrowLeft />
         </Button>
         <div>

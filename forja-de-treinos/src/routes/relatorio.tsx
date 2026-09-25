@@ -18,6 +18,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatDuration, formatHours, formatWeekday, parseDate } from "@/lib/format";
+import { forAthlete } from "@/lib/athlete-view";
 import { buildReport } from "@/lib/report";
 import { filterByPeriod, PERIODS, recentMonths, type Period } from "@/lib/period";
 import { deltaPct } from "@/lib/stats";
@@ -191,13 +192,7 @@ function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; 
   const workouts = useMemo(() => {
     const byPeriod = periodo ? filterByPeriod(allWorkouts, periodo, mes ?? 0) : allWorkouts;
     if (!athlete) return byPeriod;
-    return byPeriod
-      .filter((w) => w.athletes.includes(athlete))
-      .map((w) => ({
-        ...w,
-        athletes: [athlete],
-        core: w.core.filter((r) => !r.athlete || r.athlete === athlete),
-      }));
+    return forAthlete(byPeriod, athlete).map((w) => ({ ...w, athletes: [athlete] }));
   }, [allWorkouts, athlete, periodo, mes]);
   const periodLabel = !periodo
     ? ""

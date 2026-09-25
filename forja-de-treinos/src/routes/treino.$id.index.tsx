@@ -27,7 +27,13 @@ function WorkoutDetailPage() {
     );
   }
 
-  return <WorkoutDetail workout={workout} duplicateWorkout={duplicateWorkout} deleteWorkout={deleteWorkout} />;
+  return (
+    <WorkoutDetail
+      workout={workout}
+      duplicateWorkout={duplicateWorkout}
+      deleteWorkout={deleteWorkout}
+    />
+  );
 }
 
 function WorkoutDetail({
@@ -44,7 +50,12 @@ function WorkoutDetail({
   return (
     <main className="relative px-5 pb-28 pt-6">
       <header className="mb-6 flex items-center gap-2 pr-10">
-        <Button variant="ghost" size="icon" aria-label="Voltar" onClick={() => navigate({ to: "/" })}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Voltar"
+          onClick={() => navigate({ to: "/" })}
+        >
           <ArrowLeft />
         </Button>
         <div className="min-w-0 flex-1">

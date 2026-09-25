@@ -2,18 +2,13 @@ import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Download, LogOut, Printer, TriangleAlert, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { forAthlete } from "@/lib/athlete-view";
 import { DashboardPanel } from "@/components/dashboard-panel";
 import { FilterGroup, MonthPicker, PillRow } from "@/components/filters";
 import { Button } from "@/components/ui/button";
 import { parseMarkdownDiary, workoutsToMarkdown } from "@/lib/diary-md";
 import { todayIso } from "@/lib/format";
-import {
-  filterByPeriod,
-  PERIOD_IN_PHRASE,
-  PERIODS,
-  recentMonths,
-  type Period,
-} from "@/lib/period";
+import { filterByPeriod, PERIOD_IN_PHRASE, PERIODS, recentMonths, type Period } from "@/lib/period";
 import { DEFAULT_ATHLETES } from "@/lib/types";
 import { supabase } from "@/lib/cloud";
 import { resetSyncForLogout, syncNow } from "@/lib/sync";
@@ -41,7 +36,7 @@ function DashboardPage() {
 
   const filtered = useMemo(() => {
     let list = workouts;
-    if (athlete !== "todos") list = list.filter((w) => w.athletes.includes(athlete));
+    if (athlete !== "todos") list = forAthlete(list, athlete);
     list = filterByPeriod(list, period, monthOffset);
     return list;
   }, [workouts, athlete, period, monthOffset]);

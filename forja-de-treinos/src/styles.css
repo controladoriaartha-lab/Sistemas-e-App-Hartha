@@ -121,7 +121,7 @@
 @media print {
   html,
   body {
-    background: #fbf8f3 !important;
+    background: #fff !important;
     height: auto !important;
     overflow: visible !important;
   }
@@ -142,10 +142,11 @@
     padding: 0 !important;
   }
   .report-sheet {
+    --rp-paper: #fff;
+    background: #fff !important;
     width: auto !important;
     padding: 0 !important;
     box-shadow: none !important;
-    background: transparent !important;
   }
   .report-break {
     break-after: page;

@@ -81,7 +81,7 @@ export function WorkoutForm({
         const what =
           draft.machines > 0 ? "da musculação" : coreRows.length > 0 ? "do core" : "do treino";
         setDurationError(
-          `Por favor, informe o tempo de duração ${what} (em minutos). Sem cardio com tempo, não há outra referência de duração.`,
+          `Por favor, informe o tempo de duração ${what} (em minutos).`,
         );
         durationRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
         durationRef.current?.focus({ preventScroll: true });

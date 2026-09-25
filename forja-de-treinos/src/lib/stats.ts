@@ -74,6 +74,14 @@ export function extraCategories(extras: string): string[] {
     .filter((name) => name !== "Outro");
 }
 
+/** Grupos digitados no formulario, separando tambem por ponto/ponto e virgula ("costas. peitoral"). */
+function groupTags(w: Workout): string[] {
+  return w.muscleGroups
+    .flatMap((g) => g.split(/[.;/]+/))
+    .map((g) => g.trim())
+    .filter(Boolean);
+}
+
 export function computeStats(workouts: Workout[], now = new Date(), extraAthletes: string[] = []) {
   const sorted = [...workouts].sort((a, b) => b.date.localeCompare(a.date));
   const thisWeekStart = startOfWeek(now, WEEK_OPTS);
@@ -189,7 +197,7 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
   const dateById = new Map(sorted.map((w) => [w.id, w.date]));
   for (const w of sorted) {
     const categories = new Set([
-      ...w.muscleGroups.map(classifyMuscleGroup),
+      ...groupTags(w).map(classifyMuscleGroup),
       ...extraCategories(w.extras),
     ]);
     for (const category of categories) {
@@ -198,10 +206,12 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
       muscleGroupSessions.set(category, ids);
     }
     // descricao como foi digitada (ex.: "Posteriores, anteriores, panturrilhas")
-    for (const tag of w.muscleGroups) {
+    for (const tag of groupTags(w)) {
       const category = classifyMuscleGroup(tag);
       const label = labelFromFreeText(tag);
-      if (!label || label.toLowerCase() === category.toLowerCase()) continue;
+      const lower = label.toLowerCase();
+      const cat = category.toLowerCase();
+      if (!label || cat.startsWith(lower) || lower.startsWith(cat)) continue;
       const map = muscleGroupDetails.get(category) ?? new Map<string, string>();
       if (!map.has(label.toLowerCase())) map.set(label.toLowerCase(), label);
       muscleGroupDetails.set(category, map);

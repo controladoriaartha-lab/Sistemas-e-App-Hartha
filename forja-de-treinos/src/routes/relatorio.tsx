@@ -305,7 +305,11 @@ function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; 
         <Kpi label="Semanas fortes" value={`${data.strongWeeks}`} hint="3 ou mais treinos" />
         <Kpi label="Aparelhos" value={`${data.totalMachines}`} hint="no total" />
         <Kpi label="Core" value={`${stats.all.coreReps}`} hint="repetições" />
-        <Kpi label="Cardio" value={formatDuration(stats.all.cardio)} hint="no total" />
+        <Kpi
+          label="Cardio"
+          value={formatDuration(stats.all.cardio)}
+          hint={stats.cardioKinds.length ? stats.cardioKinds.join(", ") : "no total"}
+        />
         <Kpi
           label="Sessão mais longa"
           value={formatDuration(data.longest?.durationMin ?? 0)}
@@ -546,6 +550,18 @@ function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; 
                 <LabelList dataKey="sessions" position="right" fontSize={9.5} fill={C.muted} />
               </Bar>
             </BarChart>
+            {stats.byMuscleGroup.some((g) => g.details.length > 0) && (
+              <ul className="mt-2 space-y-0.5 text-[10.5px] leading-snug text-[color:var(--rp-muted)]">
+                {stats.byMuscleGroup
+                  .filter((g) => g.details.length > 0)
+                  .map((g) => (
+                    <li key={g.name}>
+                      <b className="font-semibold text-[color:var(--rp-ink)]">{g.name}:</b>{" "}
+                      {g.details.join(", ").toLowerCase()}
+                    </li>
+                  ))}
+              </ul>
+            )}
           </Card>
         </div>
 

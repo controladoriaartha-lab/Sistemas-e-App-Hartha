@@ -37,9 +37,9 @@ const MUSCLE_CATEGORIES: { name: string; test: RegExp }[] = [
   { name: "Costas", test: /costa/ },
   { name: "Braços", test: /braco/ },
   { name: "Ombros", test: /ombro/ },
-  { name: "Pernas (ant.)", test: /anterior/ },
-  { name: "Pernas (post.)", test: /posterior/ },
-  { name: "Pernas", test: /coxa|panturrilha|perna/ },
+  // Anteriores, posteriores, coxas e panturrilhas sao todos "Pernas": uma sessao
+  // de pernas conta uma vez so; o detalhe digitado aparece na descricao.
+  { name: "Pernas", test: /anterior|posterior|coxa|panturrilha|perna/ },
 ];
 
 /**
@@ -166,7 +166,26 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
     };
   });
 
+  const cardioMinutes = new Map<string, { label: string; minutes: number }>();
+  for (const w of sorted) {
+    for (const c of w.cardio) {
+      const label = c.kind.trim();
+      if (!label) continue;
+      const key = label.toLowerCase();
+      const cur = cardioMinutes.get(key) ?? {
+        label: label.charAt(0).toUpperCase() + label.slice(1),
+        minutes: 0,
+      };
+      cur.minutes += c.minutes;
+      cardioMinutes.set(key, cur);
+    }
+  }
+  const cardioKinds = [...cardioMinutes.values()]
+    .sort((a, b) => b.minutes - a.minutes)
+    .map((c) => c.label);
+
   const muscleGroupSessions = new Map<string, Set<string>>();
+  const muscleGroupDetails = new Map<string, Map<string, string>>();
   const dateById = new Map(sorted.map((w) => [w.id, w.date]));
   for (const w of sorted) {
     const categories = new Set([
@@ -178,11 +197,21 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
       ids.add(w.id);
       muscleGroupSessions.set(category, ids);
     }
+    // descricao como foi digitada (ex.: "Posteriores, anteriores, panturrilhas")
+    for (const tag of w.muscleGroups) {
+      const category = classifyMuscleGroup(tag);
+      const label = labelFromFreeText(tag);
+      if (!label || label.toLowerCase() === category.toLowerCase()) continue;
+      const map = muscleGroupDetails.get(category) ?? new Map<string, string>();
+      if (!map.has(label.toLowerCase())) map.set(label.toLowerCase(), label);
+      muscleGroupDetails.set(category, map);
+    }
   }
   const byMuscleGroup = [...muscleGroupSessions.entries()]
     .map(([name, ids]) => ({
       name,
       sessions: ids.size,
+      details: [...(muscleGroupDetails.get(name)?.values() ?? [])],
       // datas dos treinos que originam o grupo (ajuda a achar o registro para editar)
       dates: [...ids]
         .map((id) => dateById.get(id) ?? "")
@@ -226,6 +255,7 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
     recent,
     athletes,
     byMuscleGroup,
+    cardioKinds,
     streak,
     avgDuration: all.count ? Math.round(all.minutes / all.count) : 0,
     sessionsPerWeek: all.count / (spanDays / 7),

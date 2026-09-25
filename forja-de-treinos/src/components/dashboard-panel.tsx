@@ -491,6 +491,9 @@ export function DashboardPanel({
                     {row.sessions} {row.sessions === 1 ? "sessão" : "sessões"}
                   </span>
                 </div>
+                {row.details.length > 0 && (
+                  <p className="text-[18px] text-faint">{row.details.join(", ")}</p>
+                )}
                 {row.sessions <= 3 && (
                   <p className="text-[16px] tabular-nums text-faint">
                     {row.dates.map((d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`).join(" · ")}
@@ -588,9 +591,10 @@ export function DashboardPanel({
             {formatDuration(stats.all.cardio)}
           </p>
           <p className="mt-1 text-[21px] text-muted-foreground">
+            {stats.cardioKinds.length ? stats.cardioKinds.join(", ") : "nenhum cardio"}
             {periodActive
-              ? `bike e demais, ${periodLabel}`
-              : `bike e demais — ${formatDuration(stats.week.cardio)} nesta semana`}
+              ? `, ${periodLabel}`
+              : ` — ${formatDuration(stats.week.cardio)} nesta semana`}
           </p>
         </Card>
       </section>

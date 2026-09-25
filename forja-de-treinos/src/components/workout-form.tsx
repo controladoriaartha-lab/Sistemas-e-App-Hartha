@@ -167,16 +167,25 @@ export function WorkoutForm({
         <Field label="Duração (min)">
           <Input
             type="number"
-            min={1}
+            ref={durationRef}
+            min={0}
             max={300}
-            required
             value={draft.durationMin || ""}
             placeholder="0"
-            onChange={(e) => patch({ durationMin: Number(e.target.value) || 0 })}
+            onChange={(e) => {
+              setDurationError("");
+              patch({ durationMin: Number(e.target.value) || 0 });
+            }}
           />
-          <p className="mt-1 text-[24px] text-faint tabular-nums">
-            {formatDuration(draft.durationMin)}
-          </p>
+          {draft.durationMin > 0 ? (
+            <p className="mt-1 text-[24px] tabular-nums text-faint">
+              {formatDuration(draft.durationMin)}
+            </p>
+          ) : cardioTotal > 0 ? (
+            <p className="mt-1 text-[24px] text-faint">
+              Vale o tempo do cardio: {formatDuration(cardioTotal)}
+            </p>
+          ) : null}
         </Field>
         <Field label="Aparelhos">
           <Input

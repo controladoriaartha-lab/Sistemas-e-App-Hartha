@@ -118,7 +118,7 @@ export function WorkoutForm({
                 type="button"
                 onClick={() => toggleAthlete(name)}
                 className={cn(
-                  "min-h-11 rounded-full px-4 text-sm font-medium transition-colors duration-150",
+                  "min-h-14 rounded-full px-5 text-[24px] font-medium transition-colors duration-150",
                   on ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
                 )}
               >
@@ -129,15 +129,15 @@ export function WorkoutForm({
           <button
             type="button"
             onClick={handleNewAthlete}
-            className="inline-flex min-h-11 items-center gap-1 rounded-full border border-dashed border-border px-4 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
+            className="inline-flex min-h-14 items-center gap-1 rounded-full border border-dashed border-border px-5 text-[24px] font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
           >
-            <Plus className="size-4" />
+            <Plus className="size-6" />
             Novo
           </button>
         </div>
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-x-5 gap-y-4">
         <Field label="Duração (min)">
           <Input
             type="number"
@@ -147,7 +147,7 @@ export function WorkoutForm({
             value={draft.durationMin}
             onChange={(e) => patch({ durationMin: Number(e.target.value) || 0 })}
           />
-          <p className="mt-1 text-xs text-faint tabular-nums">{formatDuration(draft.durationMin)}</p>
+          <p className="mt-1 text-[24px] text-faint tabular-nums">{formatDuration(draft.durationMin)}</p>
         </Field>
         <Field label="Aparelhos">
           <Input
@@ -205,6 +205,7 @@ export function WorkoutForm({
             type="button"
             size="sm"
             variant="ghost"
+            className="h-12 text-[24px] [&_svg]:size-6"
             onClick={() =>
               patch({
                 core: [...draft.core, { exercise: "Abdominal", sets: 3, reps: 12 }],
@@ -216,13 +217,13 @@ export function WorkoutForm({
           </Button>
         </div>
         {draft.core.length === 0 ? (
-          <p className="text-sm text-faint">Nenhum exercício de core.</p>
+          <p className="text-[24px] text-faint">Nenhum exercício de core.</p>
         ) : (
           <div className="space-y-2">
             {draft.core.map((row, index) => (
               <div key={index} className="grid grid-cols-12 gap-2">
                 <Input
-                  className="col-span-5"
+                  className="col-span-12"
                   value={row.exercise}
                   onChange={(e) => {
                     const next = [...draft.core];
@@ -231,7 +232,7 @@ export function WorkoutForm({
                   }}
                 />
                 <Input
-                  className="col-span-2"
+                  className="col-span-5"
                   type="number"
                   min={1}
                   value={row.sets}
@@ -242,7 +243,7 @@ export function WorkoutForm({
                   }}
                 />
                 <Input
-                  className="col-span-3"
+                  className="col-span-5"
                   type="number"
                   min={1}
                   value={row.reps}
@@ -256,14 +257,14 @@ export function WorkoutForm({
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="col-span-2"
+                  className="col-span-2 h-14"
                   aria-label="Remover core"
                   onClick={() => patch({ core: draft.core.filter((_, i) => i !== index) })}
                 >
                   <Trash2 />
                 </Button>
                 <Input
-                  className="col-span-10"
+                  className="col-span-12"
                   placeholder="Atleta (opcional)"
                   value={row.athlete ?? ""}
                   onChange={(e) => {
@@ -285,6 +286,7 @@ export function WorkoutForm({
             type="button"
             size="sm"
             variant="ghost"
+            className="h-12 text-[24px] [&_svg]:size-6"
             onClick={() => patch({ cardio: [...draft.cardio, { kind: "Bike", minutes: 10 }] })}
           >
             <Plus />
@@ -292,13 +294,13 @@ export function WorkoutForm({
           </Button>
         </div>
         {draft.cardio.length === 0 ? (
-          <p className="text-sm text-faint">Nenhum cardio.</p>
+          <p className="text-[24px] text-faint">Nenhum cardio.</p>
         ) : (
           <div className="space-y-2">
             {draft.cardio.map((row, index) => (
               <div key={index} className="grid grid-cols-12 gap-2">
                 <Input
-                  className="col-span-7"
+                  className="col-span-6"
                   value={row.kind}
                   onChange={(e) => {
                     const next = [...draft.cardio];
@@ -307,7 +309,7 @@ export function WorkoutForm({
                   }}
                 />
                 <Input
-                  className="col-span-3"
+                  className="col-span-4"
                   type="number"
                   min={1}
                   value={row.minutes}
@@ -321,7 +323,7 @@ export function WorkoutForm({
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="col-span-2"
+                  className="col-span-2 h-14"
                   aria-label="Remover cardio"
                   onClick={() => patch({ cardio: draft.cardio.filter((_, i) => i !== index) })}
                 >
@@ -343,10 +345,10 @@ export function WorkoutForm({
       </Field>
 
       <div className="sticky bottom-0 -mx-5 mt-2 flex gap-2 border-t border-border bg-background/95 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
-        <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>
+        <Button type="button" variant="secondary" className="h-14 flex-1 text-[24px]" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" className="flex-1">
+        <Button type="submit" className="h-14 flex-1 text-[24px]">
           {submitLabel}
         </Button>
       </div>
@@ -382,7 +384,7 @@ function Segmented<T extends string>({
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "min-h-10 rounded-md text-sm font-medium transition-colors duration-150",
+              "min-h-14 rounded-md text-[24px] font-medium transition-colors duration-150",
               on ? "bg-foreground text-background" : "text-muted-foreground",
             )}
           >

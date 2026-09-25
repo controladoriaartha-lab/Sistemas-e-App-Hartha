@@ -42,6 +42,23 @@ const MUSCLE_CATEGORIES: { name: string; test: RegExp }[] = [
   { name: "Pernas", test: /coxa|panturrilha|perna/ },
 ];
 
+/**
+ * Free text that doesn't fit a known category keeps its own name in the
+ * chart instead of vanishing into a generic "Outro" — strip sets/reps and
+ * counts ("Alteres 3x12" -> "Alteres", "3 halteres" -> "Halteres").
+ */
+function labelFromFreeText(raw: string): string {
+  const cleaned = raw
+    .replace(/\(.*?\)/g, " ")
+    .replace(/\d+\s*[x×]\s*\d+/gi, " ")
+    .replace(/\d+/g, " ")
+    .replace(/[^\p{L}\s-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return "";
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
+}
+
 function classifyMuscleGroup(raw: string): string {
   const normalized = raw
     .toLowerCase()
@@ -49,7 +66,16 @@ function classifyMuscleGroup(raw: string): string {
     .replace(/[̀-ͯ]/g, "")
     .trim();
   if (!normalized) return "Outro";
-  return MUSCLE_CATEGORIES.find((cat) => cat.test.test(normalized))?.name ?? "Outro";
+  const known = MUSCLE_CATEGORIES.find((cat) => cat.test.test(normalized))?.name;
+  return known ?? (labelFromFreeText(raw) || "Outro");
+}
+
+/** Every item typed in "Extra" gets its own entry, named as typed. */
+function extraCategories(extras: string): string[] {
+  return extras
+    .split(/[,;+]|\s+e\s+/i)
+    .map((part) => classifyMuscleGroup(part))
+    .filter((name) => name !== "Outro");
 }
 
 export function computeStats(workouts: Workout[], now = new Date(), extraAthletes: string[] = []) {
@@ -146,7 +172,10 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
 
   const muscleGroupSessions = new Map<string, Set<string>>();
   for (const w of sorted) {
-    const categories = new Set(w.muscleGroups.map(classifyMuscleGroup));
+    const categories = new Set([
+      ...w.muscleGroups.map(classifyMuscleGroup),
+      ...extraCategories(w.extras),
+    ]);
     for (const category of categories) {
       const ids = muscleGroupSessions.get(category) ?? new Set<string>();
       ids.add(w.id);

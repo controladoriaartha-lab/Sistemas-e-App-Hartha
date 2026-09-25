@@ -79,18 +79,18 @@ export function WorkoutCard({ workout }: { workout: Workout }) {
       </Link>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Button variant="secondary" onClick={onDuplicate}>
+        <Button variant="secondary" className="h-14 text-[24px] [&_svg]:size-6" onClick={onDuplicate}>
           <Copy />
           Duplicar
         </Button>
-        <Button variant="outline" asChild>
+        <Button variant="outline" className="h-14 text-[24px] [&_svg]:size-6" asChild>
           <Link to="/treino/$id/editar" params={{ id: workout.id }}>
             <Pencil />
             Editar
           </Link>
         </Button>
       </div>
-      <Button variant="destructive" className="mt-2 w-full" onClick={onDelete}>
+      <Button variant="destructive" className="mt-2 h-14 w-full text-[24px] [&_svg]:size-6" onClick={onDelete}>
         <Trash2 />
         Excluir
       </Button>

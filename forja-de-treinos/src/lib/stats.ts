@@ -51,7 +51,7 @@ function labelFromFreeText(raw: string): string {
   const cleaned = raw
     .replace(/\(.*?\)/g, " ")
     .replace(/\d+\s*[x×]\s*\d+/gi, " ")
-    .replace(/\d+/g, " ")
+    .replace(/\d+/g, " ")
     .replace(/[^\p{L}\s-]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();

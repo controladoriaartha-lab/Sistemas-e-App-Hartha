@@ -11,6 +11,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import type { Focus, Intensity, Workout } from "./types";
 import { parseDate } from "./format";
+import { sameAthlete } from "./athlete-view";
 
 const WEEK_OPTS = { weekStartsOn: 1 as const };
 
@@ -21,7 +22,7 @@ function inRange(iso: string, start: Date, end: Date) {
 
 function coreRepsFor(workout: Workout, athlete: string) {
   return workout.core.reduce((sum, row) => {
-    if (row.athlete && row.athlete !== athlete) return sum;
+    if (row.athlete && !sameAthlete(row.athlete, athlete)) return sum;
     return sum + row.sets * row.reps;
   }, 0);
 }
@@ -165,7 +166,7 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
   for (const name of extraAthletes) if (name.trim()) athleteNames.add(name.trim());
 
   const athletes = [...athleteNames].map((name) => {
-    const own = sorted.filter((w) => w.athletes.includes(name));
+    const own = sorted.filter((w) => w.athletes.some((a) => sameAthlete(a, name)));
     return {
       name,
       sessions: own.length,

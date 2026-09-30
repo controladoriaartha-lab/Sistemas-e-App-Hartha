@@ -31,7 +31,7 @@ export function forAthlete(list: Workout[], athlete: string): Workout[] {
       core: w.core.filter((r) => !r.athlete || sameAthlete(r.athlete, athlete)),
       cardio: w.cardio.filter((r) => !r.athlete || sameAthlete(r.athlete, athlete)),
       extras: formatExtras(
-        parseExtras(w.extras).filter(
+        parseExtras(w.extras, w.athletes).filter(
           (item) => !item.athlete || sameAthlete(item.athlete, athlete),
         ),
       ),

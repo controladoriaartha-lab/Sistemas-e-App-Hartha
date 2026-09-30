@@ -124,7 +124,10 @@ export function WorkoutForm({
     () => Array.from(new Set([...EXTRA_BASE_OPTIONS, ...customExtras])),
     [customExtras],
   );
-  const extraItems = useMemo(() => parseExtras(draft.extras), [draft.extras]);
+  const extraItems = useMemo(
+    () => parseExtras(draft.extras, draft.athletes),
+    [draft.extras, draft.athletes],
+  );
   // Agrupa as linhas por nome (uma ou mais por item, uma por atleta quando
   // "+ Atleta" foi usado), preservando o indice real de cada uma no array
   // plano usado para gravar (extras e so uma string).

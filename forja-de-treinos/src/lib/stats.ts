@@ -12,6 +12,7 @@ import { ptBR } from "date-fns/locale";
 import type { Focus, Intensity, Workout } from "./types";
 import { parseDate } from "./format";
 import { sameAthlete } from "./athlete-view";
+import { parseExtras } from "./extras";
 
 const WEEK_OPTS = { weekStartsOn: 1 as const };
 
@@ -68,11 +69,15 @@ export function classifyMuscleGroup(raw: string): string {
   return known ?? (labelFromFreeText(raw) || "Outro");
 }
 
-/** Every item typed in "Extra" gets its own entry, named as typed. */
-export function extraCategories(extras: string): string[] {
-  return extras
-    .split(/[,;+]|\s+e\s+/i)
-    .map((part) => classifyMuscleGroup(part))
+/**
+ * Every item typed in "Extra" gets its own entry, named as typed. Passa
+ * pelo mesmo parser de lib/extras.ts (nao so split por vírgula) pra tirar
+ * o nome do atleta mesmo de registros antigos sem o marcador `[Atleta]`
+ * ("Pesos 2x12 Vânia" -> "Pesos", nao "Pesos Vânia").
+ */
+export function extraCategories(extras: string, knownAthletes: string[] = []): string[] {
+  return parseExtras(extras, knownAthletes)
+    .map((item) => classifyMuscleGroup(item.name))
     .filter((name) => name !== "Outro");
 }
 
@@ -200,7 +205,7 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
   for (const w of sorted) {
     const categories = new Set([
       ...groupTags(w).map(classifyMuscleGroup),
-      ...extraCategories(w.extras),
+      ...extraCategories(w.extras, w.athletes),
     ]);
     for (const category of categories) {
       const ids = muscleGroupSessions.get(category) ?? new Set<string>();

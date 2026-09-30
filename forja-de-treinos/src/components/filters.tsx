@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { CalendarDays, ChevronDown } from "lucide-react";
+import { todayIso } from "@/lib/format";
 import { recentMonths } from "@/lib/period";
 import { cn } from "@/lib/utils";
 
@@ -96,6 +97,32 @@ export function MonthPicker({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Small "menuzinho" next to the Período row, only relevant while "Dia" is the
+ * active period: lets you pick which exact day to look at instead of always
+ * today. A native date input, so it opens the phone's own calendar picker.
+ */
+export function DayPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-muted px-3">
+      <CalendarDays className="size-4 shrink-0 text-faint" />
+      <input
+        type="date"
+        value={value}
+        max={todayIso()}
+        onChange={(e) => onChange(e.target.value || todayIso())}
+        className="min-w-0 bg-transparent text-[24px] font-medium text-foreground outline-none [color-scheme:inherit]"
+      />
     </div>
   );
 }

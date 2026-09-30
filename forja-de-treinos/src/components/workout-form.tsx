@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_ATHLETES,
+  EXTRA_BASE_OPTIONS,
   FOCUS_LABEL,
   INTENSITY_LABEL,
   type Focus,
@@ -32,14 +33,49 @@ export function WorkoutForm({
   const durationRef = useRef<HTMLInputElement>(null);
   const customAthletes = useWorkoutStore((s) => s.customAthletes);
   const addAthlete = useWorkoutStore((s) => s.addAthlete);
+  const customExtras = useWorkoutStore((s) => s.customExtras);
+  const addExtraType = useWorkoutStore((s) => s.addExtraType);
 
   const athleteOptions = useMemo(
     () => Array.from(new Set([...DEFAULT_ATHLETES, ...customAthletes, ...initial.athletes])),
     [customAthletes, initial.athletes],
   );
 
+  // Itens de "Outros treinos" ja marcados neste treino, na ordem em que
+  // foram digitados/escolhidos (extras e "Pesos, Flexão" — texto livre
+  // antigo tambem sobrevive aqui como um item a mais, sem virar chip).
+  const extraOptions = useMemo(
+    () => Array.from(new Set([...EXTRA_BASE_OPTIONS, ...customExtras])),
+    [customExtras],
+  );
+  const extraParts = useMemo(
+    () =>
+      draft.extras
+        .split(/[,;]+/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    [draft.extras],
+  );
+
   function patch(partial: Partial<Workout>) {
     setDraft((prev) => ({ ...prev, ...partial }));
+  }
+
+  function toggleExtra(name: string) {
+    const has = extraParts.some((p) => p.toLowerCase() === name.toLowerCase());
+    const next = has
+      ? extraParts.filter((p) => p.toLowerCase() !== name.toLowerCase())
+      : [...extraParts, name];
+    patch({ extras: next.join(", ") });
+  }
+
+  function handleNewExtraType() {
+    const name = window.prompt("Nome do novo tipo de treino (ex.: Elástico, Escalada…)")?.trim();
+    if (!name) return;
+    addExtraType(name);
+    if (!extraParts.some((p) => p.toLowerCase() === name.toLowerCase())) {
+      patch({ extras: [...extraParts, name].join(", ") });
+    }
   }
 
   function handleNewAthlete() {
@@ -240,12 +276,33 @@ export function WorkoutForm({
         />
       </Field>
 
-      <Field label="Extra">
-        <Input
-          placeholder="halteres, observação rápida…"
-          value={draft.extras}
-          onChange={(e) => patch({ extras: e.target.value })}
-        />
+      <Field label="Outros treinos">
+        <div className="flex flex-wrap gap-2">
+          {extraOptions.map((name) => {
+            const on = extraParts.some((p) => p.toLowerCase() === name.toLowerCase());
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => toggleExtra(name)}
+                className={cn(
+                  "min-h-14 rounded-full px-5 text-[24px] font-medium transition-colors duration-150",
+                  on ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
+                )}
+              >
+                {name}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={handleNewExtraType}
+            className="inline-flex min-h-14 items-center gap-1 rounded-full border border-dashed border-border px-5 text-[24px] font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
+          >
+            <Plus className="size-6" />
+            Novo
+          </button>
+        </div>
       </Field>
 
       <section className="space-y-2">

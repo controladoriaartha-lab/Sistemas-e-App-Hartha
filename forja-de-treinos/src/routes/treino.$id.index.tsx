@@ -86,7 +86,7 @@ function WorkoutDetail({
         {workout.muscleGroups.length > 0 && (
           <Row label="Grupo muscular" value={workout.muscleGroups.join(", ")} />
         )}
-        {workout.extras ? <Row label="Extra" value={workout.extras} /> : null}
+        {workout.extras ? <Row label="Outros treinos" value={workout.extras} /> : null}
         {workout.core.map((row, i) => (
           <Row
             key={`${row.exercise}-${i}`}

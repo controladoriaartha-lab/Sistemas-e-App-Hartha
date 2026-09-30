@@ -45,3 +45,6 @@ export const INTENSITY_LABEL: Record<Intensity, string> = {
 };
 
 export const DEFAULT_ATHLETES = ["Geovanil", "Vânia"] as const;
+
+/** Menu fixo de "Outros treinos" (campo Extra), antes de custom types. */
+export const EXTRA_BASE_OPTIONS = ["Pesos", "Flexão", "Outros"] as const;

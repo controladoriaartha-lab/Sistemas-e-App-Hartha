@@ -1,13 +1,14 @@
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Download, LogOut, Printer, TriangleAlert, Upload } from "lucide-react";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import { forAthlete } from "@/lib/athlete-view";
 import { DashboardPanel } from "@/components/dashboard-panel";
-import { FilterGroup, MonthPicker, PillRow } from "@/components/filters";
+import { DayPicker, FilterGroup, MonthPicker, PillRow } from "@/components/filters";
 import { Button } from "@/components/ui/button";
 import { parseMarkdownDiary, workoutsToMarkdown } from "@/lib/diary-md";
-import { todayIso } from "@/lib/format";
+import { parseDate, todayIso } from "@/lib/format";
 import { filterByPeriod, PERIOD_IN_PHRASE, PERIODS, recentMonths, type Period } from "@/lib/period";
 import { DEFAULT_ATHLETES } from "@/lib/types";
 import { supabase } from "@/lib/cloud";
@@ -26,6 +27,7 @@ function DashboardPage() {
   const [athlete, setAthlete] = useState<string>("todos");
   const [period, setPeriod] = useState<Period>("tudo");
   const [monthOffset, setMonthOffset] = useState(0);
+  const [dayIso, setDayIso] = useState(todayIso());
 
   const athleteOptions = useMemo(() => {
     const set = new Set<string>(DEFAULT_ATHLETES);
@@ -37,22 +39,25 @@ function DashboardPage() {
   const filtered = useMemo(() => {
     let list = workouts;
     if (athlete !== "todos") list = forAthlete(list, athlete);
-    list = filterByPeriod(list, period, monthOffset);
+    list = filterByPeriod(list, period, monthOffset, dayIso);
     return list;
-  }, [workouts, athlete, period, monthOffset]);
+  }, [workouts, athlete, period, monthOffset, dayIso]);
 
   const periodActive = period !== "tudo";
   const singleAthlete = athlete !== "todos";
   const filtersActive = periodActive || singleAthlete;
   const periodLabel =
-    period === "mes" && monthOffset > 0
-      ? `em ${recentMonths(monthOffset + 1).at(-1)?.label}`
-      : PERIOD_IN_PHRASE[period];
+    period === "dia"
+      ? `em ${format(parseDate(dayIso), "dd/MM/yyyy")}`
+      : period === "mes" && monthOffset > 0
+        ? `em ${recentMonths(monthOffset + 1).at(-1)?.label}`
+        : PERIOD_IN_PHRASE[period];
 
   const reportSearch = {
     atleta: singleAthlete ? athlete : undefined,
     periodo: periodActive ? period : undefined,
     mes: period === "mes" && monthOffset > 0 ? monthOffset : undefined,
+    dia: period === "dia" ? dayIso : undefined,
   };
 
   function setPeriodFilter(value: Period) {
@@ -64,6 +69,7 @@ function DashboardPage() {
     setAthlete("todos");
     setPeriod("tudo");
     setMonthOffset(0);
+    setDayIso(todayIso());
   }
 
   function handleExport() {
@@ -147,6 +153,7 @@ function DashboardPage() {
             <FilterGroup label="Período">
               <PillRow options={PERIODS} value={period} onChange={setPeriodFilter} />
               {period === "mes" && <MonthPicker offset={monthOffset} onChange={setMonthOffset} />}
+              {period === "dia" && <DayPicker value={dayIso} onChange={setDayIso} />}
             </FilterGroup>
           </div>
 

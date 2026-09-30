@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { SEED_WORKOUTS } from "@/lib/seed";
-import { DEFAULT_ATHLETES, type Workout } from "@/lib/types";
+import { DEFAULT_ATHLETES, EXTRA_BASE_OPTIONS, type Workout } from "@/lib/types";
 import { todayIso } from "@/lib/format";
 import { markDelete, markDirty, markReplace, registerSyncIO } from "@/lib/sync";
 
@@ -63,6 +63,7 @@ function resilientStorage(): StateStorage {
 type WorkoutState = {
   workouts: Workout[];
   customAthletes: string[];
+  customExtras: string[];
   addWorkout: (workout: Workout) => void;
   updateWorkout: (id: string, patch: Partial<Workout>) => void;
   deleteWorkout: (id: string) => void;
@@ -70,6 +71,9 @@ type WorkoutState = {
   addAthlete: (name: string) => void;
   /** Drops any custom athlete no workout actually references. */
   pruneUnusedAthletes: () => void;
+  addExtraType: (name: string) => void;
+  /** Drops any custom "Outros treinos" type no workout actually references. */
+  pruneUnusedExtraTypes: () => void;
   importWorkouts: (workouts: Workout[]) => void;
   restoreSeed: () => void;
 };
@@ -84,6 +88,7 @@ export const useWorkoutStore = create<WorkoutState>()(
     (set, get) => ({
       workouts: SEED_WORKOUTS,
       customAthletes: [],
+      customExtras: [],
       addWorkout: (workout) => {
         set({ workouts: [workout, ...get().workouts.filter((w) => w.id !== workout.id)] });
         markDirty();
@@ -130,6 +135,26 @@ export const useWorkoutStore = create<WorkoutState>()(
         const kept = customAthletes.filter((name) => referenced.has(name));
         if (kept.length !== customAthletes.length) set({ customAthletes: kept });
       },
+      addExtraType: (name) => {
+        const clean = name.trim();
+        if (!clean) return;
+        const known = (EXTRA_BASE_OPTIONS as readonly string[]).includes(clean);
+        if (known || get().customExtras.includes(clean)) return;
+        set({ customExtras: [...get().customExtras, clean] });
+      },
+      pruneUnusedExtraTypes: () => {
+        const { workouts, customExtras } = get();
+        if (customExtras.length === 0) return;
+        const referenced = new Set<string>();
+        for (const w of workouts) {
+          for (const part of w.extras.split(/[,;]+/)) {
+            const clean = part.trim();
+            if (clean) referenced.add(clean);
+          }
+        }
+        const kept = customExtras.filter((name) => referenced.has(name));
+        if (kept.length !== customExtras.length) set({ customExtras: kept });
+      },
       importWorkouts: (workouts) => {
         set({ workouts });
         markReplace();
@@ -149,8 +174,10 @@ export const useWorkoutStore = create<WorkoutState>()(
 // runs once persisted state is loaded (synchronously for localStorage, but
 // registering the callback covers any storage that hydrates asynchronously).
 useWorkoutStore.getState().pruneUnusedAthletes();
+useWorkoutStore.getState().pruneUnusedExtraTypes();
 useWorkoutStore.persist.onFinishHydration(() => {
   useWorkoutStore.getState().pruneUnusedAthletes();
+  useWorkoutStore.getState().pruneUnusedExtraTypes();
 });
 
 registerSyncIO({

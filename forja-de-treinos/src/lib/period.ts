@@ -8,11 +8,21 @@ import {
   subMonths,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { todayIso } from "./format";
 
-export type Period = "tudo" | "semana" | "quinzenal" | "mes" | "trimestral" | "semestral" | "anual";
+export type Period =
+  | "tudo"
+  | "dia"
+  | "semana"
+  | "quinzenal"
+  | "mes"
+  | "trimestral"
+  | "semestral"
+  | "anual";
 
 export const PERIODS: { value: Period; label: string }[] = [
   { value: "tudo", label: "Tudo" },
+  { value: "dia", label: "Dia" },
   { value: "semana", label: "Semana" },
   { value: "quinzenal", label: "Quinzenal" },
   { value: "mes", label: "Mês" },
@@ -24,6 +34,7 @@ export const PERIODS: { value: Period; label: string }[] = [
 /** "nesta semana" / "neste mês" / … — used to caption numbers filtered by `period`. */
 export const PERIOD_IN_PHRASE: Record<Period, string> = {
   tudo: "",
+  dia: "nesse dia",
   semana: "nesta semana",
   quinzenal: "nesta quinzena",
   mes: "neste mês",
@@ -101,12 +112,23 @@ function capitalize(text: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** Aplica o filtro de periodo do Painel (inclusive o mes escolhido) a uma lista de treinos. */
+/**
+ * Aplica o filtro de periodo do Painel/Diario a uma lista de treinos —
+ * inclusive o mes escolhido (monthOffset) ou o dia escolhido (dayIso), quando
+ * o periodo e "mes"/"dia". "Dia" e o unico periodo fechado dos dois lados (so
+ * aquela data exata): os demais so tem piso ("desde X"), porque nenhum treino
+ * e datado depois de hoje.
+ */
 export function filterByPeriod<T extends { date: string }>(
   list: T[],
   period: Period,
   monthOffset = 0,
+  dayIso?: string,
 ): T[] {
+  if (period === "dia") {
+    const day = dayIso || todayIso();
+    return list.filter((w) => w.date === day);
+  }
   if (period === "mes" && monthOffset > 0) {
     const { start, end } = monthRangeIso(monthOffset);
     return list.filter((w) => w.date >= start && w.date <= end);

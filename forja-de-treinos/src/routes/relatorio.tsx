@@ -29,13 +29,14 @@ export const Route = createFileRoute("/relatorio")({
   component: ReportPage,
   validateSearch: (
     search: Record<string, unknown>,
-  ): { atleta?: string; periodo?: Period; mes?: number } => ({
+  ): { atleta?: string; periodo?: Period; mes?: number; dia?: string } => ({
     atleta: typeof search.atleta === "string" && search.atleta ? search.atleta : undefined,
     periodo:
       typeof search.periodo === "string" && PERIODS.some((p) => p.value === search.periodo)
         ? (search.periodo as Period)
         : undefined,
     mes: Number(search.mes) > 0 ? Math.floor(Number(search.mes)) : undefined,
+    dia: typeof search.dia === "string" && /^\d{4}-\d{2}-\d{2}$/.test(search.dia) ? search.dia : undefined,
   }),
 });
 
@@ -185,20 +186,32 @@ function Delta({ value }: { value: number }) {
   );
 }
 
-function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; mes?: number }) {
+function Sheet({
+  athlete,
+  periodo,
+  mes,
+  dia,
+}: {
+  athlete?: string;
+  periodo?: Period;
+  mes?: number;
+  dia?: string;
+}) {
   const allWorkouts = useWorkoutStore((s) => s.workouts);
   // Com um atleta escolhido, o relatorio so leva os treinos dele e, nos
   // treinos em dupla, so as linhas de core dele (ou sem dono definido).
   const workouts = useMemo(() => {
-    const byPeriod = periodo ? filterByPeriod(allWorkouts, periodo, mes ?? 0) : allWorkouts;
+    const byPeriod = periodo ? filterByPeriod(allWorkouts, periodo, mes ?? 0, dia) : allWorkouts;
     if (!athlete) return byPeriod;
     return forAthlete(byPeriod, athlete);
-  }, [allWorkouts, athlete, periodo, mes]);
+  }, [allWorkouts, athlete, periodo, mes, dia]);
   const periodLabel = !periodo
     ? ""
-    : periodo === "mes" && mes
-      ? (recentMonths(mes + 1).at(-1)?.label ?? "")
-      : (PERIODS.find((p) => p.value === periodo)?.label ?? "");
+    : periodo === "dia" && dia
+      ? format(parseDate(dia), "dd/MM/yyyy")
+      : periodo === "mes" && mes
+        ? (recentMonths(mes + 1).at(-1)?.label ?? "")
+        : (PERIODS.find((p) => p.value === periodo)?.label ?? "");
   // Com periodo filtrado, "hoje" passa a ser o ultimo treino do recorte: a
   // sequencia e a frequencia refletem o periodo, nao os dias sem treino depois dele.
   const data = useMemo(() => {
@@ -521,7 +534,7 @@ function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; 
           </Card>
           <Card
             title="Grupo muscular"
-            subtitle="Sessões por grupo (inclui o que foi anotado em Extra)"
+            subtitle="Sessões por grupo (inclui o que foi marcado em Outros treinos)"
           >
             <BarChart
               width={HALF - 28}
@@ -704,7 +717,7 @@ function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; 
             if (w.machines)
               details.push(`Musculação: ${w.machines} aparelhos (${w.sets}×${w.reps})`);
             if (w.muscleGroups.length) details.push(`Grupo: ${w.muscleGroups.join(", ")}`);
-            if (w.extras) details.push(`Extra: ${w.extras}`);
+            if (w.extras) details.push(`Outros treinos: ${w.extras}`);
             for (const r of w.core)
               details.push(
                 `Core: ${r.exercise} (${r.sets}×${r.reps})${r.athlete ? ` ${r.athlete}` : ""}`,
@@ -749,7 +762,7 @@ function Sheet({ athlete, periodo, mes }: { athlete?: string; periodo?: Period; 
 }
 
 function ReportPage() {
-  const { atleta: athlete, periodo, mes } = Route.useSearch();
+  const { atleta: athlete, periodo, mes, dia } = Route.useSearch();
   const [root, setRoot] = useState<HTMLElement | null>(null);
   const [zoom, setZoom] = useState(1);
 
@@ -790,7 +803,7 @@ function ReportPage() {
         Página A4 em retrato. Na janela de impressão, escolha “Salvar como PDF”.
       </p>
       <div className="py-4" style={{ zoom }}>
-        <Sheet athlete={athlete} periodo={periodo} mes={mes} />
+        <Sheet athlete={athlete} periodo={periodo} mes={mes} dia={dia} />
       </div>
     </div>,
     root,

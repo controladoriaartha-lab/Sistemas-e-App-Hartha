@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { FilterGroup, PillRow } from "@/components/filters";
+import { format } from "date-fns";
+import { DayPicker, FilterGroup, PillRow } from "@/components/filters";
 import { forAthlete } from "@/lib/athlete-view";
 import { WorkoutCard } from "@/components/workout-card";
-import { formatMonthYear } from "@/lib/format";
-import { PERIOD_IN_PHRASE, PERIODS, periodCutoffIso, type Period } from "@/lib/period";
+import { formatMonthYear, parseDate, todayIso } from "@/lib/format";
+import { filterByPeriod, PERIOD_IN_PHRASE, PERIODS, type Period } from "@/lib/period";
 import { cn } from "@/lib/utils";
 import { sortedWorkouts, useWorkoutStore } from "@/store/workouts";
 import { DEFAULT_ATHLETES, type Focus } from "@/lib/types";
@@ -20,6 +21,7 @@ function Home() {
   const [focus, setFocus] = useState<FocusFilter>("todos");
   const [athlete, setAthlete] = useState<string>("todos");
   const [period, setPeriod] = useState<Period>("tudo");
+  const [dayIso, setDayIso] = useState(todayIso());
 
   const athleteOptions = useMemo(() => {
     const set = new Set<string>(DEFAULT_ATHLETES);
@@ -29,15 +31,16 @@ function Home() {
   }, [workouts, customAthletes]);
 
   const filtersActive = focus !== "todos" || athlete !== "todos" || period !== "tudo";
+  const periodLabel =
+    period === "dia" ? `em ${format(parseDate(dayIso), "dd/MM/yyyy")}` : PERIOD_IN_PHRASE[period];
 
   const visible = useMemo(() => {
     let list = sortedWorkouts(workouts);
     if (focus !== "todos") list = list.filter((w) => w.focus === focus);
     if (athlete !== "todos") list = forAthlete(list, athlete);
-    const cutoff = periodCutoffIso(period);
-    if (cutoff) list = list.filter((w) => w.date >= cutoff);
+    list = filterByPeriod(list, period, 0, dayIso);
     return list;
-  }, [workouts, focus, athlete, period]);
+  }, [workouts, focus, athlete, period, dayIso]);
 
   const groups = useMemo(() => {
     const map = new Map<string, typeof visible>();
@@ -54,6 +57,7 @@ function Home() {
     setFocus("todos");
     setAthlete("todos");
     setPeriod("tudo");
+    setDayIso(todayIso());
   }
 
   return (
@@ -104,6 +108,7 @@ function Home() {
 
         <FilterGroup label="Período">
           <PillRow options={PERIODS} value={period} onChange={setPeriod} />
+          {period === "dia" && <DayPicker value={dayIso} onChange={setDayIso} />}
         </FilterGroup>
       </div>
 
@@ -127,7 +132,7 @@ function Home() {
             <div className="mb-4 flex items-center justify-between text-sm text-faint">
               <span className="tabular-nums">
                 {visible.length} {visible.length === 1 ? "treino" : "treinos"}
-                {period !== "tudo" ? ` ${PERIOD_IN_PHRASE[period]}` : ""}
+                {period !== "tudo" ? ` ${periodLabel}` : ""}
               </span>
               <button
                 type="button"

@@ -11,6 +11,7 @@ export type CoreSet = {
 export type CardioSet = {
   kind: string;
   minutes: number;
+  athlete?: string;
 };
 
 export type Workout = {

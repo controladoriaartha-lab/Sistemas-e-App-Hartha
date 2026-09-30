@@ -722,7 +722,7 @@ function Sheet({
               details.push(
                 `Core: ${r.exercise} (${r.sets}×${r.reps})${r.athlete ? ` ${r.athlete}` : ""}`,
               );
-            for (const c of w.cardio) details.push(`Cardio: ${c.kind} (${c.minutes} min)`);
+            for (const c of w.cardio) details.push(`Cardio: ${c.kind} (${c.minutes} min)${c.athlete ? ` ${c.athlete}` : ""}`);
             if (w.notes) details.push(`Nota: ${w.notes}`);
             return (
               <tr

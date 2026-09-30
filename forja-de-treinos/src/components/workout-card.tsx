@@ -72,7 +72,7 @@ export function WorkoutCard({ workout }: { workout: Workout }) {
             />
           ))}
           {workout.cardio.map((row, i) => (
-            <Row key={`${row.kind}-${i}`} label="Cardio" value={`${row.kind} (${row.minutes} min)`} />
+            <Row key={`${row.kind}-${i}`} label="Cardio" value={`${row.kind} (${row.minutes} min)${row.athlete ? ` ${row.athlete}` : ""}`} />
           ))}
           {workout.notes ? <Row label="Nota" value={workout.notes} /> : null}
         </dl>

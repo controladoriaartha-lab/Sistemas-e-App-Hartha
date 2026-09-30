@@ -645,6 +645,16 @@ export function WorkoutForm({
                 >
                   <Trash2 />
                 </Button>
+                <Input
+                  className="col-span-12"
+                  placeholder="Atleta (opcional)"
+                  value={row.athlete ?? ""}
+                  onChange={(e) => {
+                    const next = [...draft.cardio];
+                    next[index] = { ...row, athlete: e.target.value || undefined };
+                    patch({ cardio: next });
+                  }}
+                />
               </div>
             ))}
           </div>

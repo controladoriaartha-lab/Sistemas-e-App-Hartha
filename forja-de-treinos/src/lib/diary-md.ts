@@ -63,7 +63,9 @@ export function workoutsToMarkdown(workouts: Workout[]): string {
       lines.push("");
     }
     for (const row of w.cardio) {
-      lines.push(`Cardio: ${row.kind} (${row.minutes} min)`);
+      lines.push(
+        `Cardio: ${row.kind} (${row.minutes} min)${row.athlete ? ` ${row.athlete}` : ""}`,
+      );
       lines.push("");
     }
     if (w.notes.trim()) {
@@ -163,6 +165,25 @@ const DATE_RE = /\[\[(\d{4}-\d{2}-\d{2})\]\]\s*[—–-]\s*([^|]+?)\s*\|\s*(.+)/
 const SETS_RE = /\((\d+)\s*x\s*(\d+)\)/i;
 
 /**
+ * "Abdominal Vânia" -> { rest: "Abdominal", athlete: "Vânia" } — usado pra
+ * separar o nome do atleta no fim das linhas de Core e Cardio do .md. So
+ * reconhece os atletas padrão (Geovanil/Vânia); um nome custom digitado no
+ * app não sobrevive ao roundtrip do backup — limitação conhecida.
+ */
+function stripKnownAthlete(text: string): { rest: string; athlete?: string } {
+  let rest = text;
+  let athlete: string | undefined;
+  for (const known of DEFAULT_ATHLETES) {
+    const rx = new RegExp(`\\b${known}\\b`, "i");
+    if (rx.test(rest)) {
+      athlete = known;
+      rest = rest.replace(rx, "").trim();
+    }
+  }
+  return { rest, athlete };
+}
+
+/**
  * Parse the diary Markdown back into workouts. Unknown lines are ignored, so a
  * hand-edited or slightly irregular note still imports what it can.
  */
@@ -219,21 +240,18 @@ export function parseMarkdownDiary(text: string): Workout[] {
       const sr = seg.match(SETS_RE);
       const sets = sr ? Number.parseInt(sr[1], 10) : 3;
       const reps = sr ? Number.parseInt(sr[2], 10) : 12;
-      let rest = seg.replace(SETS_RE, "").trim();
-      let athlete: string | undefined;
-      for (const known of DEFAULT_ATHLETES) {
-        const rx = new RegExp(`\\b${known}\\b`, "i");
-        if (rx.test(rest)) {
-          athlete = known;
-          rest = rest.replace(rx, "").trim();
-        }
-      }
+      const { rest, athlete } = stripKnownAthlete(seg.replace(SETS_RE, "").trim());
       cur.core.push({ exercise: rest || "Abdominal", sets, reps, athlete });
     } else if ((m = line.match(/^Cardio\s*:\s*(.+)/i))) {
       const seg = m[1].trim();
-      const mm = seg.match(/(.+?)\s*\((\d+)\s*min\)/i);
-      if (mm) cur.cardio.push({ kind: mm[1].trim(), minutes: Number.parseInt(mm[2], 10) });
-      else cur.cardio.push({ kind: seg, minutes: 0 });
+      const mm = seg.match(/(.+?)\s*\((\d+)\s*min\)\s*(.*)/i);
+      if (mm) {
+        const { athlete } = stripKnownAthlete(mm[3].trim());
+        cur.cardio.push({ kind: mm[1].trim(), minutes: Number.parseInt(mm[2], 10), athlete });
+      } else {
+        const { rest, athlete } = stripKnownAthlete(seg);
+        cur.cardio.push({ kind: rest || seg, minutes: 0, athlete });
+      }
     } else if ((m = line.match(/^(?:Notas?|Obs)\s*:\s*(.+)/i))) {
       cur.notes = m[1].trim();
     }

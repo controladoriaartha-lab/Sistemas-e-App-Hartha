@@ -17,6 +17,28 @@ import {
 import { formatDuration } from "@/lib/format";
 import { useWorkoutStore } from "@/store/workouts";
 
+type ExtraItem = { name: string; sets: number; reps: number };
+
+/** "Pesos (3x12), Flexão" -> [{name:"Pesos",sets:3,reps:12}, {name:"Flexão",sets:0,reps:0}] */
+function parseExtras(raw: string): ExtraItem[] {
+  return raw
+    .split(/[,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const m = part.match(/^(.*?)\s*\((\d+)\s*[x×]\s*(\d+)\)$/);
+      return m
+        ? { name: m[1].trim(), sets: Number(m[2]), reps: Number(m[3]) }
+        : { name: part, sets: 0, reps: 0 };
+    });
+}
+
+function formatExtras(items: ExtraItem[]): string {
+  return items
+    .map((item) => (item.sets > 0 || item.reps > 0 ? `${item.name} (${item.sets}x${item.reps})` : item.name))
+    .join(", ");
+}
+
 export function WorkoutForm({
   initial,
   submitLabel,
@@ -41,40 +63,42 @@ export function WorkoutForm({
     [customAthletes, initial.athletes],
   );
 
-  // Itens de "Outros treinos" ja marcados neste treino, na ordem em que
-  // foram digitados/escolhidos (extras e "Pesos, Flexão" — texto livre
-  // antigo tambem sobrevive aqui como um item a mais, sem virar chip).
+  // Itens de "Outros treinos" ja marcados neste treino, cada um com suas
+  // proprias series/repeticoes — guardados no mesmo campo de texto livre
+  // (extras) como "Pesos (3x12), Flexão (4x20)", pelo formato ja usado antes
+  // ("Alteres 3x12") continuar reconhecido nos graficos (stats.ts). Um item
+  // sem numero digitado ainda fica sem o "(SxR)".
   const extraOptions = useMemo(
     () => Array.from(new Set([...EXTRA_BASE_OPTIONS, ...customExtras])),
     [customExtras],
   );
-  const extraParts = useMemo(
-    () =>
-      draft.extras
-        .split(/[,;]+/)
-        .map((s) => s.trim())
-        .filter(Boolean),
-    [draft.extras],
-  );
+  const extraItems = useMemo(() => parseExtras(draft.extras), [draft.extras]);
 
   function patch(partial: Partial<Workout>) {
     setDraft((prev) => ({ ...prev, ...partial }));
   }
 
   function toggleExtra(name: string) {
-    const has = extraParts.some((p) => p.toLowerCase() === name.toLowerCase());
+    const has = extraItems.some((p) => p.name.toLowerCase() === name.toLowerCase());
     const next = has
-      ? extraParts.filter((p) => p.toLowerCase() !== name.toLowerCase())
-      : [...extraParts, name];
-    patch({ extras: next.join(", ") });
+      ? extraItems.filter((p) => p.name.toLowerCase() !== name.toLowerCase())
+      : [...extraItems, { name, sets: 0, reps: 0 }];
+    patch({ extras: formatExtras(next) });
+  }
+
+  function updateExtra(name: string, patchItem: Partial<ExtraItem>) {
+    const next = extraItems.map((p) =>
+      p.name.toLowerCase() === name.toLowerCase() ? { ...p, ...patchItem } : p,
+    );
+    patch({ extras: formatExtras(next) });
   }
 
   function handleNewExtraType() {
     const name = window.prompt("Nome do novo tipo de treino (ex.: Elástico, Escalada…)")?.trim();
     if (!name) return;
     addExtraType(name);
-    if (!extraParts.some((p) => p.toLowerCase() === name.toLowerCase())) {
-      patch({ extras: [...extraParts, name].join(", ") });
+    if (!extraItems.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+      patch({ extras: formatExtras([...extraItems, { name, sets: 0, reps: 0 }]) });
     }
   }
 
@@ -279,7 +303,7 @@ export function WorkoutForm({
       <Field label="Outros treinos">
         <div className="flex flex-wrap gap-2">
           {extraOptions.map((name) => {
-            const on = extraParts.some((p) => p.toLowerCase() === name.toLowerCase());
+            const on = extraItems.some((p) => p.name.toLowerCase() === name.toLowerCase());
             return (
               <button
                 key={name}
@@ -303,6 +327,36 @@ export function WorkoutForm({
             Novo
           </button>
         </div>
+
+        {extraItems.length > 0 && (
+          <div className="mt-3 space-y-3">
+            {extraItems.map((item) => (
+              <div key={item.name}>
+                <p className="text-[21px] text-faint">{item.name}</p>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={item.sets || ""}
+                    placeholder="Séries"
+                    aria-label={`Séries de ${item.name}`}
+                    onChange={(e) => updateExtra(item.name, { sets: Number(e.target.value) || 0 })}
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    max={50}
+                    value={item.reps || ""}
+                    placeholder="Repetições"
+                    aria-label={`Repetições de ${item.name}`}
+                    onChange={(e) => updateExtra(item.name, { reps: Number(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Field>
 
       <section className="space-y-2">

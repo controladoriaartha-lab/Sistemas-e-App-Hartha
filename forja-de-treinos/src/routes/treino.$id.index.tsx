@@ -59,7 +59,7 @@ function WorkoutDetail({
           <ArrowLeft />
         </Button>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-2xs font-medium uppercase tracking-widest text-muted-foreground">
+          <p className="truncate text-2xl font-medium uppercase tracking-widest text-muted-foreground">
             {formatWeekday(workout.date)}
           </p>
           <h1 className="font-display text-2xl font-medium tracking-tight">{workout.focusLabel}</h1>
@@ -67,14 +67,14 @@ function WorkoutDetail({
         <IntensityBadge intensity={workout.intensity} />
       </header>
 
-      <p className="text-sm text-muted-foreground">{formatFullDate(workout.date)}</p>
-      <p className="mt-1 text-sm">
+      <p className="text-2xl text-muted-foreground">{formatFullDate(workout.date)}</p>
+      <p className="mt-1 text-2xl">
         <span className="tabular-nums text-foreground">{formatDuration(workout.durationMin)}</span>
         <span className="mx-2 text-faint">·</span>
         {workout.athletes.join(", ")}
       </p>
 
-      <dl className="mt-6 space-y-3 rounded-xl bg-card p-4 text-sm shadow-[0_0_0_1px_rgba(244,239,232,0.08)]">
+      <dl className="mt-6 space-y-3 rounded-xl bg-card p-4 text-2xl font-normal leading-snug shadow-[0_0_0_1px_rgba(244,239,232,0.08)]">
         <Row
           label="Musculação"
           value={
@@ -103,6 +103,7 @@ function WorkoutDetail({
       <div className="mt-4 grid grid-cols-2 gap-2">
         <Button
           variant="secondary"
+          className="h-14 text-[24px] [&_svg]:size-6"
           onClick={() => {
             const nextId = duplicateWorkout(workout.id);
             if (!nextId) return;
@@ -113,7 +114,7 @@ function WorkoutDetail({
           <Copy />
           Duplicar
         </Button>
-        <Button variant="outline" asChild>
+        <Button variant="outline" className="h-14 text-[24px] [&_svg]:size-6" asChild>
           <Link to="/treino/$id/editar" params={{ id: workout.id }}>
             <Pencil />
             Editar
@@ -122,7 +123,7 @@ function WorkoutDetail({
       </div>
       <Button
         variant="destructive"
-        className="mt-2 w-full"
+        className="mt-2 h-14 w-full text-[24px] [&_svg]:size-6"
         onClick={() => {
           if (!window.confirm("Excluir este treino?")) return;
           deleteWorkout(workout.id);
@@ -139,9 +140,9 @@ function WorkoutDetail({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-3">
-      <dt className="w-28 shrink-0 text-faint">{label}</dt>
-      <dd className="min-w-0">{value}</dd>
+    <div className="flex flex-col">
+      <dt className="text-faint">{label}</dt>
+      <dd className="min-w-0 text-foreground">{value}</dd>
     </div>
   );
 }

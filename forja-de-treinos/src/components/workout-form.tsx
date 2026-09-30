@@ -1,5 +1,13 @@
-import { forwardRef, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import {
+  forwardRef,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+import { ChevronDown, ChevronUp, Play, Plus, Square, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +46,13 @@ function parseExtras(raw: string): ExtraItem[] {
       if (a) return { name: a[1].trim(), sets: 0, reps: 0, athlete: a[2] };
       return { name: part, sets: 0, reps: 0 };
     });
+}
+
+function formatStopwatch(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 function formatExtras(items: ExtraItem[]): string {
@@ -143,6 +158,19 @@ export function WorkoutForm({
     [customExtras],
   );
   const extraItems = useMemo(() => parseExtras(draft.extras), [draft.extras]);
+  // Agrupa as linhas por nome (uma ou mais por item, uma por atleta quando
+  // "+ Atleta" foi usado), preservando o indice real de cada uma no array
+  // plano usado para gravar (extras e so uma string).
+  const extraGroups = useMemo(() => {
+    const map = new Map<string, { item: ExtraItem; index: number }[]>();
+    extraItems.forEach((item, index) => {
+      const key = item.name.toLowerCase();
+      const rows = map.get(key) ?? [];
+      rows.push({ item, index });
+      map.set(key, rows);
+    });
+    return [...map.values()];
+  }, [extraItems]);
 
   function patch(partial: Partial<Workout>) {
     setDraft((prev) => ({ ...prev, ...partial }));
@@ -156,10 +184,33 @@ export function WorkoutForm({
     patch({ extras: formatExtras(next) });
   }
 
-  function updateExtra(name: string, patchItem: Partial<ExtraItem>) {
-    const next = extraItems.map((p) =>
-      p.name.toLowerCase() === name.toLowerCase() ? { ...p, ...patchItem } : p,
-    );
+  function updateExtraAt(index: number, patchItem: Partial<ExtraItem>) {
+    const next = extraItems.map((p, i) => (i === index ? { ...p, ...patchItem } : p));
+    patch({ extras: formatExtras(next) });
+  }
+
+  function removeExtraAt(index: number) {
+    patch({ extras: formatExtras(extraItems.filter((_, i) => i !== index)) });
+  }
+
+  /**
+   * Uma segunda (ou terceira…) linha para o mesmo item, cada uma com seu
+   * proprio atleta — igual ao "+ Linha" do Core, so que aqui já nasce ligada
+   * a um atleta especifico (nao faz sentido "Ambos" quando ja tem duas
+   * linhas separadas).
+   */
+  function addExtraAthleteRow(name: string) {
+    const rows = extraItems
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => item.name.toLowerCase() === name.toLowerCase());
+    const next = [...extraItems];
+    const used = new Set(rows.map(({ item }) => item.athlete).filter((a): a is string => !!a));
+    if (rows.length === 1 && !rows[0].item.athlete) {
+      const first = draft.athletes[0];
+      next[rows[0].index] = { ...rows[0].item, athlete: first };
+      used.add(first);
+    }
+    next.push({ name, sets: 0, reps: 0, athlete: draft.athletes.find((a) => !used.has(a)) });
     patch({ extras: formatExtras(next) });
   }
 
@@ -191,6 +242,34 @@ export function WorkoutForm({
 
   function setFocus(focus: Focus) {
     patch({ focus, focusLabel: FOCUS_LABEL[focus] });
+  }
+
+  // Timer do treino: aperta pra começar, aperta de novo pra terminar — o
+  // tempo contado vai direto pra Duração (sobrescrevendo o que estava la).
+  // So conta enquanto esta tela fica aberta, como o resto do rascunho.
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerStart, setTimerStart] = useState<number | null>(null);
+  const [, setTimerTick] = useState(0);
+
+  useEffect(() => {
+    if (!timerRunning) return;
+    const id = setInterval(() => setTimerTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [timerRunning]);
+
+  const timerElapsedMs = timerRunning && timerStart ? Date.now() - timerStart : 0;
+
+  function handleTimerToggle() {
+    if (timerRunning) {
+      const minutes = timerStart ? Math.max(0, Math.round((Date.now() - timerStart) / 60000)) : 0;
+      setTimerRunning(false);
+      setTimerStart(null);
+      setDurationError("");
+      patch({ durationMin: minutes });
+    } else {
+      setTimerStart(Date.now());
+      setTimerRunning(true);
+    }
   }
 
   const cardioRows = draft.cardio.filter((row) => row.kind.trim() && row.minutes > 0);
@@ -381,43 +460,83 @@ export function WorkoutForm({
           </button>
         </div>
 
-        {extraItems.length > 0 && (
+        {extraGroups.length > 0 && (
           <div className="mt-3 space-y-4">
-            {extraItems.map((item) => (
-              <div key={item.name}>
-                <p className="text-[24px] text-faint">{item.name}</p>
-                <div className="mt-1 grid grid-cols-2 gap-2">
-                  <NumberField
-                    min={0}
-                    max={10}
-                    value={item.sets}
-                    aria-label={`Séries de ${item.name}`}
-                    onChange={(v) => updateExtra(item.name, { sets: v })}
-                  />
-                  <NumberField
-                    min={0}
-                    max={50}
-                    value={item.reps}
-                    aria-label={`Repetições de ${item.name}`}
-                    onChange={(v) => updateExtra(item.name, { reps: v })}
-                  />
-                </div>
-                {draft.athletes.length > 1 && (
-                  <div className="mt-1.5">
-                    <Segmented
-                      value={item.athlete ?? "todos"}
-                      onChange={(athlete: string) =>
-                        updateExtra(item.name, { athlete: athlete === "todos" ? undefined : athlete })
-                      }
-                      options={[
-                        { value: "todos", label: "Ambos" },
-                        ...draft.athletes.map((a) => ({ value: a, label: a })),
-                      ]}
-                    />
+            {extraGroups.map((rows) => {
+              const name = rows[0].item.name;
+              const split = rows.length > 1;
+              return (
+                <div key={name}>
+                  <p className="text-[24px] text-faint">{name}</p>
+                  <div className="mt-1 space-y-3">
+                    {rows.map(({ item, index }, i) => (
+                      <div key={index}>
+                        <div className="grid grid-cols-2 gap-2">
+                          <NumberField
+                            min={0}
+                            max={10}
+                            value={item.sets}
+                            aria-label={`Séries de ${name}${split ? ` ${i + 1}` : ""}`}
+                            onChange={(v) => updateExtraAt(index, { sets: v })}
+                          />
+                          <NumberField
+                            min={0}
+                            max={50}
+                            value={item.reps}
+                            aria-label={`Repetições de ${name}${split ? ` ${i + 1}` : ""}`}
+                            onChange={(v) => updateExtraAt(index, { reps: v })}
+                          />
+                        </div>
+                        {draft.athletes.length > 1 && (
+                          <div className="mt-1.5 flex items-start gap-2">
+                            <div className="flex-1">
+                              <Segmented
+                                value={item.athlete ?? "todos"}
+                                onChange={(athlete: string) =>
+                                  updateExtraAt(index, {
+                                    athlete: athlete === "todos" ? undefined : athlete,
+                                  })
+                                }
+                                options={
+                                  split
+                                    ? draft.athletes.map((a) => ({ value: a, label: a }))
+                                    : [
+                                        { value: "todos", label: "Ambos" },
+                                        ...draft.athletes.map((a) => ({ value: a, label: a })),
+                                      ]
+                                }
+                              />
+                            </div>
+                            {split && (
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-14 shrink-0"
+                                aria-label={`Remover ${name} de ${item.athlete ?? "atleta"}`}
+                                onClick={() => removeExtraAt(index)}
+                              >
+                                <Trash2 />
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
-            ))}
+                  {draft.athletes.length > 1 && rows.length < draft.athletes.length && (
+                    <button
+                      type="button"
+                      onClick={() => addExtraAthleteRow(name)}
+                      className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-full border border-dashed border-border px-4 text-[21px] font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
+                    >
+                      <Plus className="size-5" />
+                      Atleta
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </Field>
@@ -567,6 +686,36 @@ export function WorkoutForm({
           value={draft.notes}
           onChange={(e) => patch({ notes: e.target.value })}
         />
+      </Field>
+
+      <Field label="Timer de treino">
+        <div className="flex items-center justify-between rounded-2xl bg-muted px-5 py-4">
+          <div>
+            <p className="font-display text-4xl tabular-nums tracking-tight text-foreground">
+              {formatStopwatch(timerElapsedMs)}
+            </p>
+            <p className="mt-0.5 text-[21px] text-faint">
+              {timerRunning
+                ? "Contando… toque para finalizar"
+                : "Toque para iniciar o treino"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleTimerToggle}
+            aria-label={timerRunning ? "Finalizar timer" : "Iniciar timer"}
+            className={cn(
+              "flex size-16 shrink-0 items-center justify-center rounded-full transition-colors duration-150",
+              timerRunning ? "bg-danger text-background" : "bg-ok text-background",
+            )}
+          >
+            {timerRunning ? (
+              <Square className="size-7" fill="currentColor" />
+            ) : (
+              <Play className="size-8 translate-x-0.5" fill="currentColor" />
+            )}
+          </button>
+        </div>
       </Field>
 
       <div className="sticky bottom-0 -mx-5 mt-2 flex gap-2 border-t border-border bg-background/95 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">

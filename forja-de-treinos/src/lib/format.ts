@@ -47,3 +47,12 @@ export function intensityTone(intensity: Intensity) {
   if (intensity === "medio") return "warn";
   return "ok";
 }
+
+/**
+ * "Pesos (3x12)[Vânia]" -> "Pesos (3x12) Vânia" — o `[...]` e so a marca
+ * interna de atleta do formulario (workout-form.tsx); na leitura (cartao,
+ * detalhe, relatorio) ele vira so um espaco antes do nome.
+ */
+export function displayExtras(raw: string): string {
+  return raw.replace(/\[(.+?)\]/g, " $1").replace(/\s+/g, " ").trim();
+}

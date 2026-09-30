@@ -51,6 +51,7 @@ const MUSCLE_CATEGORIES: { name: string; test: RegExp }[] = [
 function labelFromFreeText(raw: string): string {
   const cleaned = raw
     .replace(/\(.*?\)/g, " ")
+    .replace(/\[.*?\]/g, " ") // marca de atleta do formulario ("Pesos (3x12)[Vânia]")
     .replace(/\d+\s*[x×]\s*\d+/gi, " ")
     .replace(/\d+/g, " ")
     .replace(/[^\p{L}\s-]/gu, " ")

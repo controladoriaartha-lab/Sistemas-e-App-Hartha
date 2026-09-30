@@ -17,7 +17,7 @@ import {
 } from "recharts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { formatDuration, formatHours, formatWeekday, parseDate } from "@/lib/format";
+import { displayExtras, formatDuration, formatHours, formatWeekday, parseDate } from "@/lib/format";
 import { forAthlete } from "@/lib/athlete-view";
 import { buildReport } from "@/lib/report";
 import { filterByPeriod, PERIODS, recentMonths, type Period } from "@/lib/period";
@@ -717,7 +717,7 @@ function Sheet({
             if (w.machines)
               details.push(`Musculação: ${w.machines} aparelhos (${w.sets}×${w.reps})`);
             if (w.muscleGroups.length) details.push(`Grupo: ${w.muscleGroups.join(", ")}`);
-            if (w.extras) details.push(`Outros treinos: ${w.extras}`);
+            if (w.extras) details.push(`Outros treinos: ${displayExtras(w.extras)}`);
             for (const r of w.core)
               details.push(
                 `Core: ${r.exercise} (${r.sets}×${r.reps})${r.athlete ? ` ${r.athlete}` : ""}`,

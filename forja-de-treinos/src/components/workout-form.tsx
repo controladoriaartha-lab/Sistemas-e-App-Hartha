@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { forwardRef, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,27 +17,97 @@ import {
 import { formatDuration } from "@/lib/format";
 import { useWorkoutStore } from "@/store/workouts";
 
-type ExtraItem = { name: string; sets: number; reps: number };
+type ExtraItem = { name: string; sets: number; reps: number; athlete?: string };
 
-/** "Pesos (3x12), Flexão" -> [{name:"Pesos",sets:3,reps:12}, {name:"Flexão",sets:0,reps:0}] */
+/**
+ * "Pesos (3x12)[Vânia], Flexão" -> [{name:"Pesos",sets:3,reps:12,athlete:"Vânia"}, {name:"Flexão",sets:0,reps:0}]
+ * O `[Atleta]` e uma marca interna nossa (nunca aparece assim para o
+ * usuario — veja `displayExtras` em lib/format.ts para a leitura, e
+ * `labelFromFreeText` em lib/stats.ts, que a remove antes de virar categoria
+ * de grafico).
+ */
 function parseExtras(raw: string): ExtraItem[] {
   return raw
     .split(/[,;]+/)
     .map((s) => s.trim())
     .filter(Boolean)
     .map((part) => {
-      const m = part.match(/^(.*?)\s*\((\d+)\s*[x×]\s*(\d+)\)$/);
-      return m
-        ? { name: m[1].trim(), sets: Number(m[2]), reps: Number(m[3]) }
-        : { name: part, sets: 0, reps: 0 };
+      const m = part.match(/^(.*?)\s*\((\d+)\s*[x×]\s*(\d+)\)\s*(?:\[(.+?)\])?$/);
+      if (m) return { name: m[1].trim(), sets: Number(m[2]), reps: Number(m[3]), athlete: m[4] };
+      const a = part.match(/^(.*?)\s*\[(.+?)\]$/);
+      if (a) return { name: a[1].trim(), sets: 0, reps: 0, athlete: a[2] };
+      return { name: part, sets: 0, reps: 0 };
     });
 }
 
 function formatExtras(items: ExtraItem[]): string {
   return items
-    .map((item) => (item.sets > 0 || item.reps > 0 ? `${item.name} (${item.sets}x${item.reps})` : item.name))
+    .map((item) => {
+      let s = item.name;
+      if (item.sets > 0 || item.reps > 0) s += ` (${item.sets}x${item.reps})`;
+      if (item.athlete) s += `[${item.athlete}]`;
+      return s;
+    })
     .join(", ");
 }
+
+/**
+ * Campo numerico com botõezinhos de mais (verde) e menos (vermelho) dentro
+ * da caixa, alem de poder digitar direto. Espelha o Input padrao (mesmo
+ * texto 24px), so acrescenta os steppers.
+ */
+const NumberField = forwardRef<
+  HTMLInputElement,
+  {
+    value: number;
+    onChange: (next: number) => void;
+    min?: number;
+    max?: number;
+    step?: number;
+    placeholder?: string;
+    className?: string;
+    "aria-label"?: string;
+  }
+>(function NumberField(
+  { value, onChange, min = 0, max = 999, step = 1, placeholder = "0", className, ...rest },
+  ref,
+) {
+  return (
+    <div className={cn("relative", className)}>
+      <Input
+        ref={ref}
+        type="number"
+        min={min}
+        max={max}
+        value={value || ""}
+        placeholder={placeholder}
+        onChange={(e) => onChange(Number(e.target.value) || 0)}
+        className="pr-11 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        {...rest}
+      />
+      <div className="absolute inset-y-1.5 right-1.5 flex w-8 flex-col gap-0.5">
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Aumentar"
+          onClick={() => onChange(Math.min(max, value + step))}
+          className="flex flex-1 items-center justify-center rounded bg-ok text-background active:brightness-90"
+        >
+          <ChevronUp className="size-4" strokeWidth={3} />
+        </button>
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Diminuir"
+          onClick={() => onChange(Math.max(min, value - step))}
+          className="flex flex-1 items-center justify-center rounded bg-danger text-background active:brightness-90"
+        >
+          <ChevronDown className="size-4" strokeWidth={3} />
+        </button>
+      </div>
+    </div>
+  );
+});
 
 export function WorkoutForm({
   initial,
@@ -225,16 +295,15 @@ export function WorkoutForm({
 
       <div className="grid grid-cols-2 gap-x-5 gap-y-4">
         <Field label="Duração (min)">
-          <Input
-            type="number"
+          <NumberField
             ref={durationRef}
             min={0}
             max={300}
-            value={draft.durationMin || ""}
-            placeholder="0"
-            onChange={(e) => {
+            step={5}
+            value={draft.durationMin}
+            onChange={(v) => {
               setDurationError("");
-              patch({ durationMin: Number(e.target.value) || 0 });
+              patch({ durationMin: v });
             }}
           />
           {draft.durationMin > 0 ? (
@@ -248,34 +317,18 @@ export function WorkoutForm({
           ) : null}
         </Field>
         <Field label="Aparelhos">
-          <Input
-            type="number"
+          <NumberField
             min={0}
             max={20}
-            value={draft.machines || ""}
-            placeholder="0"
-            onChange={(e) => patch({ machines: Number(e.target.value) || 0 })}
+            value={draft.machines}
+            onChange={(v) => patch({ machines: v })}
           />
         </Field>
         <Field label="Séries">
-          <Input
-            type="number"
-            min={0}
-            max={10}
-            value={draft.sets || ""}
-            placeholder="0"
-            onChange={(e) => patch({ sets: Number(e.target.value) || 0 })}
-          />
+          <NumberField min={0} max={10} value={draft.sets} onChange={(v) => patch({ sets: v })} />
         </Field>
         <Field label="Repetições">
-          <Input
-            type="number"
-            min={0}
-            max={50}
-            value={draft.reps || ""}
-            placeholder="0"
-            onChange={(e) => patch({ reps: Number(e.target.value) || 0 })}
-          />
+          <NumberField min={0} max={50} value={draft.reps} onChange={(v) => patch({ reps: v })} />
         </Field>
       </div>
 
@@ -329,30 +382,40 @@ export function WorkoutForm({
         </div>
 
         {extraItems.length > 0 && (
-          <div className="mt-3 space-y-3">
+          <div className="mt-3 space-y-4">
             {extraItems.map((item) => (
               <div key={item.name}>
-                <p className="text-[21px] text-faint">{item.name}</p>
+                <p className="text-[24px] text-faint">{item.name}</p>
                 <div className="mt-1 grid grid-cols-2 gap-2">
-                  <Input
-                    type="number"
+                  <NumberField
                     min={0}
                     max={10}
-                    value={item.sets || ""}
-                    placeholder="Séries"
+                    value={item.sets}
                     aria-label={`Séries de ${item.name}`}
-                    onChange={(e) => updateExtra(item.name, { sets: Number(e.target.value) || 0 })}
+                    onChange={(v) => updateExtra(item.name, { sets: v })}
                   />
-                  <Input
-                    type="number"
+                  <NumberField
                     min={0}
                     max={50}
-                    value={item.reps || ""}
-                    placeholder="Repetições"
+                    value={item.reps}
                     aria-label={`Repetições de ${item.name}`}
-                    onChange={(e) => updateExtra(item.name, { reps: Number(e.target.value) || 0 })}
+                    onChange={(v) => updateExtra(item.name, { reps: v })}
                   />
                 </div>
+                {draft.athletes.length > 1 && (
+                  <div className="mt-1.5">
+                    <Segmented
+                      value={item.athlete ?? "todos"}
+                      onChange={(athlete: string) =>
+                        updateExtra(item.name, { athlete: athlete === "todos" ? undefined : athlete })
+                      }
+                      options={[
+                        { value: "todos", label: "Ambos" },
+                        ...draft.athletes.map((a) => ({ value: a, label: a })),
+                      ]}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -392,27 +455,25 @@ export function WorkoutForm({
                     patch({ core: next });
                   }}
                 />
-                <Input
+                <NumberField
                   className="col-span-5"
-                  type="number"
                   min={0}
-                  value={row.sets || ""}
-                  placeholder="0"
-                  onChange={(e) => {
+                  max={20}
+                  value={row.sets}
+                  onChange={(v) => {
                     const next = [...draft.core];
-                    next[index] = { ...row, sets: Number(e.target.value) || 0 };
+                    next[index] = { ...row, sets: v };
                     patch({ core: next });
                   }}
                 />
-                <Input
+                <NumberField
                   className="col-span-5"
-                  type="number"
                   min={0}
-                  value={row.reps || ""}
-                  placeholder="0"
-                  onChange={(e) => {
+                  max={100}
+                  value={row.reps}
+                  onChange={(v) => {
                     const next = [...draft.core];
-                    next[index] = { ...row, reps: Number(e.target.value) || 0 };
+                    next[index] = { ...row, reps: v };
                     patch({ core: next });
                   }}
                 />
@@ -463,7 +524,7 @@ export function WorkoutForm({
             {draft.cardio.map((row, index) => (
               <div key={index} className="grid grid-cols-12 gap-2">
                 <Input
-                  className="col-span-6"
+                  className="col-span-5"
                   value={row.kind}
                   onChange={(e) => {
                     const next = [...draft.cardio];
@@ -471,15 +532,15 @@ export function WorkoutForm({
                     patch({ cardio: next });
                   }}
                 />
-                <Input
-                  className="col-span-4"
-                  type="number"
+                <NumberField
+                  className="col-span-5"
                   min={0}
-                  value={row.minutes || ""}
-                  placeholder="0"
-                  onChange={(e) => {
+                  max={300}
+                  step={5}
+                  value={row.minutes}
+                  onChange={(v) => {
                     const next = [...draft.cardio];
-                    next[index] = { ...row, minutes: Number(e.target.value) || 0 };
+                    next[index] = { ...row, minutes: v };
                     patch({ cardio: next });
                   }}
                 />

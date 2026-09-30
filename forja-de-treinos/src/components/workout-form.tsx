@@ -246,9 +246,12 @@ export function WorkoutForm({
 
   // Timer do treino: aperta pra começar, aperta de novo pra terminar — o
   // tempo contado vai direto pra Duração (sobrescrevendo o que estava la).
-  // So conta enquanto esta tela fica aberta, como o resto do rascunho.
+  // Ao parar, o mostrador fica parado no tempo final (nao volta pra 00:00)
+  // ate a proxima vez que o timer for iniciado. So conta enquanto esta tela
+  // fica aberta, como o resto do rascunho.
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerStart, setTimerStart] = useState<number | null>(null);
+  const [timerFinalMs, setTimerFinalMs] = useState<number | null>(null);
   const [, setTimerTick] = useState(0);
 
   useEffect(() => {
@@ -257,17 +260,21 @@ export function WorkoutForm({
     return () => clearInterval(id);
   }, [timerRunning]);
 
-  const timerElapsedMs = timerRunning && timerStart ? Date.now() - timerStart : 0;
+  const timerElapsedMs =
+    timerRunning && timerStart ? Date.now() - timerStart : (timerFinalMs ?? 0);
 
   function handleTimerToggle() {
     if (timerRunning) {
-      const minutes = timerStart ? Math.max(0, Math.round((Date.now() - timerStart) / 60000)) : 0;
+      const elapsedMs = timerStart ? Date.now() - timerStart : 0;
+      const minutes = Math.max(0, Math.round(elapsedMs / 60000));
       setTimerRunning(false);
       setTimerStart(null);
+      setTimerFinalMs(elapsedMs);
       setDurationError("");
       patch({ durationMin: minutes });
     } else {
       setTimerStart(Date.now());
+      setTimerFinalMs(null);
       setTimerRunning(true);
     }
   }
@@ -697,7 +704,9 @@ export function WorkoutForm({
             <p className="mt-0.5 text-[21px] text-faint">
               {timerRunning
                 ? "Contando… toque para finalizar"
-                : "Toque para iniciar o treino"}
+                : timerFinalMs !== null
+                  ? "Parado — toque para iniciar de novo"
+                  : "Toque para iniciar o treino"}
             </p>
           </div>
           <button

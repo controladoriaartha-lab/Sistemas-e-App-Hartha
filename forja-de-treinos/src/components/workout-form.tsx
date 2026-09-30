@@ -478,54 +478,52 @@ export function WorkoutForm({
                   <div className="mt-1 space-y-3">
                     {rows.map(({ item, index }, i) => (
                       <div key={index}>
-                        <div className="grid grid-cols-2 gap-2">
-                          <NumberField
-                            min={0}
-                            max={10}
-                            value={item.sets}
-                            aria-label={`Séries de ${name}${split ? ` ${i + 1}` : ""}`}
-                            onChange={(v) => updateExtraAt(index, { sets: v })}
-                          />
-                          <NumberField
-                            min={0}
-                            max={50}
-                            value={item.reps}
-                            aria-label={`Repetições de ${name}${split ? ` ${i + 1}` : ""}`}
-                            onChange={(v) => updateExtraAt(index, { reps: v })}
-                          />
+                        <div className="flex items-start gap-2">
+                          <div className="grid flex-1 grid-cols-2 gap-2">
+                            <NumberField
+                              min={0}
+                              max={10}
+                              value={item.sets}
+                              aria-label={`Séries de ${name}${split ? ` ${i + 1}` : ""}`}
+                              onChange={(v) => updateExtraAt(index, { sets: v })}
+                            />
+                            <NumberField
+                              min={0}
+                              max={50}
+                              value={item.reps}
+                              aria-label={`Repetições de ${name}${split ? ` ${i + 1}` : ""}`}
+                              onChange={(v) => updateExtraAt(index, { reps: v })}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-14 shrink-0"
+                            aria-label={`Remover ${name}${item.athlete ? ` de ${item.athlete}` : ""}`}
+                            onClick={() => removeExtraAt(index)}
+                          >
+                            <Trash2 />
+                          </Button>
                         </div>
                         {draft.athletes.length > 1 && (
-                          <div className="mt-1.5 flex items-start gap-2">
-                            <div className="flex-1">
-                              <Segmented
-                                value={item.athlete ?? "todos"}
-                                onChange={(athlete: string) =>
-                                  updateExtraAt(index, {
-                                    athlete: athlete === "todos" ? undefined : athlete,
-                                  })
-                                }
-                                options={
-                                  split
-                                    ? draft.athletes.map((a) => ({ value: a, label: a }))
-                                    : [
-                                        { value: "todos", label: "Ambos" },
-                                        ...draft.athletes.map((a) => ({ value: a, label: a })),
-                                      ]
-                                }
-                              />
-                            </div>
-                            {split && (
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                className="h-14 shrink-0"
-                                aria-label={`Remover ${name} de ${item.athlete ?? "atleta"}`}
-                                onClick={() => removeExtraAt(index)}
-                              >
-                                <Trash2 />
-                              </Button>
-                            )}
+                          <div className="mt-1.5">
+                            <Segmented
+                              value={item.athlete ?? "todos"}
+                              onChange={(athlete: string) =>
+                                updateExtraAt(index, {
+                                  athlete: athlete === "todos" ? undefined : athlete,
+                                })
+                              }
+                              options={
+                                split
+                                  ? draft.athletes.map((a) => ({ value: a, label: a }))
+                                  : [
+                                      { value: "todos", label: "Ambos" },
+                                      ...draft.athletes.map((a) => ({ value: a, label: a })),
+                                    ]
+                              }
+                            />
                           </div>
                         )}
                       </div>

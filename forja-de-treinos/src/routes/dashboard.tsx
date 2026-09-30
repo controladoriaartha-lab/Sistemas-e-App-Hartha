@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Download, LogOut, Printer, TriangleAlert, Upload } from "lucide-react";
+import { Download, Fingerprint, LogOut, Printer, TriangleAlert, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { forAthlete } from "@/lib/athlete-view";
+import { friendlyPasskeyError, hasBiometricUnlock } from "@/lib/biometric";
 import { DashboardPanel } from "@/components/dashboard-panel";
 import { DayPicker, FilterGroup, MonthPicker, PillRow } from "@/components/filters";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,18 @@ function DashboardPage() {
   const [period, setPeriod] = useState<Period>("tudo");
   const [monthOffset, setMonthOffset] = useState(0);
   const [dayIso, setDayIso] = useState(todayIso());
+  const [canBiometric, setCanBiometric] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void hasBiometricUnlock().then((ok) => {
+      if (alive) setCanBiometric(ok);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const athleteOptions = useMemo(() => {
     const set = new Set<string>(DEFAULT_ATHLETES);
@@ -106,6 +119,23 @@ function DashboardPage() {
       toast.success(`${parsed.length} treino(s) importado(s)`);
     } catch {
       toast.error("Falha ao ler o arquivo");
+    }
+  }
+
+  async function handleRegisterBiometric() {
+    setBioBusy(true);
+    try {
+      const { error } = await supabase.auth.registerPasskey();
+      if (error) {
+        const text = friendlyPasskeyError(error);
+        if (text) toast.error(text);
+      } else {
+        toast.success("Biometria cadastrada! Da próxima vez, é só tocar no dedo para entrar.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível cadastrar a biometria");
+    } finally {
+      setBioBusy(false);
     }
   }
 
@@ -257,6 +287,17 @@ function DashboardPage() {
           >
             Excluir tudo
           </Button>
+          {canBiometric && (
+            <Button
+              variant="ghost"
+              className="mt-2 block text-faint"
+              disabled={bioBusy}
+              onClick={() => void handleRegisterBiometric()}
+            >
+              <Fingerprint />
+              {bioBusy ? "Aguarde…" : "Cadastrar biometria neste aparelho"}
+            </Button>
+          )}
           <Button
             variant="ghost"
             className="mt-2 block text-faint"

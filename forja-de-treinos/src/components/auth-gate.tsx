@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Fingerprint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { friendlyPasskeyError, hasBiometricUnlock } from "@/lib/biometric";
 import { supabase, useAuth } from "@/lib/cloud";
 import { requestSync, useSyncStatus } from "@/lib/sync";
 import { cn } from "@/lib/utils";
@@ -33,9 +34,37 @@ function LoginForm() {
   const [repeat, setRepeat] = useState("");
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+  const [canBiometric, setCanBiometric] = useState(false);
   const [message, setMessage] = useState<{ kind: "error" | "ok"; text: string } | null>(null);
 
   const creating = mode === "up";
+
+  useEffect(() => {
+    let alive = true;
+    void hasBiometricUnlock().then((ok) => {
+      if (alive) setCanBiometric(ok);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function handleBiometric() {
+    setBioBusy(true);
+    setMessage(null);
+    try {
+      const { error } = await supabase.auth.signInWithPasskey();
+      if (error) {
+        const text = friendlyPasskeyError(error);
+        if (text) setMessage({ kind: "error", text });
+      }
+    } catch (err) {
+      setMessage({ kind: "error", text: friendlyError(err instanceof Error ? err.message : String(err)) });
+    } finally {
+      setBioBusy(false);
+    }
+  }
 
   function switchMode(next: "in" | "up") {
     setMode(next);
@@ -95,7 +124,26 @@ function LoginForm() {
         </p>
       </div>
 
-      <div className="mt-8 rounded-2xl bg-card p-5 shadow-[0_0_0_1px_rgba(244,239,232,0.08)]">
+      {canBiometric && !creating && (
+        <div className="mt-8">
+          <Button
+            type="button"
+            onClick={() => void handleBiometric()}
+            disabled={bioBusy}
+            className="h-16 w-full gap-2 text-[24px]"
+          >
+            <Fingerprint className="size-7" />
+            {bioBusy ? "Confirme a biometria…" : "Entrar com biometria"}
+          </Button>
+          <div className="mt-5 flex items-center gap-3 text-[21px] text-faint">
+            <span className="h-px flex-1 bg-border" />
+            ou
+            <span className="h-px flex-1 bg-border" />
+          </div>
+        </div>
+      )}
+
+      <div className={cn("rounded-2xl bg-card p-5 shadow-[0_0_0_1px_rgba(244,239,232,0.08)]", canBiometric && !creating ? "mt-5" : "mt-8")}>
         <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
           {(
             [

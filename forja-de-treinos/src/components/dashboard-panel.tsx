@@ -4,6 +4,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Line,
   LineChart,
   Pie,
@@ -226,7 +227,7 @@ export function DashboardPanel({
 
       <ChartBlock title="Evolução mensal" subtitle="minutos por mês, últimos 6 meses">
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart
+          <ComposedChart
             data={stats.months}
             barSize={22}
             onClick={(state) => {
@@ -256,7 +257,18 @@ export function DashboardPanel({
               formatter={(value) => [`${Number(value)} min`, "Volume"]}
             />
             <Bar dataKey="minutes" fill={c.accent} radius={[6, 6, 0, 0]} />
-          </BarChart>
+            <Line
+              type="monotone"
+              dataKey="minutes"
+              stroke={c.ok}
+              strokeWidth={2.5}
+              dot={{ r: 4, fill: c.ok, stroke: c.ink, strokeWidth: 1.5 }}
+              activeDot={false}
+              isAnimationActive={false}
+              tooltipType="none"
+              legendType="none"
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </ChartBlock>
 

@@ -23,47 +23,14 @@ import {
   type Workout,
 } from "@/lib/types";
 import { formatDuration } from "@/lib/format";
+import { formatExtras, parseExtras, type ExtraItem } from "@/lib/extras";
 import { useWorkoutStore } from "@/store/workouts";
-
-type ExtraItem = { name: string; sets: number; reps: number; athlete?: string };
-
-/**
- * "Pesos (3x12)[Vânia], Flexão" -> [{name:"Pesos",sets:3,reps:12,athlete:"Vânia"}, {name:"Flexão",sets:0,reps:0}]
- * O `[Atleta]` e uma marca interna nossa (nunca aparece assim para o
- * usuario — veja `displayExtras` em lib/format.ts para a leitura, e
- * `labelFromFreeText` em lib/stats.ts, que a remove antes de virar categoria
- * de grafico).
- */
-function parseExtras(raw: string): ExtraItem[] {
-  return raw
-    .split(/[,;]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const m = part.match(/^(.*?)\s*\((\d+)\s*[x×]\s*(\d+)\)\s*(?:\[(.+?)\])?$/);
-      if (m) return { name: m[1].trim(), sets: Number(m[2]), reps: Number(m[3]), athlete: m[4] };
-      const a = part.match(/^(.*?)\s*\[(.+?)\]$/);
-      if (a) return { name: a[1].trim(), sets: 0, reps: 0, athlete: a[2] };
-      return { name: part, sets: 0, reps: 0 };
-    });
-}
 
 function formatStopwatch(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
-function formatExtras(items: ExtraItem[]): string {
-  return items
-    .map((item) => {
-      let s = item.name;
-      if (item.sets > 0 || item.reps > 0) s += ` (${item.sets}x${item.reps})`;
-      if (item.athlete) s += `[${item.athlete}]`;
-      return s;
-    })
-    .join(", ");
 }
 
 /**

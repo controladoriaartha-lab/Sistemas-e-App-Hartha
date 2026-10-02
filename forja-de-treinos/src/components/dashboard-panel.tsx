@@ -211,7 +211,13 @@ export function DashboardPanel({
               axisLine={false}
               tickLine={false}
             />
-            <YAxis hide />
+            <YAxis
+              tick={{ fill: c.muted, fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={30}
+              allowDecimals={false}
+            />
             <Tooltip
               {...tooltipProps}
               active={volumeTip.sticky ? true : false}
@@ -247,7 +253,13 @@ export function DashboardPanel({
               axisLine={false}
               tickLine={false}
             />
-            <YAxis hide />
+            <YAxis
+              tick={{ fill: c.muted, fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={30}
+              allowDecimals={false}
+            />
             <Tooltip
               {...tooltipProps}
               active={monthsTip.sticky ? true : false}
@@ -293,7 +305,13 @@ export function DashboardPanel({
               axisLine={false}
               tickLine={false}
             />
-            <YAxis hide />
+            <YAxis
+              tick={{ fill: c.muted, fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={30}
+              allowDecimals={false}
+            />
             <Tooltip
               {...tooltipProps}
               active={durationTip.sticky ? true : false}
@@ -336,7 +354,13 @@ export function DashboardPanel({
               axisLine={false}
               tickLine={false}
             />
-            <YAxis hide />
+            <YAxis
+              tick={{ fill: c.muted, fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={34}
+              allowDecimals={false}
+            />
             <Tooltip
               {...tooltipProps}
               active={coreEvolutionTip.sticky ? true : false}
@@ -418,7 +442,13 @@ export function DashboardPanel({
             }}
           >
             <CartesianGrid horizontal={false} stroke={c.grid} />
-            <XAxis type="number" hide />
+            <XAxis
+              type="number"
+              tick={{ fill: c.muted, fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              allowDecimals={false}
+            />
             <YAxis
               type="category"
               dataKey="name"
@@ -453,7 +483,7 @@ export function DashboardPanel({
           title="Grupo muscular"
           subtitle={`sessões por grupo${periodActive ? ` ${periodLabel}` : ""}`}
         >
-          <ResponsiveContainer width="100%" height={Math.max(140, stats.byMuscleGroup.length * 36)}>
+          <ResponsiveContainer width="100%" height={Math.max(160, stats.byMuscleGroup.length * 36 + 24)}>
             <BarChart
               data={stats.byMuscleGroup}
               layout="vertical"
@@ -469,7 +499,13 @@ export function DashboardPanel({
               }}
             >
               <CartesianGrid horizontal={false} stroke={c.grid} />
-              <XAxis type="number" hide allowDecimals={false} />
+              <XAxis
+                type="number"
+                tick={{ fill: c.muted, fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+              />
               <YAxis
                 type="category"
                 dataKey="name"

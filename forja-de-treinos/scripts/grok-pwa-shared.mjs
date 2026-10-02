@@ -167,8 +167,11 @@ export function renderWebManifest(hostHeader) {
       start_url: "/",
       scope: "/",
       display: "standalone",
-      background_color: "#000000",
-      theme_color: "#000000",
+      // Mesmo preto "quase puro" do fundo do app (--color-background), não
+      // #000000 puro — pra a tela nativa do SO (antes do JS carregar) não dar
+      // um salto de cor perceptível pro Splash em React que vem logo depois.
+      background_color: "#0c0b0a",
+      theme_color: "#0c0b0a",
       icons: [
         { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
         { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
@@ -193,7 +196,7 @@ export function grokPwaHeadTags(appName = DEFAULT_APP_NAME) {
       "apple-mobile-web-app-status-bar-style",
       '<meta name="apple-mobile-web-app-status-bar-style" content="black">',
     ],
-    ["theme-color", '<meta name="theme-color" content="#000000">'],
+    ["theme-color", '<meta name="theme-color" content="#0c0b0a">'],
   ];
 }
 

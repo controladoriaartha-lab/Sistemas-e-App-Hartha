@@ -248,30 +248,54 @@ function LoginForm() {
   );
 }
 
+// Marcado quando este módulo carrega (praticamente o instante em que o app
+// abre) — não no mount de cada componente, pra todo lugar que pergunta
+// "já passou o tempo mínimo do Splash?" concordar com o mesmo relógio.
+const splashOpenedAt = Date.now();
+const MIN_SPLASH_MS = 3000;
+
+/** True só depois que o Splash já ficou visível por MIN_SPLASH_MS. */
+function useMinSplashElapsed(): boolean {
+  const [elapsed, setElapsed] = useState(() => Date.now() - splashOpenedAt >= MIN_SPLASH_MS);
+  useEffect(() => {
+    if (elapsed) return;
+    const remaining = MIN_SPLASH_MS - (Date.now() - splashOpenedAt);
+    const timer = setTimeout(() => setElapsed(true), Math.max(0, remaining));
+    return () => clearTimeout(timer);
+  }, [elapsed]);
+  return elapsed;
+}
+
 /**
  * True enquanto a tela mostra o Splash (ícone grande) — nesses momentos o
  * logo fixo da ARTHA no topo (TopControls) some, pra não duplicar o símbolo
  * na mesma tela. Nas demais telas (login, app) o topo continua normal.
+ * Fica true por pelo menos MIN_SPLASH_MS, mesmo que login/sincronização
+ * terminem antes — pra dar tempo de ver o ícone.
  */
 export function useSplashActive(): boolean {
   const { ready, userId } = useAuth();
   const sync = useSyncStatus();
-  if (!ready) return true;
+  const minElapsed = useMinSplashElapsed();
+  if (!ready || !minElapsed) return true;
   return Boolean(userId) && !sync.firstDone && sync.state !== "error";
 }
 
 /** Exige login e so libera o app depois da primeira sincronizacao com a nuvem. */
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { ready, userId } = useAuth();
+  const { userId } = useAuth();
   const sync = useSyncStatus();
+  const splashActive = useSplashActive();
 
   useEffect(() => {
     if (userId) requestSync(0);
   }, [userId]);
 
-  if (!ready) return <Splash text="Carregando…" />;
+  if (splashActive) {
+    const syncing = Boolean(userId) && !sync.firstDone && sync.state !== "error";
+    return <Splash text={syncing ? "Sincronizando seu diário…" : "Carregando…"} />;
+  }
   if (!userId) return <LoginForm />;
-  if (!sync.firstDone && sync.state !== "error") return <Splash text="Sincronizando seu diário…" />;
 
   return (
     <>

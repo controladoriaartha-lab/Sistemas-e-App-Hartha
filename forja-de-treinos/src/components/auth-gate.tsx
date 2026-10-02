@@ -248,6 +248,18 @@ function LoginForm() {
   );
 }
 
+/**
+ * True enquanto a tela mostra o Splash (ícone grande) — nesses momentos o
+ * logo fixo da ARTHA no topo (TopControls) some, pra não duplicar o símbolo
+ * na mesma tela. Nas demais telas (login, app) o topo continua normal.
+ */
+export function useSplashActive(): boolean {
+  const { ready, userId } = useAuth();
+  const sync = useSyncStatus();
+  if (!ready) return true;
+  return Boolean(userId) && !sync.firstDone && sync.state !== "error";
+}
+
 /** Exige login e so libera o app depois da primeira sincronizacao com a nuvem. */
 export function AuthGate({ children }: { children: ReactNode }) {
   const { ready, userId } = useAuth();

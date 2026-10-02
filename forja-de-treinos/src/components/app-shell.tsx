@@ -3,7 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { ClipboardList, LayoutDashboard, LogOut, Moon, Plus, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { AuthGate } from "@/components/auth-gate";
+import { AuthGate, useSplashActive } from "@/components/auth-gate";
 import { Toaster } from "@/components/ui/sonner";
 import { toggleTheme, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { setPersistFailureHandler } from "@/store/workouts";
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const hideNav = pathname.startsWith("/novo") || pathname.includes("/editar");
+  const splashActive = useSplashActive();
 
   // Mounted once for the whole app: surfaces a local-storage write failure
   // (private browsing, full quota, disabled storage) as a visible toast
@@ -27,7 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(80%_80%_at_50%_-20%,rgba(196,92,38,0.16),transparent_70%)]"
       />
-      <TopControls />
+      {!splashActive && <TopControls />}
       <AuthGate>
         {children}
         {!hideNav && <BottomNav pathname={pathname} />}

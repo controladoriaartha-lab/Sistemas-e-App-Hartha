@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { format } from "date-fns";
+import { BrandBar } from "@/components/brand-bar";
 import { DayPicker, FilterGroup, PillRow } from "@/components/filters";
 import { forAthlete } from "@/lib/athlete-view";
 import { WorkoutCard } from "@/components/workout-card";
@@ -63,9 +64,8 @@ function Home() {
   return (
     <main className="relative px-5 pb-28 pt-8">
       <header className="mb-6">
-        <p className="text-4xl font-medium uppercase tracking-widest text-accent">Diário</p>
-        <h1 className="mt-1 font-display text-6xl font-medium tracking-tight">Forja de Treinos</h1>
-        <p className="mt-2 max-w-xs text-2xl font-normal text-muted-foreground">
+        <BrandBar />
+        <p className="mt-3 max-w-xs text-2xl font-normal text-muted-foreground">
           Treinos de Cada Dia
         </p>
       </header>

@@ -33,6 +33,37 @@ function formatStopwatch(ms: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+/** Três bipes curtos quando o timer de descanso termina — sem depender de nenhum arquivo de áudio. */
+function playRestBeep() {
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof window.AudioContext })
+        .webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const tone = (freq: number, start: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration + 0.05);
+    };
+    tone(880, 0, 0.18);
+    tone(880, 0.24, 0.18);
+    tone(1175, 0.48, 0.32);
+    setTimeout(() => void ctx.close(), 1200);
+  } catch {
+    // aparelho sem suporte a Web Audio — segue sem som, nao quebra o timer
+  }
+}
+
 /**
  * Campo numerico com botõezinhos de mais (verde) e menos (vermelho) dentro
  * da caixa, alem de poder digitar direto. Espelha o Input padrao (mesmo
@@ -247,6 +278,66 @@ export function WorkoutForm({
       setTimerFinalMs(null);
       setTimerRunning(true);
     }
+  }
+
+  // Timer de descanso: uma contagem regressiva entre series. Ajusta de 15 em
+  // 15s com os botõezinhos (verde aumenta, vermelho diminui — ajustam o
+  // tempo configurado parado, ou a contagem ao vivo se ja estiver rodando),
+  // avisa com um som quando chega a zero, e o "excluir" cancela e volta pro
+  // padrao de 1 minuto. Nao e salvo no treino, e so uma ferramenta de apoio
+  // enquanto essa tela fica aberta.
+  const REST_DEFAULT_SECONDS = 60;
+  const REST_STEP_SECONDS = 15;
+  const REST_MIN_SECONDS = 15;
+  const REST_MAX_SECONDS = 600;
+  const [restSeconds, setRestSeconds] = useState(REST_DEFAULT_SECONDS);
+  const [restRunning, setRestRunning] = useState(false);
+  const [restEndAt, setRestEndAt] = useState<number | null>(null);
+  const [, setRestTick] = useState(0);
+
+  useEffect(() => {
+    if (!restRunning || !restEndAt) return;
+    const id = setInterval(() => {
+      if (Date.now() >= restEndAt) {
+        setRestRunning(false);
+        setRestEndAt(null);
+        playRestBeep();
+      } else {
+        setRestTick((t) => t + 1);
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [restRunning, restEndAt]);
+
+  const restRemainingMs =
+    restRunning && restEndAt ? Math.max(0, restEndAt - Date.now()) : restSeconds * 1000;
+
+  function handleRestToggle() {
+    if (restRunning) {
+      setRestRunning(false);
+      setRestEndAt(null);
+    } else {
+      setRestEndAt(Date.now() + restSeconds * 1000);
+      setRestRunning(true);
+    }
+  }
+
+  function adjustRest(deltaSeconds: number) {
+    if (restRunning) {
+      setRestEndAt((prev) =>
+        Math.max(Date.now() + 1000, (prev ?? Date.now()) + deltaSeconds * 1000),
+      );
+    } else {
+      setRestSeconds((s) =>
+        Math.max(REST_MIN_SECONDS, Math.min(REST_MAX_SECONDS, s + deltaSeconds)),
+      );
+    }
+  }
+
+  function handleRestReset() {
+    setRestRunning(false);
+    setRestEndAt(null);
+    setRestSeconds(REST_DEFAULT_SECONDS);
   }
 
   const cardioRows = draft.cardio.filter((row) => row.kind.trim() && row.minutes > 0);
@@ -702,6 +793,69 @@ export function WorkoutForm({
               <Play className="size-8 translate-x-0.5" fill="currentColor" />
             )}
           </button>
+        </div>
+      </Field>
+
+      <Field label="Timer de descanso">
+        <div className="rounded-2xl bg-muted px-5 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-display text-4xl tabular-nums tracking-tight text-foreground">
+                {formatStopwatch(restRemainingMs)}
+              </p>
+              <p className="mt-0.5 text-[21px] text-faint">
+                {restRunning
+                  ? "Contando o descanso… vai avisar sozinho"
+                  : "Toque para iniciar o descanso entre séries"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleRestToggle}
+              aria-label={restRunning ? "Parar timer de descanso" : "Iniciar timer de descanso"}
+              className={cn(
+                "flex size-16 shrink-0 items-center justify-center rounded-full transition-colors duration-150",
+                restRunning ? "bg-danger text-background" : "bg-ok text-background",
+              )}
+            >
+              {restRunning ? (
+                <Square className="size-7" fill="currentColor" />
+              ) : (
+                <Play className="size-8 translate-x-0.5" fill="currentColor" />
+              )}
+            </button>
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              type="button"
+              aria-label="Diminuir tempo de descanso"
+              onClick={() => adjustRest(-REST_STEP_SECONDS)}
+              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-danger text-background active:brightness-90"
+            >
+              <ChevronDown className="size-6" strokeWidth={3} />
+            </button>
+            <button
+              type="button"
+              aria-label="Aumentar tempo de descanso"
+              onClick={() => adjustRest(REST_STEP_SECONDS)}
+              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-ok text-background active:brightness-90"
+            >
+              <ChevronUp className="size-6" strokeWidth={3} />
+            </button>
+            <p className="flex-1 text-center text-[21px] tabular-nums text-faint">
+              {restRunning ? "ajustar o tempo que falta" : `ajustar: ${formatStopwatch(restSeconds * 1000)}`}
+            </p>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label="Excluir / reiniciar timer de descanso"
+              onClick={handleRestReset}
+            >
+              <Trash2 />
+            </Button>
+          </div>
         </div>
       </Field>
 

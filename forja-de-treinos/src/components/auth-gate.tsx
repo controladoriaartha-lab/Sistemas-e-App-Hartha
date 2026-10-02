@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Eye, EyeOff, Fingerprint } from "lucide-react";
+import { BrandBar } from "@/components/brand-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,8 +118,7 @@ function LoginForm() {
           alt="ARTHA"
           className="h-28 w-auto drop-shadow-[0_8px_20px_rgba(0,0,0,0.45)]"
         />
-        <p className="mt-5 text-4xl font-medium uppercase tracking-widest text-accent">Diário</p>
-        <h1 className="mt-1 font-display text-6xl font-medium tracking-tight">Forja de Treinos</h1>
+        <BrandBar className="mt-5 w-full" />
         <p className="mt-3 max-w-sm text-[24px] leading-snug text-muted-foreground">
           Seus treinos guardados na nuvem, com acesso só seu.
         </p>

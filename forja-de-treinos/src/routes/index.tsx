@@ -62,7 +62,7 @@ function Home() {
   }
 
   return (
-    <main className="relative px-5 pb-28 pt-8">
+    <main className="relative px-5 pb-28 pt-16">
       <header className="mb-6">
         <BrandBar />
         <p className="mt-3 max-w-xs text-2xl font-normal text-muted-foreground">

@@ -45,19 +45,21 @@ function playRestBeep() {
     const tone = (freq: number, start: number, duration: number) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = "sine";
+      osc.type = "square";
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(1, ctx.currentTime + start + 0.015);
       gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + duration);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(ctx.currentTime + start);
       osc.stop(ctx.currentTime + start + duration + 0.05);
     };
-    tone(880, 0, 0.18);
-    tone(880, 0.24, 0.18);
-    tone(1175, 0.48, 0.32);
+    // Mais alto (ganho no maximo, sem distorcer) e mais agudo (onda
+    // quadrada, mais harmonicos, e frequencias bem mais altas que antes).
+    tone(1760, 0, 0.16);
+    tone(1760, 0.2, 0.16);
+    tone(2349, 0.4, 0.3);
     setTimeout(() => void ctx.close(), 1200);
   } catch {
     // aparelho sem suporte a Web Audio — segue sem som, nao quebra o timer

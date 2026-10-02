@@ -7,7 +7,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { ChevronDown, ChevronUp, Play, Plus, Square, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Play, Plus, Square, Trash2, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,8 +33,25 @@ function formatStopwatch(ms: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-/** Três bipes curtos quando o timer de descanso termina — sem depender de nenhum arquivo de áudio. */
-function playRestBeep() {
+const REST_VOLUME_KEY = "forja-rest-volume-v1";
+
+function readRestVolume(): number {
+  try {
+    const raw = localStorage.getItem(REST_VOLUME_KEY);
+    const n = raw !== null ? Number(raw) : 0;
+    return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Três bipes curtos quando o timer de descanso termina — sem depender de
+ * nenhum arquivo de áudio. `volume` vai de 0 (nível já reforçado de fábrica)
+ * a 1 (o dobro disso); passa por um compressor pra ganho acima de 1 nao
+ * estourar/distorcer feio, só ficar mais alto mesmo.
+ */
+function playRestBeep(volume = 0) {
   try {
     const AudioCtx =
       window.AudioContext ||
@@ -42,21 +59,25 @@ function playRestBeep() {
         .webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.setValueAtTime(-18, ctx.currentTime);
+    compressor.ratio.setValueAtTime(14, ctx.currentTime);
+    compressor.connect(ctx.destination);
+    const peak = 1 + Math.min(1, Math.max(0, volume));
     const tone = (freq: number, start: number, duration: number) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "square";
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(1, ctx.currentTime + start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(peak, ctx.currentTime + start + 0.015);
       gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + duration);
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(compressor);
       osc.start(ctx.currentTime + start);
       osc.stop(ctx.currentTime + start + duration + 0.05);
     };
-    // Mais alto (ganho no maximo, sem distorcer) e mais agudo (onda
-    // quadrada, mais harmonicos, e frequencias bem mais altas que antes).
+    // Mais agudo (onda quadrada, mais harmonicos, frequencias altas).
     tone(1760, 0, 0.16);
     tone(1760, 0.2, 0.16);
     tone(2349, 0.4, 0.3);
@@ -296,6 +317,8 @@ export function WorkoutForm({
   const [restRunning, setRestRunning] = useState(false);
   const [restEndAt, setRestEndAt] = useState<number | null>(null);
   const [, setRestTick] = useState(0);
+  const [restVolume, setRestVolume] = useState(readRestVolume);
+  const restPreviewTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!restRunning || !restEndAt) return;
@@ -303,13 +326,25 @@ export function WorkoutForm({
       if (Date.now() >= restEndAt) {
         setRestRunning(false);
         setRestEndAt(null);
-        playRestBeep();
+        playRestBeep(restVolume);
       } else {
         setRestTick((t) => t + 1);
       }
     }, 250);
     return () => clearInterval(id);
-  }, [restRunning, restEndAt]);
+  }, [restRunning, restEndAt, restVolume]);
+
+  function handleRestVolumeChange(next: number) {
+    const clamped = Math.min(1, Math.max(0, next));
+    setRestVolume(clamped);
+    try {
+      localStorage.setItem(REST_VOLUME_KEY, String(clamped));
+    } catch {
+      // Privado/sem espaco: so nao salva a preferencia pra proxima vez.
+    }
+    if (restPreviewTimeout.current) clearTimeout(restPreviewTimeout.current);
+    restPreviewTimeout.current = setTimeout(() => playRestBeep(clamped), 150);
+  }
 
   const restRemainingMs =
     restRunning && restEndAt ? Math.max(0, restEndAt - Date.now()) : restSeconds * 1000;
@@ -857,6 +892,23 @@ export function WorkoutForm({
             >
               <Trash2 />
             </Button>
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <Volume2 className="size-5 shrink-0 text-faint" />
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={10}
+              value={Math.round(restVolume * 100)}
+              onChange={(e) => handleRestVolumeChange(Number(e.target.value) / 100)}
+              aria-label="Volume do aviso sonoro do timer de descanso"
+              className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-border accent-ok [&::-moz-range-thumb]:size-7 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-ok [&::-webkit-slider-thumb]:size-7 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-ok"
+            />
+            <span className="w-14 shrink-0 text-right text-[21px] tabular-nums text-faint">
+              {Math.round(restVolume * 100)}%
+            </span>
           </div>
         </div>
       </Field>

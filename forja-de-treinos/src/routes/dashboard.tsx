@@ -4,6 +4,7 @@ import { Download, Fingerprint, LogOut, Printer, TriangleAlert, Upload } from "l
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { forAthlete } from "@/lib/athlete-view";
+import { PanelBrandBar } from "@/components/brand-bar";
 import { friendlyPasskeyError, hasBiometricUnlock } from "@/lib/biometric";
 import { DashboardPanel } from "@/components/dashboard-panel";
 import { DayPicker, FilterGroup, MonthPicker, PillRow } from "@/components/filters";
@@ -148,11 +149,10 @@ function DashboardPage() {
   }
 
   return (
-    <main className="relative px-5 pb-28 pt-8">
+    <main className="relative px-5 pb-28 pt-16">
       <header className="mb-6">
-        <p className="text-[24px] font-medium uppercase tracking-widest text-accent">Painel</p>
-        <h1 className="mt-1 font-display text-4xl font-medium tracking-tight">Números</h1>
-        <p className="mt-2 max-w-sm text-[24px] text-muted-foreground">
+        <PanelBrandBar />
+        <p className="mt-3 max-w-sm text-[24px] text-muted-foreground">
           KPIs, volume, intensidade e comparativos entre semanas, meses e atletas.
         </p>
         {workouts.length > 0 && (

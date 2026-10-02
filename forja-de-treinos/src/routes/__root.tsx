@@ -37,6 +37,20 @@ export const Route = createRootRoute({
     <html lang="pt-BR" suppressHydrationWarning className="antialiased">
       <head>
         <HeadContent />
+        {/*
+          Roda antes do body pintar (script sincrono, sem defer/type=module,
+          no fim do <head>) — le o tema salvo e aplica no <html> e no meta
+          theme-color ANTES do primeiro paint. Sem isso a pagina sempre nasce
+          escura (o servidor nao sabe a preferencia do navegador) e so fica
+          clara depois que o bundle React carrega e corrige — um pisca
+          escuro->claro visivel em quem usa tema claro.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{if(localStorage.getItem("forja-theme-v1")==="light"){document.documentElement.dataset.theme="light";var m=document.querySelector(\'meta[name="theme-color"]\');if(m)m.setAttribute("content","#f4efe8");}}catch(e){}',
+          }}
+        />
       </head>
       <body>
         <PreviewHostBridge />

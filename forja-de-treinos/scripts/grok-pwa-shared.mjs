@@ -167,11 +167,12 @@ export function renderWebManifest(hostHeader) {
       start_url: "/",
       scope: "/",
       display: "standalone",
-      // Mesmo preto "quase puro" do fundo do app (--color-background), não
-      // #000000 puro — pra a tela nativa do SO (antes do JS carregar) não dar
-      // um salto de cor perceptível pro Splash em React que vem logo depois.
-      background_color: "#0c0b0a",
-      theme_color: "#0c0b0a",
+      // Mesmo creme/claro do tema claro do app (--color-background com
+      // data-theme="light"), que é o tema padrão do aparelho em uso — assim a
+      // tela nativa do SO (antes do JS carregar) já nasce na mesma cor do
+      // Splash em React que vem logo depois, sem salto de cor perceptível.
+      background_color: "#f4efe8",
+      theme_color: "#f4efe8",
       icons: [
         { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
         { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },

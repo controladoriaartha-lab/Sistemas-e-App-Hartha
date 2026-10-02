@@ -20,7 +20,13 @@ import { ptBR } from "date-fns/locale";
 import { displayExtras, formatDuration, formatHours, formatWeekday, parseDate } from "@/lib/format";
 import { forAthlete } from "@/lib/athlete-view";
 import { buildReport } from "@/lib/report";
-import { filterByPeriod, PERIODS, recentMonths, type Period } from "@/lib/period";
+import {
+  filterByPeriod,
+  isPickablePeriod,
+  PERIODS,
+  periodOffsetLabel,
+  type Period,
+} from "@/lib/period";
 import { computeStats, deltaPct } from "@/lib/stats";
 import { INTENSITY_LABEL } from "@/lib/types";
 import { sortedWorkouts, useWorkoutStore } from "@/store/workouts";
@@ -29,13 +35,13 @@ export const Route = createFileRoute("/relatorio")({
   component: ReportPage,
   validateSearch: (
     search: Record<string, unknown>,
-  ): { atleta?: string; periodo?: Period; mes?: number; dia?: string } => ({
+  ): { atleta?: string; periodo?: Period; ref?: number; dia?: string } => ({
     atleta: typeof search.atleta === "string" && search.atleta ? search.atleta : undefined,
     periodo:
       typeof search.periodo === "string" && PERIODS.some((p) => p.value === search.periodo)
         ? (search.periodo as Period)
         : undefined,
-    mes: Number(search.mes) > 0 ? Math.floor(Number(search.mes)) : undefined,
+    ref: Number(search.ref) > 0 ? Math.floor(Number(search.ref)) : undefined,
     dia: typeof search.dia === "string" && /^\d{4}-\d{2}-\d{2}$/.test(search.dia) ? search.dia : undefined,
   }),
 });
@@ -189,28 +195,28 @@ function Delta({ value }: { value: number }) {
 function Sheet({
   athlete,
   periodo,
-  mes,
+  refOffset,
   dia,
 }: {
   athlete?: string;
   periodo?: Period;
-  mes?: number;
+  refOffset?: number;
   dia?: string;
 }) {
   const allWorkouts = useWorkoutStore((s) => s.workouts);
   // Com um atleta escolhido, o relatorio so leva os treinos dele e, nos
   // treinos em dupla, so as linhas de core dele (ou sem dono definido).
   const workouts = useMemo(() => {
-    const byPeriod = periodo ? filterByPeriod(allWorkouts, periodo, mes ?? 0, dia) : allWorkouts;
+    const byPeriod = periodo ? filterByPeriod(allWorkouts, periodo, refOffset ?? 0, dia) : allWorkouts;
     if (!athlete) return byPeriod;
     return forAthlete(byPeriod, athlete);
-  }, [allWorkouts, athlete, periodo, mes, dia]);
+  }, [allWorkouts, athlete, periodo, refOffset, dia]);
   const periodLabel = !periodo
     ? ""
     : periodo === "dia" && dia
       ? format(parseDate(dia), "dd/MM/yyyy")
-      : periodo === "mes" && mes
-        ? (recentMonths(mes + 1).at(-1)?.label ?? "")
+      : isPickablePeriod(periodo) && refOffset
+        ? periodOffsetLabel(periodo, refOffset)
         : (PERIODS.find((p) => p.value === periodo)?.label ?? "");
   // Com periodo filtrado, "hoje" passa a ser o ultimo treino do recorte: a
   // sequencia e a frequencia refletem o periodo, nao os dias sem treino depois dele.
@@ -762,7 +768,7 @@ function Sheet({
 }
 
 function ReportPage() {
-  const { atleta: athlete, periodo, mes, dia } = Route.useSearch();
+  const { atleta: athlete, periodo, ref, dia } = Route.useSearch();
   const [root, setRoot] = useState<HTMLElement | null>(null);
   const [zoom, setZoom] = useState(1);
 
@@ -803,7 +809,7 @@ function ReportPage() {
         Página A4 em retrato. Na janela de impressão, escolha “Salvar como PDF”.
       </p>
       <div className="py-4" style={{ zoom }}>
-        <Sheet athlete={athlete} periodo={periodo} mes={mes} dia={dia} />
+        <Sheet athlete={athlete} periodo={periodo} refOffset={ref} dia={dia} />
       </div>
     </div>,
     root,

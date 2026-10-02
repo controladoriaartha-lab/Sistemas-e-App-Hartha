@@ -7,11 +7,20 @@ import { forAthlete } from "@/lib/athlete-view";
 import { PanelBrandBar } from "@/components/brand-bar";
 import { friendlyPasskeyError, hasBiometricUnlock } from "@/lib/biometric";
 import { DashboardPanel } from "@/components/dashboard-panel";
-import { DayPicker, FilterGroup, MonthPicker, PillRow } from "@/components/filters";
+import { DayPicker, FilterGroup, PeriodPicker, PillRow } from "@/components/filters";
 import { Button } from "@/components/ui/button";
 import { parseMarkdownDiary, workoutsToMarkdown } from "@/lib/diary-md";
 import { parseDate, todayIso } from "@/lib/format";
-import { filterByPeriod, PERIOD_IN_PHRASE, PERIODS, recentMonths, type Period } from "@/lib/period";
+import {
+  filterByPeriod,
+  isPickablePeriod,
+  PERIOD_IN_PHRASE,
+  PERIODS,
+  periodOffsetLabel,
+  periodOptions,
+  PICKER_COUNT,
+  type Period,
+} from "@/lib/period";
 import { DEFAULT_ATHLETES } from "@/lib/types";
 import { supabase } from "@/lib/cloud";
 import { resetSyncForLogout, syncNow } from "@/lib/sync";
@@ -28,7 +37,7 @@ function DashboardPage() {
 
   const [athlete, setAthlete] = useState<string>("todos");
   const [period, setPeriod] = useState<Period>("tudo");
-  const [monthOffset, setMonthOffset] = useState(0);
+  const [refOffset, setRefOffset] = useState(0);
   const [dayIso, setDayIso] = useState(todayIso());
   const [canBiometric, setCanBiometric] = useState(false);
   const [bioBusy, setBioBusy] = useState(false);
@@ -53,9 +62,19 @@ function DashboardPage() {
   const filtered = useMemo(() => {
     let list = workouts;
     if (athlete !== "todos") list = forAthlete(list, athlete);
-    list = filterByPeriod(list, period, monthOffset, dayIso);
+    list = filterByPeriod(list, period, refOffset, dayIso);
     return list;
-  }, [workouts, athlete, period, monthOffset, dayIso]);
+  }, [workouts, athlete, period, refOffset, dayIso]);
+
+  // Anos oferecidos no menu "Anual": do ano do primeiro treino até o atual.
+  const yearCount = useMemo(() => {
+    const first = workouts.reduce((min, w) => (w.date < min ? w.date : min), todayIso());
+    return Math.max(1, new Date().getFullYear() - Number(first.slice(0, 4)) + 1);
+  }, [workouts]);
+  const pickerOptions = useMemo(
+    () => (isPickablePeriod(period) ? periodOptions(period, period === "anual" ? yearCount : PICKER_COUNT[period]) : []),
+    [period, yearCount],
+  );
 
   const periodActive = period !== "tudo";
   const singleAthlete = athlete !== "todos";
@@ -63,26 +82,26 @@ function DashboardPage() {
   const periodLabel =
     period === "dia"
       ? `em ${format(parseDate(dayIso), "dd/MM/yyyy")}`
-      : period === "mes" && monthOffset > 0
-        ? `em ${recentMonths(monthOffset + 1).at(-1)?.label}`
+      : isPickablePeriod(period) && refOffset > 0
+        ? `em ${periodOffsetLabel(period, refOffset)}`
         : PERIOD_IN_PHRASE[period];
 
   const reportSearch = {
     atleta: singleAthlete ? athlete : undefined,
     periodo: periodActive ? period : undefined,
-    mes: period === "mes" && monthOffset > 0 ? monthOffset : undefined,
+    ref: isPickablePeriod(period) && refOffset > 0 ? refOffset : undefined,
     dia: period === "dia" ? dayIso : undefined,
   };
 
   function setPeriodFilter(value: Period) {
     setPeriod(value);
-    if (value !== "mes") setMonthOffset(0);
+    setRefOffset(0);
   }
 
   function clearFilters() {
     setAthlete("todos");
     setPeriod("tudo");
-    setMonthOffset(0);
+    setRefOffset(0);
     setDayIso(todayIso());
   }
 
@@ -182,7 +201,9 @@ function DashboardPage() {
             </FilterGroup>
             <FilterGroup label="Período">
               <PillRow options={PERIODS} value={period} onChange={setPeriodFilter} />
-              {period === "mes" && <MonthPicker offset={monthOffset} onChange={setMonthOffset} />}
+              {isPickablePeriod(period) && (
+                <PeriodPicker options={pickerOptions} offset={refOffset} onChange={setRefOffset} />
+              )}
               {period === "dia" && <DayPicker value={dayIso} onChange={setDayIso} />}
             </FilterGroup>
           </div>

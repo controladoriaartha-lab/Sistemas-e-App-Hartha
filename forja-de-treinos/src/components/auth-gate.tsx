@@ -252,7 +252,7 @@ function LoginForm() {
 // abre) — não no mount de cada componente, pra todo lugar que pergunta
 // "já passou o tempo mínimo do Splash?" concordar com o mesmo relógio.
 const splashOpenedAt = Date.now();
-const MIN_SPLASH_MS = 3000;
+const MIN_SPLASH_MS = 1500;
 
 /** True só depois que o Splash já ficou visível por MIN_SPLASH_MS. */
 function useMinSplashElapsed(): boolean {

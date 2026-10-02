@@ -112,26 +112,131 @@ function capitalize(text: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+/** Períodos que têm um menuzinho para escolher qual ocorrência ver (mês, quinzena, …). */
+export const PICKABLE_PERIODS: readonly Period[] = [
+  "quinzenal",
+  "mes",
+  "trimestral",
+  "semestral",
+  "anual",
+];
+
+export function isPickablePeriod(period: Period): boolean {
+  return PICKABLE_PERIODS.includes(period);
+}
+
+/** Quantas ocorrências passadas cada menuzinho oferece (o anual depende dos dados). */
+export const PICKER_COUNT: Record<string, number> = {
+  quinzenal: 24,
+  mes: 12,
+  trimestral: 8,
+  semestral: 6,
+  anual: 5,
+};
+
+/**
+ * Primeiro e último dia de uma ocorrência do período, `offset` ocorrências
+ * para trás (0 = a atual, 1 = a anterior, …). Quinzena = dia 1-15 e 16-fim;
+ * trimestre/semestre seguem o calendário (jan-mar…, jan-jun e jul-dez).
+ */
+export function periodRangeIso(
+  period: Period,
+  offset: number,
+  now: Date = new Date(),
+): { start: string; end: string } | null {
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  let start: Date;
+  let end: Date;
+  switch (period) {
+    case "mes":
+      return monthRangeIso(offset, now);
+    case "quinzenal": {
+      const idx = y * 24 + m * 2 + (now.getDate() <= 15 ? 0 : 1) - offset;
+      const ty = Math.floor(idx / 24);
+      const tm = Math.floor((idx % 24) / 2);
+      const second = idx % 2 === 1;
+      start = new Date(ty, tm, second ? 16 : 1);
+      end = second ? endOfMonth(new Date(ty, tm, 1)) : new Date(ty, tm, 15);
+      break;
+    }
+    case "trimestral": {
+      const idx = y * 4 + Math.floor(m / 3) - offset;
+      const tq = idx % 4;
+      start = new Date(Math.floor(idx / 4), tq * 3, 1);
+      end = endOfMonth(new Date(Math.floor(idx / 4), tq * 3 + 2, 1));
+      break;
+    }
+    case "semestral": {
+      const idx = y * 2 + Math.floor(m / 6) - offset;
+      const th = idx % 2;
+      start = new Date(Math.floor(idx / 2), th * 6, 1);
+      end = endOfMonth(new Date(Math.floor(idx / 2), th * 6 + 5, 1));
+      break;
+    }
+    case "anual":
+      start = new Date(y - offset, 0, 1);
+      end = new Date(y - offset, 11, 31);
+      break;
+    default:
+      return null;
+  }
+  return { start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") };
+}
+
+/** Opções do menuzinho: "2ª quinzena · Setembro 2026", "1º trimestre · 2026", "2026", … */
+export function periodOptions(
+  period: Period,
+  count: number,
+  now: Date = new Date(),
+): { offset: number; label: string }[] {
+  if (period === "mes") return recentMonths(count, now);
+  return Array.from({ length: count }, (_, offset) => {
+    const range = periodRangeIso(period, offset, now);
+    if (!range) return { offset, label: "" };
+    const [yy, mm, dd] = range.start.split("-").map(Number);
+    // Mês abreviado ("Out 2026"): o nome inteiro estoura a largura do botão no celular.
+    const monthName = capitalize(
+      format(new Date(yy, mm - 1, 1), "MMM yyyy", { locale: ptBR }).replace(".", ""),
+    );
+    switch (period) {
+      case "quinzenal":
+        return { offset, label: `${dd === 1 ? "1ª" : "2ª"} quinzena · ${monthName}` };
+      case "trimestral":
+        return { offset, label: `${Math.floor((mm - 1) / 3) + 1}º trimestre · ${yy}` };
+      case "semestral":
+        return { offset, label: `${mm === 1 ? "1º" : "2º"} semestre · ${yy}` };
+      default:
+        return { offset, label: String(yy) };
+    }
+  });
+}
+
+/** Rótulo de uma ocorrência específica (para legendas e para o relatório). */
+export function periodOffsetLabel(period: Period, offset: number, now: Date = new Date()): string {
+  return periodOptions(period, offset + 1, now).at(-1)?.label ?? "";
+}
+
 /**
  * Aplica o filtro de periodo do Painel/Diario a uma lista de treinos —
- * inclusive o mes escolhido (monthOffset) ou o dia escolhido (dayIso), quando
- * o periodo e "mes"/"dia". "Dia" e o unico periodo fechado dos dois lados (so
- * aquela data exata): os demais so tem piso ("desde X"), porque nenhum treino
- * e datado depois de hoje.
+ * inclusive a ocorrencia escolhida (refOffset: mes, quinzena, trimestre,
+ * semestre ou ano passado) ou o dia escolhido (dayIso). "Dia" e as ocorrencias
+ * passadas sao fechadas dos dois lados; a ocorrencia atual so tem piso
+ * ("desde X"), porque nenhum treino e datado depois de hoje.
  */
 export function filterByPeriod<T extends { date: string }>(
   list: T[],
   period: Period,
-  monthOffset = 0,
+  refOffset = 0,
   dayIso?: string,
 ): T[] {
   if (period === "dia") {
     const day = dayIso || todayIso();
     return list.filter((w) => w.date === day);
   }
-  if (period === "mes" && monthOffset > 0) {
-    const { start, end } = monthRangeIso(monthOffset);
-    return list.filter((w) => w.date >= start && w.date <= end);
+  if (refOffset > 0) {
+    const range = periodRangeIso(period, refOffset);
+    if (range) return list.filter((w) => w.date >= range.start && w.date <= range.end);
   }
   const cutoff = periodCutoffIso(period);
   return cutoff ? list.filter((w) => w.date >= cutoff) : list;

@@ -7,6 +7,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Play, Plus, Square, Trash2, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,9 @@ import { formatDuration } from "@/lib/format";
 import { formatExtras, parseExtras, type ExtraItem } from "@/lib/extras";
 import type { NovoSnapshot, NovoTimers } from "@/lib/novo-draft";
 import { useWorkoutStore } from "@/store/workouts";
+
+/** Timer de treino esquecido ligado para sozinho depois disso. */
+const TIMER_MAX_MS = 3 * 60 * 60 * 1000;
 
 function formatStopwatch(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -287,18 +291,36 @@ export function WorkoutForm({
   );
   const [, setTimerTick] = useState(0);
 
+  // Esqueceu o timer ligado: passou de 3h, ele para sozinho em 3h exatas e
+  // deixa esse tempo na Duração. Vale também ao reabrir um rascunho salvo
+  // (a conferência roda na hora). A tela segue aberta até Cancelar/Salvar.
   useEffect(() => {
-    if (!timerRunning) return;
-    const id = setInterval(() => setTimerTick((t) => t + 1), 1000);
+    if (!timerRunning || !timerStart) return;
+    const finishIfDue = () => {
+      if (Date.now() - timerStart < TIMER_MAX_MS) return false;
+      setTimerRunning(false);
+      setTimerStart(null);
+      setTimerFinalMs(TIMER_MAX_MS);
+      setDurationError("");
+      setDraft((prev) => ({ ...prev, durationMin: TIMER_MAX_MS / 60000 }));
+      toast.info("O timer de treino parou em 3h e a duração ficou em 3h.");
+      return true;
+    };
+    if (finishIfDue()) return;
+    const id = setInterval(() => {
+      if (!finishIfDue()) setTimerTick((t) => t + 1);
+    }, 1000);
     return () => clearInterval(id);
-  }, [timerRunning]);
+  }, [timerRunning, timerStart]);
 
   const timerElapsedMs =
-    timerRunning && timerStart ? Date.now() - timerStart : (timerFinalMs ?? 0);
+    timerRunning && timerStart
+      ? Math.min(Date.now() - timerStart, TIMER_MAX_MS)
+      : (timerFinalMs ?? 0);
 
   function handleTimerToggle() {
     if (timerRunning) {
-      const elapsedMs = timerStart ? Date.now() - timerStart : 0;
+      const elapsedMs = timerStart ? Math.min(Date.now() - timerStart, TIMER_MAX_MS) : 0;
       const minutes = Math.max(0, Math.round(elapsedMs / 60000));
       setTimerRunning(false);
       setTimerStart(null);

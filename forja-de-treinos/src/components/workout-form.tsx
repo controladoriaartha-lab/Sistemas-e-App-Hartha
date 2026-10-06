@@ -24,6 +24,7 @@ import {
 } from "@/lib/types";
 import { formatDuration } from "@/lib/format";
 import { formatExtras, parseExtras, type ExtraItem } from "@/lib/extras";
+import type { NovoSnapshot, NovoTimers } from "@/lib/novo-draft";
 import { useWorkoutStore } from "@/store/workouts";
 
 function formatStopwatch(ms: number): string {
@@ -147,11 +148,17 @@ const NumberField = forwardRef<
 
 export function WorkoutForm({
   initial,
+  initialTimers,
+  onSnapshot,
   submitLabel,
   onSubmit,
   onCancel,
 }: {
   initial: Workout;
+  /** Cronômetros de um rascunho salvo, para retomar de onde pararam. */
+  initialTimers?: NovoTimers;
+  /** Chamado a cada mudança de campo/cronômetro (a tela Novo usa para guardar o rascunho). */
+  onSnapshot?: (snapshot: NovoSnapshot) => void;
   submitLabel: string;
   onSubmit: (workout: Workout) => void;
   onCancel: () => void;
@@ -273,9 +280,11 @@ export function WorkoutForm({
   // Ao parar, o mostrador fica parado no tempo final (nao volta pra 00:00)
   // ate a proxima vez que o timer for iniciado. So conta enquanto esta tela
   // fica aberta, como o resto do rascunho.
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [timerStart, setTimerStart] = useState<number | null>(null);
-  const [timerFinalMs, setTimerFinalMs] = useState<number | null>(null);
+  const [timerRunning, setTimerRunning] = useState(initialTimers?.timerRunning ?? false);
+  const [timerStart, setTimerStart] = useState<number | null>(initialTimers?.timerStart ?? null);
+  const [timerFinalMs, setTimerFinalMs] = useState<number | null>(
+    initialTimers?.timerFinalMs ?? null,
+  );
   const [, setTimerTick] = useState(0);
 
   useEffect(() => {
@@ -313,12 +322,28 @@ export function WorkoutForm({
   const REST_STEP_SECONDS = 15;
   const REST_MIN_SECONDS = 15;
   const REST_MAX_SECONDS = 600;
-  const [restSeconds, setRestSeconds] = useState(REST_DEFAULT_SECONDS);
-  const [restRunning, setRestRunning] = useState(false);
-  const [restEndAt, setRestEndAt] = useState<number | null>(null);
+  const [restSeconds, setRestSeconds] = useState(initialTimers?.restSeconds ?? REST_DEFAULT_SECONDS);
+  const [restRunning, setRestRunning] = useState(initialTimers?.restRunning ?? false);
+  const [restEndAt, setRestEndAt] = useState<number | null>(initialTimers?.restEndAt ?? null);
   const [, setRestTick] = useState(0);
   const [restVolume, setRestVolume] = useState(readRestVolume);
   const restPreviewTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    onSnapshot?.({
+      workout: draft,
+      timers: { timerRunning, timerStart, timerFinalMs, restSeconds, restRunning, restEndAt },
+    });
+  }, [
+    onSnapshot,
+    draft,
+    timerRunning,
+    timerStart,
+    timerFinalMs,
+    restSeconds,
+    restRunning,
+    restEndAt,
+  ]);
 
   useEffect(() => {
     if (!restRunning || !restEndAt) return;

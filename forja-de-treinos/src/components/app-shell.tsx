@@ -1,18 +1,35 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { ClipboardList, LayoutDashboard, LogOut, Moon, Plus, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AuthGate, useSplashActive } from "@/components/auth-gate";
 import { Toaster } from "@/components/ui/sonner";
+import { hasNovoDraft } from "@/lib/novo-draft";
 import { toggleTheme, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { setPersistFailureHandler } from "@/store/workouts";
+
+// Uma vez por abertura do app (carga da página), nunca mais depois.
+let draftRestoreChecked = false;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const hideNav = pathname.startsWith("/novo") || pathname.includes("/editar");
   const splashActive = useSplashActive();
+  const navigate = useNavigate();
+
+  // App aberto de novo (celular fechou o app em segundo plano) caindo no
+  // início com um treino novo em andamento: volta direto pra essa tela, pra
+  // não perder campos nem cronômetros. Só na abertura — dentro do app o
+  // caminho segue livre.
+  useEffect(() => {
+    if (draftRestoreChecked) return;
+    draftRestoreChecked = true;
+    if (window.location.pathname === "/" && hasNovoDraft()) {
+      void navigate({ to: "/novo", replace: true });
+    }
+  }, [navigate]);
 
   // Mounted once for the whole app: surfaces a local-storage write failure
   // (private browsing, full quota, disabled storage) as a visible toast

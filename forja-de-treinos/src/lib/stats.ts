@@ -89,6 +89,17 @@ function groupTags(w: Workout): string[] {
     .filter(Boolean);
 }
 
+/** Exercícios de core com número (séries × repetições): é por eles que "Core" entra no Grupo muscular. */
+export function coreExerciseNames(w: Workout): string[] {
+  return [
+    ...new Set(
+      w.core
+        .filter((row) => row.exercise.trim() && row.sets * row.reps > 0)
+        .map((row) => labelFromFreeText(row.exercise) || row.exercise.trim()),
+    ),
+  ];
+}
+
 /** Categorias do "Grupo muscular" que um treino trabalhou (grupos digitados + Outros treinos), sem repetir. */
 export function workoutCategories(w: Workout): string[] {
   return [
@@ -217,6 +228,20 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
       const ids = muscleGroupSessions.get(category) ?? new Set<string>();
       ids.add(w.id);
       muscleGroupSessions.set(category, ids);
+    }
+    // Core (abdominal etc.) tambem e um grupo trabalhado, com os exercicios como detalhe.
+    const coreNames = coreExerciseNames(w);
+    if (coreNames.length > 0) {
+      const ids = muscleGroupSessions.get("Core") ?? new Set<string>();
+      ids.add(w.id);
+      muscleGroupSessions.set("Core", ids);
+      const map = muscleGroupDetails.get("Core") ?? new Map<string, string>();
+      for (const name of coreNames) {
+        if (name.toLowerCase() !== "core" && !map.has(name.toLowerCase())) {
+          map.set(name.toLowerCase(), name);
+        }
+      }
+      muscleGroupDetails.set("Core", map);
     }
     // descricao como foi digitada (ex.: "Posteriores, anteriores, panturrilhas")
     for (const tag of groupTags(w)) {

@@ -89,6 +89,16 @@ function groupTags(w: Workout): string[] {
     .filter(Boolean);
 }
 
+/** Categorias do "Grupo muscular" que um treino trabalhou (grupos digitados + Outros treinos), sem repetir. */
+export function workoutCategories(w: Workout): string[] {
+  return [
+    ...new Set([
+      ...groupTags(w).map(classifyMuscleGroup),
+      ...extraCategories(w.extras, w.athletes),
+    ]),
+  ];
+}
+
 export function computeStats(workouts: Workout[], now = new Date(), extraAthletes: string[] = []) {
   const sorted = [...workouts].sort((a, b) => b.date.localeCompare(a.date));
   const thisWeekStart = startOfWeek(now, WEEK_OPTS);
@@ -203,11 +213,7 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
   const muscleGroupDetails = new Map<string, Map<string, string>>();
   const dateById = new Map(sorted.map((w) => [w.id, w.date]));
   for (const w of sorted) {
-    const categories = new Set([
-      ...groupTags(w).map(classifyMuscleGroup),
-      ...extraCategories(w.extras, w.athletes),
-    ]);
-    for (const category of categories) {
+    for (const category of workoutCategories(w)) {
       const ids = muscleGroupSessions.get(category) ?? new Set<string>();
       ids.add(w.id);
       muscleGroupSessions.set(category, ids);

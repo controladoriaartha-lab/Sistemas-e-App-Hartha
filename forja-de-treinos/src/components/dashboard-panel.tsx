@@ -133,7 +133,7 @@ export function DashboardPanel({
     color: key === "forte" ? c.accent : key === "medio" ? c.warn : c.ok,
   }));
 
-  const muscleRegions = regionRatios(stats.byMuscleGroup);
+  const muscleRegions = regionRatios(workouts);
   const muscleLevels = Object.fromEntries(muscleRegions.map((r) => [r.id, r.ratio]));
 
   const focusData = [
@@ -561,7 +561,7 @@ export function DashboardPanel({
       {muscleRegions.length > 0 && (
         <ChartBlock
           title="Músculos trabalhados"
-          subtitle={`destaque pelos grupos acima${periodActive ? ` ${periodLabel}` : ""}`}
+          subtitle={`grupos, foco, core, cardio e notas${periodActive ? ` ${periodLabel}` : ""}`}
         >
           <MuscleFigure levels={muscleLevels} />
           <div className="mt-4">

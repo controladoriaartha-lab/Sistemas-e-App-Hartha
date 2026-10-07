@@ -2,38 +2,35 @@ import type { ReactNode } from "react";
 import { levelColor, type RegionId } from "@/lib/muscle-map";
 
 const BODY_FILL = "#cfd6e2";
-const BODY_STROKE = "#7f8aa0";
+const BODY_STROKE = "#6f7a92";
 const IDLE_FILL = "#dde2eb";
 
-// Silhueta única (cabeça à parte): usada na frente e nas costas. Coordenadas
-// locais de 200x420, centro em x=100; o lado direito espelha o esquerdo.
+// Silhueta musculosa única (cabeça, mãos e pés à parte), usada na frente e
+// nas costas. Coordenadas locais de 200x440, centro em x=100; o lado direito
+// espelha o esquerdo.
 const SILHOUETTE =
-  "M90,52 L90,64 C80,68 64,72 55,78 C45,84 41,96 39,112 L33,160 C31,178 27,202 25,224 L21,248 C21,255 30,256 32,249 L40,226 C44,204 48,182 52,160 L58,122 C58,150 60,175 62,198 C58,215 54,225 54,240 L58,318 C59,334 62,364 64,392 L60,410 L90,410 L88,392 C90,360 92,330 94,300 L98,262 C99,256 101,256 102,262 L106,300 C108,330 110,360 112,392 L110,410 L140,410 L136,392 C138,364 141,334 142,318 L146,240 C146,225 142,215 138,198 C140,175 142,150 142,122 L148,160 C152,182 156,204 160,226 L168,249 C170,256 179,255 179,248 L175,224 C173,202 169,178 167,160 L161,112 C159,96 155,84 145,78 C136,72 120,68 110,64 L110,52 Z";
+  "M89,50 L89,66 C80,70 64,72 50,80 C40,86 32,98 31,114 C29,132 26,150 24,168 C21,184 19,204 18,236 L37,236 C40,214 44,190 46,168 C50,152 54,138 56,120 C58,150 68,180 76,200 C74,214 66,222 62,238 C54,262 52,290 60,326 C54,350 60,380 64,402 L64,404 L86,404 C90,380 94,350 92,330 C96,300 97,275 98,256 L102,256 C103,275 104,300 108,330 C106,350 110,380 114,404 L136,404 L136,402 C140,380 146,350 140,326 C148,290 146,262 138,238 C134,222 126,214 124,200 C132,180 142,150 144,120 C146,138 150,152 154,168 C156,190 160,214 163,236 L182,236 C181,204 179,184 176,168 C174,150 171,132 169,114 C168,98 160,86 150,80 C136,72 120,70 111,66 L111,50 Z";
 
 type Levels = Partial<Record<RegionId, number>>;
 
-/** Desenha o lado esquerdo e o espelho dele (lado direito) com o mesmo preenchimento. */
-function Pair({
-  id,
-  levels,
-  children,
-}: {
-  id: RegionId;
-  levels: Levels;
-  children: ReactNode;
-}) {
+const MIRROR = "translate(200 0) scale(-1 1)";
+
+function regionStyle(levels: Levels, id: RegionId) {
   const ratio = levels[id];
-  const color = ratio === undefined ? null : levelColor(ratio);
-  const props = {
-    fill: color?.fill ?? IDLE_FILL,
-    stroke: color?.stroke ?? BODY_STROKE,
-    strokeWidth: color ? 1.2 : 0.8,
-    strokeLinejoin: "round" as const,
-  };
+  if (ratio === undefined) {
+    return { fill: IDLE_FILL, stroke: BODY_STROKE, strokeWidth: 0.9 };
+  }
+  const color = levelColor(ratio);
+  return { fill: color.fill, stroke: color.stroke, strokeWidth: ratio >= 0.66 ? 1.7 : 1.2 };
+}
+
+/** Desenha o lado esquerdo e o espelho dele (lado direito) com o mesmo preenchimento. */
+function Pair({ id, levels, children }: { id: RegionId; levels: Levels; children: ReactNode }) {
+  const style = { ...regionStyle(levels, id), strokeLinejoin: "round" as const };
   return (
     <>
-      <g {...props}>{children}</g>
-      <g {...props} transform="translate(200 0) scale(-1 1)">
+      <g {...style}>{children}</g>
+      <g {...style} transform={MIRROR}>
         {children}
       </g>
     </>
@@ -42,38 +39,88 @@ function Pair({
 
 /** Região única, no centro do corpo. */
 function Center({ id, levels, children }: { id: RegionId; levels: Levels; children: ReactNode }) {
-  const ratio = levels[id];
-  const color = ratio === undefined ? null : levelColor(ratio);
   return (
-    <g
-      fill={color?.fill ?? IDLE_FILL}
-      stroke={color?.stroke ?? BODY_STROKE}
-      strokeWidth={color ? 1.2 : 0.8}
-      strokeLinejoin="round"
-    >
+    <g {...regionStyle(levels, id)} strokeLinejoin="round">
       {children}
     </g>
   );
 }
 
-function Body({ children, label }: { children: ReactNode; label: string }) {
+/** Linha de definição muscular, desenhada por cima do preenchimento. */
+function Line({ d }: { d: string }) {
+  return <path d={d} fill="none" strokeWidth="0.9" strokeOpacity="0.65" strokeLinecap="round" />;
+}
+
+function Hand() {
   return (
-    <svg viewBox="0 0 200 420" role="img" aria-label={label} className="mx-auto h-auto w-full">
+    <>
+      <rect x="22" y="254" width="4.6" height="26" rx="2.3" />
+      <rect x="26.6" y="254" width="4.6" height="30" rx="2.3" />
+      <rect x="31.2" y="254" width="4.6" height="27" rx="2.3" />
+      <rect x="35.8" y="254" width="4.4" height="22" rx="2.2" />
+      <rect x="13.5" y="240" width="6" height="23" rx="3" transform="rotate(16 16.5 240)" />
+      <path d="M19,234 L37,234 C39,244 40.5,252 40,260 L20,260 C19,252 18,242 19,234 Z" />
+    </>
+  );
+}
+
+function Foot({ back }: { back?: boolean }) {
+  return (
+    <>
+      <path d="M65,402 L86,402 C89,412 91,422 89,428 C84,435 70,435 63,430 C60,422 62,412 65,402 Z" />
+      {back ? (
+        <path d="M67,424 C72,430 82,430 86,424 M70,404 C71,414 71,420 70,426" fill="none" strokeWidth="0.8" />
+      ) : (
+        <>
+          <ellipse cx="84" cy="430" rx="4.6" ry="4" />
+          <ellipse cx="77.5" cy="432" rx="3.3" ry="3.2" />
+          <ellipse cx="72" cy="432.5" rx="3" ry="3" />
+          <ellipse cx="67.2" cy="431.5" rx="2.7" ry="2.8" />
+          <ellipse cx="63.4" cy="429.5" rx="2.4" ry="2.5" />
+        </>
+      )}
+    </>
+  );
+}
+
+function Body({ children, label, back }: { children: ReactNode; label: string; back?: boolean }) {
+  return (
+    <svg viewBox="0 0 200 440" role="img" aria-label={label} className="mx-auto h-auto w-full">
       <g fill={BODY_FILL} stroke={BODY_STROKE} strokeWidth={1.2} strokeLinejoin="round">
-        <ellipse cx="100" cy="32" rx="19" ry="23" />
+        <ellipse cx="100" cy="30" rx="18" ry="22" />
         <path d={SILHOUETTE} />
+        <Hand />
+        <g transform={MIRROR}>
+          <Hand />
+        </g>
+        <Foot back={back} />
+        <g transform={MIRROR}>
+          <Foot back={back} />
+        </g>
+        <path
+          d="M92,50 L96,68 M89,66 C80,72 66,76 54,82"
+          fill="none"
+          strokeWidth="0.8"
+          strokeOpacity="0.7"
+        />
+        <path
+          d="M92,50 L96,68 M89,66 C80,72 66,76 54,82"
+          fill="none"
+          strokeWidth="0.8"
+          strokeOpacity="0.7"
+          transform={MIRROR}
+        />
       </g>
       {children}
     </svg>
   );
 }
 
-const ARM_UPPER = "M41,112 C40,130 38,146 35,158 L51,160 C53,148 56,134 58,122 C52,118 46,114 41,112 Z";
-const ARM_FOREARM = "M33,166 L51,166 C48,186 44,206 40,224 L26,222 C28,204 31,184 33,166 Z";
+const ARM_UPPER =
+  "M33,122 C30,138 27,152 25,164 L45,166 C49,154 53,140 56,124 C50,122 40,122 33,122 Z";
+const ARM_FOREARM = "M25,172 L46,172 C44,194 41,216 37,236 L19,236 C20,212 22,192 25,172 Z";
 const DELTOID =
-  "M55,78 C48,82 44,92 42,106 C42,116 46,124 54,126 C60,120 64,108 64,96 C64,88 62,82 55,78 Z";
-const CALF =
-  "M60,326 C74,322 86,324 93,326 C92,350 90,372 88,392 L64,392 C62,370 60,346 60,326 Z";
+  "M50,80 C38,86 32,98 31,114 C31,124 38,132 48,134 C56,128 62,114 62,98 C62,88 58,82 50,80 Z";
 
 /** Corpo de frente e de costas, com cada músculo pintado conforme o quanto foi trabalhado (0–1). */
 export function MuscleFigure({ levels }: { levels: Levels }) {
@@ -83,58 +130,81 @@ export function MuscleFigure({ levels }: { levels: Levels }) {
         <Body label="Corpo humano de frente, com os músculos trabalhados em destaque">
           <Pair id="biceps" levels={levels}>
             <path d={ARM_UPPER} />
+            <Line d="M34,134 C42,141 50,141 55,134" />
           </Pair>
           <Pair id="antebraco" levels={levels}>
             <path d={ARM_FOREARM} />
+            <Line d="M36,178 C34,198 31,218 29,234" />
           </Pair>
           <Pair id="quadriceps" levels={levels}>
-            <path d="M56,238 C60,244 86,252 98,264 L94,300 C84,312 68,316 58,316 C56,296 54,262 56,238 Z" />
+            <path d="M62,240 C70,248 90,252 98,258 L94,300 C92,318 90,328 88,330 C78,334 66,332 60,326 C52,296 54,264 62,240 Z" />
+            <Line d="M70,262 C68,284 68,306 72,324" />
+            <Line d="M85,268 C85,290 83,310 81,326" />
+            <Line d="M84,322 C88,326 91,326 93,322" />
           </Pair>
           <Pair id="panturrilha" levels={levels}>
-            <path d={CALF} />
+            <path d="M60,332 C72,336 84,336 91,334 C92,356 90,380 86,402 L64,402 C60,382 54,356 60,332 Z" />
+            <Line d="M75,340 C73,362 73,382 75,398" />
           </Pair>
           <Pair id="peitoral" levels={levels}>
-            <path d="M98,92 C88,88 74,90 66,98 C62,108 64,122 72,130 C82,134 94,130 98,124 Z" />
+            <path d="M99,92 C90,88 76,88 62,94 C56,104 56,122 62,132 C74,144 90,146 99,136 Z" />
+            <Line d="M99,102 C90,106 76,108 60,110" />
           </Pair>
           <Pair id="ombros" levels={levels}>
             <path d={DELTOID} />
+            <Line d="M44,94 C48,108 50,120 48,132" />
           </Pair>
-          <Center id="abdomen" levels={levels}>
-            <path d="M86,136 L114,136 L114,205 Q100,212 86,205 Z" />
-            <path d="M86,154 H114 M86,172 H114 M86,190 H114 M100,136 V208" fill="none" strokeWidth="0.8" />
-          </Center>
+          <Pair id="abdomen" levels={levels}>
+            <path d="M86,142 L99,142 L99,204 C94,206 90,204 86,200 Z" />
+            <path d="M64,142 C66,160 72,180 78,198 L86,198 L86,148 C78,150 70,148 64,142 Z" />
+            <Line d="M86,158 H99 M86,174 H99 M86,190 H99" />
+            <Line d="M66,150 L76,156 M68,162 L78,168 M72,174 L81,180" />
+          </Pair>
+          <Line d="M100,142 V206" />
         </Body>
         <figcaption className="mt-1 text-center text-[21px] text-muted-foreground">Frente</figcaption>
       </figure>
 
       <figure>
-        <Body label="Corpo humano de costas, com os músculos trabalhados em destaque">
+        <Body back label="Corpo humano de costas, com os músculos trabalhados em destaque">
           <Pair id="triceps" levels={levels}>
             <path d={ARM_UPPER} />
+            <Line d="M36,128 C34,146 34,156 36,164 M52,128 C52,146 50,156 48,164" />
           </Pair>
           <Pair id="antebraco" levels={levels}>
             <path d={ARM_FOREARM} />
+            <Line d="M36,178 C34,198 31,218 29,234" />
           </Pair>
           <Pair id="posteriores" levels={levels}>
-            <path d="M56,262 C70,270 88,270 98,262 L94,300 C84,312 68,316 58,316 C56,296 55,278 56,262 Z" />
+            <path d="M62,266 C74,274 90,274 98,266 L94,306 C92,318 90,326 88,330 C78,334 66,332 60,326 C54,300 56,280 62,266 Z" />
+            <Line d="M80,274 C80,296 80,314 82,330" />
           </Pair>
           <Pair id="panturrilha" levels={levels}>
-            <path d={CALF} />
+            <path d="M60,332 C72,336 84,336 91,334 C93,350 92,372 88,392 L64,392 C58,372 54,352 60,332 Z" />
+            <Line d="M76,340 C76,358 76,376 76,392" />
           </Pair>
           <Pair id="dorsais" levels={levels}>
-            <path d="M98,134 C86,118 70,104 62,100 C58,116 58,150 62,196 C74,196 90,190 98,176 Z" />
+            <path d="M98,148 C90,130 76,118 60,112 C58,130 60,150 66,170 C70,184 74,194 78,202 C88,200 96,190 98,176 Z" />
+            <Line d="M62,104 C72,110 84,114 94,122" />
+            <Line d="M66,122 C74,134 82,148 90,162" />
           </Pair>
           <Center id="trapezio" levels={levels}>
-            <path d="M100,56 C90,64 76,70 64,80 C70,92 86,104 100,128 C114,104 130,92 136,80 C124,70 110,64 100,56 Z" />
+            <path d="M100,58 C92,64 80,70 64,78 C62,92 74,108 88,124 C94,134 98,142 100,150 C102,142 106,134 112,124 C126,108 138,92 136,78 C120,70 108,64 100,58 Z" />
+            <Line d="M100,60 V150" />
+            <Line d="M80,74 C84,92 92,108 100,122 M120,74 C116,92 108,108 100,122" />
           </Center>
           <Center id="lombar" levels={levels}>
-            <path d="M88,178 C94,176 106,176 112,178 L112,210 C106,216 94,216 88,210 Z" />
+            <path d="M86,178 C92,176 108,176 114,178 L114,214 C108,220 92,220 86,214 Z" />
+            <Line d="M100,176 V218" />
+            <Line d="M93,182 C92,196 92,206 94,216 M107,182 C108,196 108,206 106,216" />
           </Center>
           <Pair id="gluteos" levels={levels}>
-            <path d="M56,222 C54,236 54,248 60,258 C72,266 90,266 98,258 C100,244 100,230 98,222 C84,216 68,216 56,222 Z" />
+            <path d="M64,224 C60,238 62,254 70,264 C80,272 94,270 99,260 L99,224 C88,218 74,218 64,224 Z" />
+            <Line d="M70,236 C76,246 84,248 94,246" />
           </Pair>
           <Pair id="ombros" levels={levels}>
             <path d={DELTOID} />
+            <Line d="M44,94 C48,108 50,120 48,132" />
           </Pair>
         </Body>
         <figcaption className="mt-1 text-center text-[21px] text-muted-foreground">Costas</figcaption>

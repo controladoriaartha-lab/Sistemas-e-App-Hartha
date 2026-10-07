@@ -92,8 +92,16 @@ export function regionRatios(
     .sort((a, b) => b.ratio - a.ratio);
 }
 
-/** De verde (pouco trabalhado) a vermelho (o mais trabalhado), em tom pastel. */
+/**
+ * De verde claro (pouco trabalhado) a vermelho escuro (o mais trabalhado):
+ * quanto mais trabalhado, mais saturado e mais escuro o tom.
+ */
 export function levelColor(ratio: number): { fill: string; stroke: string } {
-  const hue = Math.round(135 - 130 * ratio);
-  return { fill: `hsl(${hue} 62% 70%)`, stroke: `hsl(${hue} 42% 42%)` };
+  const hue = Math.round(130 - 130 * ratio);
+  const saturation = Math.round(55 + 30 * ratio);
+  const lightness = Math.round(74 - 34 * ratio);
+  return {
+    fill: `hsl(${hue} ${saturation}% ${lightness}%)`,
+    stroke: `hsl(${hue} ${Math.min(90, saturation + 5)}% ${Math.max(18, lightness - 24)}%)`,
+  };
 }

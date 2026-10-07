@@ -14,7 +14,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { MuscleFigure } from "@/components/muscle-figure";
 import { Card } from "@/components/ui/card";
+import { levelColor, regionRatios } from "@/lib/muscle-map";
 import { computeStats, deltaPct } from "@/lib/stats";
 import { formatDuration, formatHours } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
@@ -130,6 +132,9 @@ export function DashboardPanel({
     value: stats.byIntensity[key],
     color: key === "forte" ? c.accent : key === "medio" ? c.warn : c.ok,
   }));
+
+  const muscleRegions = regionRatios(stats.byMuscleGroup);
+  const muscleLevels = Object.fromEntries(muscleRegions.map((r) => [r.id, r.ratio]));
 
   const focusData = [
     { name: "Pernas", minutes: stats.byFocus.pernas.minutes, count: stats.byFocus.pernas.count },
@@ -547,6 +552,41 @@ export function DashboardPanel({
                     {row.dates.map((d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`).join(" · ")}
                   </p>
                 )}
+              </li>
+            ))}
+          </ul>
+        </ChartBlock>
+      )}
+
+      {muscleRegions.length > 0 && (
+        <ChartBlock
+          title="Músculos trabalhados"
+          subtitle={`destaque pelos grupos acima${periodActive ? ` ${periodLabel}` : ""}`}
+        >
+          <MuscleFigure levels={muscleLevels} />
+          <div className="mt-4">
+            <div
+              className="h-2.5 rounded-full"
+              style={{
+                background: `linear-gradient(90deg, ${levelColor(0).fill}, ${levelColor(0.5).fill}, ${levelColor(1).fill})`,
+              }}
+            />
+            <div className="mt-1 flex justify-between text-[18px] text-faint">
+              <span>menos trabalhado</span>
+              <span>mais trabalhado</span>
+            </div>
+          </div>
+          <ul className="mt-3 flex flex-wrap gap-2 text-[21px]">
+            {muscleRegions.map((r) => (
+              <li
+                key={r.id}
+                className="flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-foreground"
+              >
+                <span
+                  className="size-3 rounded-full"
+                  style={{ background: levelColor(r.ratio).fill }}
+                />
+                {r.label}
               </li>
             ))}
           </ul>

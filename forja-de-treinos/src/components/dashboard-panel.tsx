@@ -16,7 +16,7 @@ import {
 } from "recharts";
 import { MuscleFigure } from "@/components/muscle-figure";
 import { Card } from "@/components/ui/card";
-import { levelColor, regionRatios } from "@/lib/muscle-map";
+import { IDLE_COLOR, levelColor, regionRatios } from "@/lib/muscle-map";
 import { computeStats, deltaPct } from "@/lib/stats";
 import { formatDuration, formatHours } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
@@ -568,11 +568,11 @@ export function DashboardPanel({
             <div
               className="h-2.5 rounded-full"
               style={{
-                background: `linear-gradient(90deg, ${levelColor(0).fill}, ${levelColor(0.5).fill}, ${levelColor(1).fill})`,
+                background: `linear-gradient(90deg, ${IDLE_COLOR}, ${levelColor(0).fill} 20%, ${levelColor(0.5).fill}, ${levelColor(1).fill})`,
               }}
             />
             <div className="mt-1 flex justify-between text-[18px] text-faint">
-              <span>menos trabalhado</span>
+              <span>não trabalhado</span>
               <span>mais trabalhado</span>
             </div>
           </div>

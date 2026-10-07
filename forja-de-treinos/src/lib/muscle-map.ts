@@ -92,16 +92,20 @@ export function regionRatios(
     .sort((a, b) => b.ratio - a.ratio);
 }
 
-/**
- * De verde claro (pouco trabalhado) a vermelho escuro (o mais trabalhado):
- * quanto mais trabalhado, mais saturado e mais escuro o tom.
- */
-export function levelColor(ratio: number): { fill: string; stroke: string } {
-  const hue = Math.round(130 - 130 * ratio);
-  const saturation = Math.round(55 + 30 * ratio);
-  const lightness = Math.round(74 - 34 * ratio);
-  return {
-    fill: `hsl(${hue} ${saturation}% ${lightness}%)`,
-    stroke: `hsl(${hue} ${Math.min(90, saturation + 5)}% ${Math.max(18, lightness - 24)}%)`,
-  };
+const PALE = [207, 214, 226];
+const RED = [168, 28, 32];
+
+/** O quanto o vermelho cobre o tom claro: o menos trabalhado já aparece, o mais trabalhado é vermelho cheio. */
+export function overlayOpacity(ratio: number): number {
+  return 0.45 + 0.55 * ratio;
 }
+
+/** Cor (tom claro -> vermelho escuro) que representa o nível de trabalho, para legenda e chips. */
+export function levelColor(ratio: number): { fill: string } {
+  const a = ratio < 0 ? 0 : overlayOpacity(ratio);
+  const [r, g, b] = PALE.map((p, i) => Math.round(p + (RED[i] - p) * a));
+  return { fill: `rgb(${r} ${g} ${b})` };
+}
+
+/** Tom claro dos músculos que não foram trabalhados. */
+export const IDLE_COLOR = `rgb(${PALE.join(" ")})`;

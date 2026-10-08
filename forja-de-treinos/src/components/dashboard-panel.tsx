@@ -219,6 +219,148 @@ export function DashboardPanel({
         </Card>
       )}
 
+      {anyMuscleWorked && (
+        <ChartBlock title="Músculos trabalhados" subtitle="grupos, foco, core, cardio e notas">
+          <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+            {(
+              [
+                { value: "periodo", label: "Período" },
+                { value: "semana", label: "7 dias" },
+                { value: "ultimo", label: "Último" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setMuscleView(opt.value)}
+                className={cn(
+                  "min-h-10 rounded-md text-[21px] font-medium transition-colors duration-150",
+                  muscleView === opt.value
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground",
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <p className="mb-3 text-[21px] text-faint">{muscleCaption}</p>
+          {muscleRegions.length === 0 ? (
+            <p className="py-6 text-center text-[21px] text-muted-foreground">
+              Nenhum treino com músculos registrados nesse recorte.
+            </p>
+          ) : (
+            <>
+              <MuscleFigure levels={muscleLevels} />
+              <div className="mt-4">
+                <div
+                  className="h-2.5 rounded-full"
+                  style={{
+                    background: `linear-gradient(90deg, ${IDLE_COLOR}, ${levelColor(0).fill} 20%, ${levelColor(0.5).fill}, ${levelColor(1).fill})`,
+                  }}
+                />
+                <div className="mt-1 flex justify-between text-[18px] text-faint">
+                  <span>não trabalhado</span>
+                  <span>mais trabalhado</span>
+                </div>
+              </div>
+              <ul className="mt-3 flex flex-wrap gap-2 text-[21px]">
+                {muscleRegions.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-foreground"
+                  >
+                    <span
+                      className="size-3 rounded-full"
+                      style={{ background: levelColor(r.ratio).fill }}
+                    />
+                    {r.label}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </ChartBlock>
+      )}
+
+      {stats.byMuscleGroup.length === 0 ? null : (
+        <ChartBlock
+          title="Grupo muscular"
+          subtitle={`sessões por grupo${periodActive ? ` ${periodLabel}` : ""}`}
+        >
+          <ResponsiveContainer
+            width="100%"
+            height={Math.max(160, stats.byMuscleGroup.length * 36 + 24)}
+          >
+            <BarChart
+              data={stats.byMuscleGroup}
+              layout="vertical"
+              barSize={18}
+              onClick={(state) => {
+                if (state?.activePayload) {
+                  muscleGroupTip.show({
+                    label: state.activeLabel,
+                    payload: state.activePayload,
+                    coordinate: state.activeCoordinate,
+                  });
+                }
+              }}
+            >
+              <CartesianGrid horizontal={false} stroke={c.grid} />
+              <XAxis
+                type="number"
+                tick={{ fill: c.muted, fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fill: c.muted, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                width={92}
+              />
+              <Tooltip
+                {...tooltipProps}
+                active={muscleGroupTip.sticky ? true : false}
+                payload={
+                  muscleGroupTip.sticky ? (muscleGroupTip.sticky.payload as never) : undefined
+                }
+                label={muscleGroupTip.sticky ? muscleGroupTip.sticky.label : undefined}
+                coordinate={muscleGroupTip.sticky ? muscleGroupTip.sticky.coordinate : undefined}
+                formatter={(value) => [
+                  `${Number(value)} ${Number(value) === 1 ? "sessão" : "sessões"}`,
+                  "Grupo",
+                ]}
+              />
+              <Bar dataKey="sessions" fill={c.warn} radius={[0, 8, 8, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <ul className="mt-3 space-y-1.5 text-[24px]">
+            {stats.byMuscleGroup.map((row) => (
+              <li key={row.name}>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{row.name}</span>
+                  <span className="tabular-nums text-foreground">
+                    {row.sessions} {row.sessions === 1 ? "sessão" : "sessões"}
+                  </span>
+                </div>
+                {row.details.length > 0 && (
+                  <p className="text-[18px] text-faint">{row.details.join(", ")}</p>
+                )}
+                {row.sessions <= 3 && (
+                  <p className="text-[16px] tabular-nums text-faint">
+                    {row.dates.map((d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`).join(" · ")}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </ChartBlock>
+      )}
+
       <ChartBlock title="Volume semanal" subtitle="minutos nas últimas 8 semanas">
         <ResponsiveContainer width="100%" height={200}>
           <BarChart
@@ -507,148 +649,6 @@ export function DashboardPanel({
           ))}
         </div>
       </ChartBlock>
-
-      {stats.byMuscleGroup.length === 0 ? null : (
-        <ChartBlock
-          title="Grupo muscular"
-          subtitle={`sessões por grupo${periodActive ? ` ${periodLabel}` : ""}`}
-        >
-          <ResponsiveContainer
-            width="100%"
-            height={Math.max(160, stats.byMuscleGroup.length * 36 + 24)}
-          >
-            <BarChart
-              data={stats.byMuscleGroup}
-              layout="vertical"
-              barSize={18}
-              onClick={(state) => {
-                if (state?.activePayload) {
-                  muscleGroupTip.show({
-                    label: state.activeLabel,
-                    payload: state.activePayload,
-                    coordinate: state.activeCoordinate,
-                  });
-                }
-              }}
-            >
-              <CartesianGrid horizontal={false} stroke={c.grid} />
-              <XAxis
-                type="number"
-                tick={{ fill: c.muted, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                allowDecimals={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={{ fill: c.muted, fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                width={92}
-              />
-              <Tooltip
-                {...tooltipProps}
-                active={muscleGroupTip.sticky ? true : false}
-                payload={
-                  muscleGroupTip.sticky ? (muscleGroupTip.sticky.payload as never) : undefined
-                }
-                label={muscleGroupTip.sticky ? muscleGroupTip.sticky.label : undefined}
-                coordinate={muscleGroupTip.sticky ? muscleGroupTip.sticky.coordinate : undefined}
-                formatter={(value) => [
-                  `${Number(value)} ${Number(value) === 1 ? "sessão" : "sessões"}`,
-                  "Grupo",
-                ]}
-              />
-              <Bar dataKey="sessions" fill={c.warn} radius={[0, 8, 8, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          <ul className="mt-3 space-y-1.5 text-[24px]">
-            {stats.byMuscleGroup.map((row) => (
-              <li key={row.name}>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{row.name}</span>
-                  <span className="tabular-nums text-foreground">
-                    {row.sessions} {row.sessions === 1 ? "sessão" : "sessões"}
-                  </span>
-                </div>
-                {row.details.length > 0 && (
-                  <p className="text-[18px] text-faint">{row.details.join(", ")}</p>
-                )}
-                {row.sessions <= 3 && (
-                  <p className="text-[16px] tabular-nums text-faint">
-                    {row.dates.map((d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`).join(" · ")}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </ChartBlock>
-      )}
-
-      {anyMuscleWorked && (
-        <ChartBlock title="Músculos trabalhados" subtitle="grupos, foco, core, cardio e notas">
-          <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
-            {(
-              [
-                { value: "periodo", label: "Período" },
-                { value: "semana", label: "7 dias" },
-                { value: "ultimo", label: "Último" },
-              ] as const
-            ).map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setMuscleView(opt.value)}
-                className={cn(
-                  "min-h-10 rounded-md text-[21px] font-medium transition-colors duration-150",
-                  muscleView === opt.value
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground",
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <p className="mb-3 text-[21px] text-faint">{muscleCaption}</p>
-          {muscleRegions.length === 0 ? (
-            <p className="py-6 text-center text-[21px] text-muted-foreground">
-              Nenhum treino com músculos registrados nesse recorte.
-            </p>
-          ) : (
-            <>
-              <MuscleFigure levels={muscleLevels} />
-              <div className="mt-4">
-                <div
-                  className="h-2.5 rounded-full"
-                  style={{
-                    background: `linear-gradient(90deg, ${IDLE_COLOR}, ${levelColor(0).fill} 20%, ${levelColor(0.5).fill}, ${levelColor(1).fill})`,
-                  }}
-                />
-                <div className="mt-1 flex justify-between text-[18px] text-faint">
-                  <span>não trabalhado</span>
-                  <span>mais trabalhado</span>
-                </div>
-              </div>
-              <ul className="mt-3 flex flex-wrap gap-2 text-[21px]">
-                {muscleRegions.map((r) => (
-                  <li
-                    key={r.id}
-                    className="flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-foreground"
-                  >
-                    <span
-                      className="size-3 rounded-full"
-                      style={{ background: levelColor(r.ratio).fill }}
-                    />
-                    {r.label}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </ChartBlock>
-      )}
 
       {!periodActive && (
         <section>

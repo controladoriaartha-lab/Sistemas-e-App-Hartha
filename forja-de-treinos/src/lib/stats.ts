@@ -38,7 +38,8 @@ const MUSCLE_CATEGORIES: { name: string; test: RegExp }[] = [
   { name: "Peitoral", test: /peito/ },
   { name: "Costas", test: /costa/ },
   { name: "Braços", test: /braco/ },
-  { name: "Ombros", test: /ombro/ },
+  // "deltoide posterior" é ombro: tem que vir antes de Pernas, que casa "posterior".
+  { name: "Ombros", test: /ombro|deltoid/ },
   // Anteriores, posteriores, coxas e panturrilhas sao todos "Pernas": uma sessao
   // de pernas conta uma vez so; o detalhe digitado aparece na descricao.
   { name: "Pernas", test: /anterior|posterior|coxa|panturrilha|perna/ },

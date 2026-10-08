@@ -45,6 +45,9 @@ const LEGS: Weights = { quadriceps: 1, posteriores: 1, gluteos: 0.8, panturrilha
 
 // A primeira regra que casar com o nome do grupo vence (ordem importa).
 const RULES: { test: RegExp; weights: Weights }[] = [
+  // Bíceps/tríceps primeiro: "Flexão bíceps" é rosca, não flexão de braço (peito).
+  { test: /biceps|rosca/, weights: { biceps: 1, antebraco: 0.4 } },
+  { test: /triceps/, weights: { triceps: 1 } },
   { test: /flexao/, weights: { peitoral: 1, triceps: 0.7, ombros: 0.5, abdomen: 0.3 } },
   { test: /banco|supino/, weights: { peitoral: 1, triceps: 0.6, ombros: 0.4 } },
   { test: /peito/, weights: { peitoral: 1, triceps: 0.35, ombros: 0.25 } },
@@ -52,8 +55,6 @@ const RULES: { test: RegExp; weights: Weights }[] = [
     test: /costa|dorsal|remada|puxada|barra fixa/,
     weights: { dorsais: 1, trapezio: 0.7, lombar: 0.4, biceps: 0.35 },
   },
-  { test: /biceps|rosca/, weights: { biceps: 1, antebraco: 0.4 } },
-  { test: /triceps/, weights: { triceps: 1 } },
   { test: /braco/, weights: { biceps: 1, triceps: 1, antebraco: 0.6 } },
   { test: /ombro|deltoide/, weights: { ombros: 1, trapezio: 0.4 } },
   {

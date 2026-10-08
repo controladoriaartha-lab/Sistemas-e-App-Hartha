@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { format, subDays } from "date-fns";
 import {
   Bar,
   BarChart,
@@ -16,6 +17,7 @@ import {
 } from "recharts";
 import { MuscleFigure } from "@/components/muscle-figure";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { IDLE_COLOR, levelColor, regionRatios } from "@/lib/muscle-map";
 import { computeStats, deltaPct } from "@/lib/stats";
 import { formatDuration, formatHours } from "@/lib/format";
@@ -106,6 +108,7 @@ export function DashboardPanel({
   periodLabel?: string;
 }) {
   const theme = useTheme();
+  const [muscleView, setMuscleView] = useState<"periodo" | "semana" | "ultimo">("periodo");
   const c = CHART_COLORS[theme];
   // `contentStyle` alone does not color the label / item text (Recharts sets
   // those per-entry), so on a dark background the numbers rendered near-black
@@ -133,8 +136,30 @@ export function DashboardPanel({
     color: key === "forte" ? c.accent : key === "medio" ? c.warn : c.ok,
   }));
 
-  const muscleRegions = regionRatios(workouts);
+  // "Período" soma tudo o que está filtrado; com muito histórico um treino novo
+  // quase não mexe nele, então há também 7 dias e só o último treino.
+  const lastWorkoutDate = workouts.reduce((max, w) => (w.date > max ? w.date : max), "");
+  const sevenDaysAgo = format(subDays(new Date(), 6), "yyyy-MM-dd");
+  const muscleWorkouts =
+    muscleView === "ultimo"
+      ? workouts.filter((w) => w.date === lastWorkoutDate)
+      : muscleView === "semana"
+        ? workouts.filter((w) => w.date >= sevenDaysAgo)
+        : workouts;
+  const muscleRegions = regionRatios(muscleWorkouts);
   const muscleLevels = Object.fromEntries(muscleRegions.map((r) => [r.id, r.ratio]));
+  const anyMuscleWorked =
+    muscleView === "periodo" ? muscleRegions.length > 0 : regionRatios(workouts).length > 0;
+  const muscleCaption =
+    muscleView === "ultimo"
+      ? `Treino de ${lastWorkoutDate.slice(8, 10)}/${lastWorkoutDate.slice(5, 7)}`
+      : `${muscleWorkouts.length} ${muscleWorkouts.length === 1 ? "treino" : "treinos"}${
+          muscleView === "semana"
+            ? " nos últimos 7 dias"
+            : periodActive
+              ? ` ${periodLabel}`
+              : " no diário"
+        }`;
 
   const focusData = [
     { name: "Pernas", minutes: stats.byFocus.pernas.minutes, count: stats.byFocus.pernas.count },
@@ -488,7 +513,10 @@ export function DashboardPanel({
           title="Grupo muscular"
           subtitle={`sessões por grupo${periodActive ? ` ${periodLabel}` : ""}`}
         >
-          <ResponsiveContainer width="100%" height={Math.max(160, stats.byMuscleGroup.length * 36 + 24)}>
+          <ResponsiveContainer
+            width="100%"
+            height={Math.max(160, stats.byMuscleGroup.length * 36 + 24)}
+          >
             <BarChart
               data={stats.byMuscleGroup}
               layout="vertical"
@@ -558,38 +586,67 @@ export function DashboardPanel({
         </ChartBlock>
       )}
 
-      {muscleRegions.length > 0 && (
-        <ChartBlock
-          title="Músculos trabalhados"
-          subtitle={`grupos, foco, core, cardio e notas${periodActive ? ` ${periodLabel}` : ""}`}
-        >
-          <MuscleFigure levels={muscleLevels} />
-          <div className="mt-4">
-            <div
-              className="h-2.5 rounded-full"
-              style={{
-                background: `linear-gradient(90deg, ${IDLE_COLOR}, ${levelColor(0).fill} 20%, ${levelColor(0.5).fill}, ${levelColor(1).fill})`,
-              }}
-            />
-            <div className="mt-1 flex justify-between text-[18px] text-faint">
-              <span>não trabalhado</span>
-              <span>mais trabalhado</span>
-            </div>
-          </div>
-          <ul className="mt-3 flex flex-wrap gap-2 text-[21px]">
-            {muscleRegions.map((r) => (
-              <li
-                key={r.id}
-                className="flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-foreground"
+      {anyMuscleWorked && (
+        <ChartBlock title="Músculos trabalhados" subtitle="grupos, foco, core, cardio e notas">
+          <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+            {(
+              [
+                { value: "periodo", label: "Período" },
+                { value: "semana", label: "7 dias" },
+                { value: "ultimo", label: "Último" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setMuscleView(opt.value)}
+                className={cn(
+                  "min-h-10 rounded-md text-[21px] font-medium transition-colors duration-150",
+                  muscleView === opt.value
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground",
+                )}
               >
-                <span
-                  className="size-3 rounded-full"
-                  style={{ background: levelColor(r.ratio).fill }}
-                />
-                {r.label}
-              </li>
+                {opt.label}
+              </button>
             ))}
-          </ul>
+          </div>
+          <p className="mb-3 text-[21px] text-faint">{muscleCaption}</p>
+          {muscleRegions.length === 0 ? (
+            <p className="py-6 text-center text-[21px] text-muted-foreground">
+              Nenhum treino com músculos registrados nesse recorte.
+            </p>
+          ) : (
+            <>
+              <MuscleFigure levels={muscleLevels} />
+              <div className="mt-4">
+                <div
+                  className="h-2.5 rounded-full"
+                  style={{
+                    background: `linear-gradient(90deg, ${IDLE_COLOR}, ${levelColor(0).fill} 20%, ${levelColor(0.5).fill}, ${levelColor(1).fill})`,
+                  }}
+                />
+                <div className="mt-1 flex justify-between text-[18px] text-faint">
+                  <span>não trabalhado</span>
+                  <span>mais trabalhado</span>
+                </div>
+              </div>
+              <ul className="mt-3 flex flex-wrap gap-2 text-[21px]">
+                {muscleRegions.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-foreground"
+                  >
+                    <span
+                      className="size-3 rounded-full"
+                      style={{ background: levelColor(r.ratio).fill }}
+                    />
+                    {r.label}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </ChartBlock>
       )}
 

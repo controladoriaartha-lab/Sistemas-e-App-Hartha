@@ -83,7 +83,7 @@ export function extraCategories(extras: string, knownAthletes: string[] = []): s
 }
 
 /** Grupos digitados no formulario, separando tambem por ponto/ponto e virgula ("costas. peitoral"). */
-function groupTags(w: Workout): string[] {
+export function groupTags(w: Workout): string[] {
   return w.muscleGroups
     .flatMap((g) => g.split(/[.;/]+/))
     .map((g) => g.trim())

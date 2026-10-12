@@ -1,0 +1,39 @@
+{
+  "padrao": "oficinazap",
+  "versao": "1.0",
+  "exportadoEm": "2026-01-01T00:00:00.000Z",
+  "oficina": {
+    "config": {
+      "nome": "Oficina Exemplo",
+      "tipo": "mecanica",
+      "cidade": "Cidade/UF",
+      "donoNome": "Nome do dono",
+      "donoFone": "(51) 99999-0000",
+      "wpp": "(51) 3333-0000",
+      "cor": "#ffb020",
+      "boxes": 2,
+      "saldoInicial": 0,
+      "taxaCartao": 3.2,
+      "politica": "empurrar",
+      "avisarTodos": false,
+      "boasVindas": "Olá! 👋 Aqui é o assistente da {oficina}. Quer agendar um serviço, ver horários ou cancelar um horário?",
+      "horario": {
+        "dias": [1, 2, 3, 4, 5, 6],
+        "abre": "08:00",
+        "fecha": "18:00",
+        "sabFecha": "12:00",
+        "almIni": "12:00",
+        "almFim": "13:00",
+        "antecedencia": 60,
+        "feriados": true
+      }
+    },
+    "servicos": [
+      { "nome": "Troca de óleo", "dur": 40, "preco": 120 },
+      { "nome": "Revisão completa", "dur": 180, "preco": 650 },
+      { "nome": "Diagnóstico", "dur": 60, "preco": 150 },
+      { "nome": "Alinhamento e balanceamento", "dur": 60, "preco": 180 },
+      { "nome": "Freios (pastilhas/discos)", "dur": 120, "preco": 420 }
+    ]
+  }
+}

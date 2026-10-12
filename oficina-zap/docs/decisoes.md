@@ -21,3 +21,11 @@
 - Regra de cobrança de peça: por conta do cliente × comprada pela oficina.
 - Maquininha integrada ou registro manual das taxas.
 - Política de retenção LGPD (prazo) e texto de consentimento versionado.
+
+## Backlog / observações (12/10/2026)
+- **Ajuste de expediente pelo dono via WhatsApp** (ex.: "vou esticar meu almoço em 30 min / 1 hora hoje"):
+  - O dono, número em `contatos_autorizados`, avisa em linguagem natural; o sistema confirma ("Almoço hoje vai até 14h30. Confirma?") antes de gravar.
+  - Efeito 1: cria um registro em `bloqueios` (motivo "almoço estendido") ou prorroga a pausa só naquele dia, sem alterar `horarios_funcionamento`.
+  - Efeito 2: o assistente avisa quem entrar em contato no período ("Estamos em horário de almoço, retornamos às 14h30") e só propõe horários depois do retorno.
+  - Efeito 3: agendamentos já confirmados que caírem na janela bloqueada devem ser listados ao dono, com oferta de remarcar e avisar os clientes (template da Meta, se fora da janela de 24 h).
+  - Dados a modelar: tipo do aviso (almoço estendido, saída antecipada, folga), início, fim, mensagem automática opcional, quem registrou.

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { format, subDays } from "date-fns";
 import {
   Bar,
@@ -16,7 +16,6 @@ import {
   YAxis,
 } from "recharts";
 import { MuscleFigure } from "@/components/muscle-figure";
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { IDLE_COLOR, levelColor, regionRatios } from "@/lib/muscle-map";
 import { computeStats, deltaPct } from "@/lib/stats";
@@ -177,7 +176,7 @@ export function DashboardPanel({
 
   return (
     <div className="space-y-5">
-      <section className="grid grid-cols-2 gap-2">
+      <section className="grid grid-cols-2 gap-3.5">
         <Kpi label="Treinos" value={String(stats.all.count)} hint="total no diário" />
         <Kpi
           label="Horas"
@@ -221,7 +220,7 @@ export function DashboardPanel({
 
       {anyMuscleWorked && (
         <ChartBlock title="Músculos trabalhados" subtitle="grupos, foco, core, cardio e notas">
-          <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+          <div className="seg-track mb-3 grid grid-cols-3 gap-1">
             {(
               [
                 { value: "periodo", label: "Período" },
@@ -233,12 +232,8 @@ export function DashboardPanel({
                 key={opt.value}
                 type="button"
                 onClick={() => setMuscleView(opt.value)}
-                className={cn(
-                  "min-h-10 rounded-md text-[21px] font-medium transition-colors duration-150",
-                  muscleView === opt.value
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground",
-                )}
+                data-on={muscleView === opt.value}
+                className="seg-item min-h-11 text-[21px] font-medium"
               >
                 {opt.label}
               </button>
@@ -268,7 +263,7 @@ export function DashboardPanel({
                 {muscleRegions.map((r) => (
                   <li
                     key={r.id}
-                    className="flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-foreground"
+                    className="chip-3d gap-2 !text-[21px] text-foreground"
                   >
                     <span
                       className="size-3 rounded-full"
@@ -398,7 +393,7 @@ export function DashboardPanel({
               coordinate={volumeTip.sticky ? volumeTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} min`, "Volume"]}
             />
-            <Bar dataKey="minutes" fill={c.barPrimary} radius={[6, 6, 0, 0]} />
+            <Bar dataKey="minutes" fill={c.accent} shape={<Bar3D />} />
           </BarChart>
         </ResponsiveContainer>
       </ChartBlock>
@@ -440,7 +435,7 @@ export function DashboardPanel({
               coordinate={monthsTip.sticky ? monthsTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} min`, "Volume"]}
             />
-            <Bar dataKey="minutes" fill={c.accent} radius={[6, 6, 0, 0]} />
+            <Bar dataKey="minutes" fill={c.accent} shape={<Bar3D />} />
             <Line
               type="monotone"
               dataKey="minutes"
@@ -543,7 +538,7 @@ export function DashboardPanel({
               coordinate={coreEvolutionTip.sticky ? coreEvolutionTip.sticky.coordinate : undefined}
               formatter={(value) => [`${Number(value)} reps`, "Core"]}
             />
-            <Bar dataKey="coreReps" fill={c.ok} radius={[6, 6, 0, 0]} />
+            <Bar dataKey="coreReps" fill={c.accent} shape={<Bar3D />} />
           </BarChart>
         </ResponsiveContainer>
       </ChartBlock>
@@ -714,7 +709,7 @@ export function DashboardPanel({
         </section>
       )}
 
-      <section className="grid grid-cols-2 gap-2">
+      <section className="grid grid-cols-2 gap-3.5">
         <Card className="p-4">
           <p className="text-[18px] font-bold uppercase tracking-widest text-muted-foreground">
             Core
@@ -747,13 +742,50 @@ export function DashboardPanel({
   );
 }
 
+function Card({ className, ...props }: ComponentProps<"div">) {
+  return <div className={cn("glass-card", className)} {...props} />;
+}
+
+/**
+ * Coluna 3D para os graficos de barras verticais: face frontal em degrade
+ * laranja, topo mais claro e lateral escura (profundidade fixa, em pixels).
+ */
+function Bar3D(props: { x?: number; y?: number; width?: number; height?: number }) {
+  const { x = 0, y = 0, width = 0, height = 0 } = props;
+  if (!(width > 0) || !(height > 0)) return null;
+  const d = Math.min(7, width * 0.28, height);
+  const fw = width - d;
+  return (
+    <g>
+      <defs>
+        <linearGradient id="bar3d-front" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f0975f" />
+          <stop offset="55%" stopColor="#d36a2c" />
+          <stop offset="100%" stopColor="#a9481a" />
+        </linearGradient>
+      </defs>
+      <rect x={x} y={y + d} width={fw} height={height - d} fill="url(#bar3d-front)" />
+      <polygon
+        points={`${x},${y + d} ${x + d},${y} ${x + width},${y} ${x + fw},${y + d}`}
+        fill="#f7c9a3"
+      />
+      <polygon
+        points={`${x + fw},${y + d} ${x + width},${y} ${x + width},${y + height - d} ${x + fw},${y + height}`}
+        fill="#8a3a14"
+      />
+    </g>
+  );
+}
+
 function Kpi({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <Card className="p-3.5">
       <p className="text-[18px] font-bold uppercase tracking-widest text-muted-foreground">
         {label}
       </p>
-      <p className="mt-2 font-display text-2xl tabular-nums leading-none tracking-tight">{value}</p>
+      <p className="halo-text mt-2 font-display text-[28px] tabular-nums leading-none tracking-tight">
+        {value}
+      </p>
       <p className="mt-1.5 text-[21px] text-faint">{hint}</p>
     </Card>
   );

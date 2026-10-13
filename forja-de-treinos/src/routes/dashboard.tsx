@@ -168,14 +168,14 @@ function DashboardPage() {
   }
 
   return (
-    <main className="relative px-5 pb-28 pt-16">
-      <header className="mb-6">
+    <main className="relative px-5 pb-36 pt-16">
+      <header className="mb-7">
         <PanelBrandBar />
         <p className="mt-3 max-w-sm text-[24px] text-muted-foreground">
           KPIs, volume, intensidade e comparativos entre semanas, meses e atletas.
         </p>
         {workouts.length > 0 && (
-          <Button asChild variant="secondary" className="mt-4 h-12 text-base">
+          <Button asChild variant="ghost" className="btn-3d mt-5 h-12 text-base">
             <Link to="/relatorio" search={reportSearch}>
               <Printer />
               {singleAthlete ? `Imprimir PDF de ${athlete}` : "Imprimir PDF de todo o treino"}
@@ -188,7 +188,7 @@ function DashboardPage() {
         <p className="text-sm text-muted-foreground">Sem dados ainda. Lance o primeiro treino.</p>
       ) : (
         <>
-          <div className="mb-5 space-y-3">
+          <div className="mb-6 space-y-4">
             <FilterGroup label="Atletas">
               <PillRow
                 options={athleteOptions.map((name) => ({
@@ -253,11 +253,11 @@ function DashboardPage() {
             </p>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={handleExport} disabled={workouts.length === 0}>
+            <Button variant="ghost" className="btn-3d" onClick={handleExport} disabled={workouts.length === 0}>
               <Download />
               Exportar
             </Button>
-            <Button variant="outline" onClick={() => fileRef.current?.click()}>
+            <Button variant="ghost" className="btn-3d" onClick={() => fileRef.current?.click()}>
               <Upload />
               Importar
             </Button>

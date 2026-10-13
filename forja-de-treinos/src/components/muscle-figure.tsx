@@ -21,7 +21,7 @@ export function MuscleFigure({ levels }: { levels: Levels }) {
   const { width, height } = IMAGE_SIZE;
 
   return (
-    <div className="-mx-2 overflow-hidden rounded-2xl bg-[#14110f] px-1 pb-1 pt-3">
+    <div className="-mx-2 overflow-hidden rounded-2xl bg-[radial-gradient(70%_55%_at_50%_45%,rgba(200,40,30,0.2),transparent_75%),linear-gradient(180deg,#0b0908,#16120f)] px-1 pb-1 pt-3 shadow-[inset_0_6px_14px_rgba(0,0,0,0.85),inset_0_-1px_0_rgba(255,255,255,0.08)]">
       <svg
         viewBox={`0 0 ${width} ${height + LABEL_ROOM}`}
         role="img"

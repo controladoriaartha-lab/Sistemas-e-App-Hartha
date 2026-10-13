@@ -55,6 +55,12 @@ Para "esquecer", apague esse arquivo.
 - O logo aparece na barra de tarefas e no Alt+Tab (o programa se identifica ao Windows como app próprio,
   em vez de "Python", inclusive quando aberto pelo `Triturador.pyw`).
 
+## Ícone com o logo em uma pasta
+O Windows mostra sempre o ícone do Python em arquivos `.pyw` (o ícone não fica dentro do arquivo).
+Para ter o logo numa pasta: use o `TrituradorHartha.exe` (já traz o logo) **ou** dê dois cliques em
+`criar_atalho.vbs` (na mesma pasta do `Triturador.pyw` e do `icone.ico`): ele cria `Triturador Hartha.lnk`
+com o logo, na própria pasta e na Área de Trabalho. O atalho pode ser copiado para qualquer lugar.
+
 ## Se a janela sumir (corrigido na v7)
 Causa real encontrada em teste: o gancho de arrastar-e-soltar era descartado da memória e, depois,
 chamava o tkinter dentro do callback do Windows; ambos derrubavam o programa. Foi corrigido e testado.

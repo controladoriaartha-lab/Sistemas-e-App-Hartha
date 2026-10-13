@@ -240,6 +240,10 @@ def _ativar_arrastar_windows(widgets, on_files):
     shell32.DragQueryFileW.restype = wintypes.UINT
     shell32.DragFinish.argtypes = [ctypes.c_void_p]
     shell32.DragAcceptFiles.argtypes = [wintypes.HWND, wintypes.BOOL]
+    user32.GetParent.argtypes = [wintypes.HWND]
+    user32.GetParent.restype = wintypes.HWND
+    user32.ChangeWindowMessageFilterEx.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.DWORD,
+                                                   ctypes.c_void_p]
     keep = []  # evita o coletor de lixo apagar os callbacks
 
     def hook(hwnd):
@@ -247,16 +251,22 @@ def _ativar_arrastar_windows(widgets, on_files):
 
         def proc(h, msg, wp, lp):
             if msg == WM_DROPFILES:
-                n = shell32.DragQueryFileW(wp, 0xFFFFFFFF, None, 0)
-                paths = []
-                for i in range(n):
-                    buf = ctypes.create_unicode_buffer(32768)
-                    shell32.DragQueryFileW(wp, i, buf, 32768)
-                    paths.append(buf.value)
-                shell32.DragFinish(wp)
-                on_files(paths)
+                try:
+                    n = shell32.DragQueryFileW(wp, 0xFFFFFFFF, None, 0)
+                    paths = []
+                    for i in range(n):
+                        buf = ctypes.create_unicode_buffer(32768)
+                        shell32.DragQueryFileW(wp, i, buf, 32768)
+                        paths.append(buf.value)
+                    shell32.DragFinish(wp)
+                    on_files(paths)
+                except Exception:  # noqa: BLE001  (nunca derrubar a janela)
+                    pass
                 return 0
-            return call(old["p"], h, msg, wp, lp)
+            try:
+                return call(old["p"], h, msg, wp, lp)
+            except Exception:  # noqa: BLE001
+                return 0
 
         cb = WNDPROC(proc)
         keep.append((cb, old))
@@ -278,6 +288,25 @@ def _ativar_arrastar_windows(widgets, on_files):
                 hook(top)
 
 
+def registrar_erro(exc_info=None):
+    """Grava o erro em triturador_erro.log (ao lado do programa) e avisa na tela."""
+    import traceback
+    txt = "".join(traceback.format_exception(*(exc_info or sys.exc_info())))
+    for pasta in (os.path.dirname(os.path.abspath(sys.argv[0] or __file__)),
+                  os.environ.get("TEMP", ".")):
+        try:
+            with open(os.path.join(pasta, "triturador_erro.log"), "a", encoding="utf-8") as f:
+                f.write(txt + "\n")
+            break
+        except OSError:
+            continue
+    try:
+        from tkinter import messagebox
+        messagebox.showerror("Triturador - erro", txt[-900:])
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def run_gui():
     import threading
     import time
@@ -286,8 +315,12 @@ def run_gui():
 
     root = tk.Tk()
     root.title(TITULO)
-    root.geometry("760x560")
     root.minsize(620, 460)
+    w0, h0 = 760, 560
+    root.geometry("%dx%d+%d+%d" % (w0, h0, max(0, (root.winfo_screenwidth() - w0) // 2),
+                                   max(0, (root.winfo_screenheight() - h0) // 3)))
+    root.attributes("-topmost", True)  # fica sempre por cima: nao some atras do Explorador
+    root.report_callback_exception = lambda *e: registrar_erro(e)
     root.configure(bg="#f3f4f7")
     try:
         base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
@@ -431,7 +464,11 @@ def main():
     a = ap.parse_args()
     a.passes = max(1, a.passes)
     if not a.paths:
-        run_gui()
+        try:
+            run_gui()
+        except Exception:  # noqa: BLE001
+            registrar_erro()
+            return 1
         return 0
     return run_cli(a)
 

@@ -30,3 +30,8 @@ são seguidos (remove só o atalho).
 - **Arquivos já enviados à lixeira ou apagados antes** não são triturados; para isso seria
   necessário limpar o espaço livre (não incluído nesta versão).
 - Não há desfazer. Confira a lista antes de confirmar.
+
+## Se a janela sumir
+A janela fica sempre por cima das outras (não esconde atrás do Explorador ao arrastar).
+Se o programa fechar por algum erro, ele grava os detalhes em `triturador_erro.log`
+(na mesma pasta do programa) e mostra um aviso na tela.

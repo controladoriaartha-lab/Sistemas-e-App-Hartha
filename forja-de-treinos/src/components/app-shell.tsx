@@ -40,10 +40,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-lg bg-background text-foreground">
+    <div className="relative mx-auto min-h-dvh w-full max-w-lg text-foreground">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(80%_80%_at_50%_-20%,rgba(196,92,38,0.16),transparent_70%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(75%_80%_at_50%_-25%,rgba(240,151,95,0.26),transparent_72%)]"
       />
       {!splashActive && <TopControls />}
       <AuthGate>
@@ -90,7 +90,7 @@ function ThemeToggleButton() {
       onClick={toggleTheme}
       aria-label={isDark ? "Mudar para tema claro" : "Mudar para tema escuro"}
       title={isDark ? "Tema claro" : "Tema escuro"}
-      className="flex size-9 items-center justify-center rounded-full bg-card text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.55)] ring-1 ring-border"
+      className="btn-3d flex size-9 items-center justify-center rounded-full"
     >
       {isDark ? <Moon className="size-4" /> : <Sun className="size-4" />}
     </button>
@@ -115,7 +115,7 @@ function ExitAppButton() {
         onClick={() => setOpen(true)}
         aria-label="Sair do app"
         title="Sair do app"
-        className="flex size-9 items-center justify-center rounded-full bg-card text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.55)] ring-1 ring-border"
+        className="btn-3d flex size-9 items-center justify-center rounded-full"
       >
         <LogOut className="size-4" />
       </button>
@@ -157,17 +157,18 @@ function BottomNav({ pathname }: { pathname: string }) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg px-4"
+      style={{ paddingBottom: "max(0.875rem, calc(env(safe-area-inset-bottom) + 0.5rem))" }}
       aria-label="Navegação principal"
     >
-      <div className="grid grid-cols-3 items-center px-2 py-1.5">
+      <div className="nav-float pointer-events-auto relative grid grid-cols-[1fr_5.5rem_1fr] items-center px-3 py-2">
         <NavLink to="/" active={onHome} label="Treinos" icon={<ClipboardList />} />
         <Link
           to="/novo"
-          className="mx-auto flex size-12 items-center justify-center rounded-full bg-foreground text-background shadow-[0_8px_24px_rgba(12,11,10,0.45)] transition-transform duration-150 active:scale-95"
+          className="fab-3d mx-auto -mt-9 flex size-[4.25rem] items-center justify-center rounded-full transition-transform duration-150 active:translate-y-1 active:scale-95"
           aria-label="Novo treino"
         >
-          <Plus className="size-6" strokeWidth={2.2} />
+          <Plus className="size-8" strokeWidth={2.4} />
         </Link>
         <NavLink to="/dashboard" active={onDash} label="Painel" icon={<LayoutDashboard />} />
       </div>
@@ -190,11 +191,18 @@ function NavLink({
     <Link
       to={to}
       className={cn(
-        "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-md text-2xs font-medium tracking-wide",
-        active ? "text-paper" : "text-faint",
+        "flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-2xs font-medium tracking-wide",
+        active ? "text-foreground" : "text-faint",
       )}
     >
-      <span className={cn("[&>svg]:size-5", active ? "text-accent" : "text-faint")}>{icon}</span>
+      <span
+        className={cn(
+          "[&>svg]:size-5",
+          active ? "text-accent drop-shadow-[0_0_8px_var(--halo)]" : "text-faint",
+        )}
+      >
+        {icon}
+      </span>
       {label}
     </Link>
   );

@@ -24,7 +24,7 @@ export function PillRow<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="-mx-5 flex gap-2.5 overflow-x-auto px-5 pb-2 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {options.map((opt) => {
         const on = opt.value === value;
         return (
@@ -32,10 +32,8 @@ export function PillRow<T extends string>({
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
-            className={cn(
-              "min-h-10 shrink-0 rounded-full px-4 text-[24px] font-medium transition-colors duration-150",
-              on ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
-            )}
+            data-on={on}
+            className="pill-3d min-h-11 shrink-0 px-5 text-[24px] font-medium"
           >
             {opt.label}
           </button>
@@ -68,7 +66,7 @@ export function PeriodPicker({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex min-h-10 items-center gap-1.5 rounded-lg bg-muted px-3 text-[24px] font-medium text-foreground"
+        className="btn-3d flex min-h-11 items-center gap-1.5 px-3.5 text-[24px] font-medium"
       >
         <CalendarDays className="size-4 text-faint" />
         {current.label}
@@ -78,7 +76,7 @@ export function PeriodPicker({
       {open && (
         <>
           <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} aria-hidden />
-          <div className="absolute left-0 top-full z-30 mt-1 max-h-64 w-max min-w-48 max-w-[calc(100vw-2.5rem)] overflow-y-auto rounded-xl bg-card p-1 shadow-[0_12px_32px_rgba(0,0,0,0.5)] ring-1 ring-border">
+          <div className="absolute left-0 top-full z-30 mt-1 max-h-64 w-max min-w-48 max-w-[calc(100vw-2.5rem)] overflow-y-auto rounded-2xl bg-card p-1.5 shadow-[0_18px_34px_rgba(0,0,0,0.55),0_4px_0_rgba(0,0,0,0.35)] ring-1 ring-border">
             {months.map((m) => (
               <button
                 key={m.offset}
@@ -87,9 +85,10 @@ export function PeriodPicker({
                   onChange(m.offset);
                   setOpen(false);
                 }}
+                data-on={m.offset === offset}
                 className={cn(
                   "block w-full rounded-lg px-3 py-2 text-left text-[24px]",
-                  m.offset === offset ? "bg-foreground text-background" : "text-foreground",
+                  m.offset === offset ? "seg-item" : "text-foreground",
                 )}
               >
                 {m.label}
@@ -115,7 +114,7 @@ export function DayPicker({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-muted px-3">
+    <div className="btn-3d mt-3 inline-flex min-h-11 items-center gap-1.5 px-3.5">
       <CalendarDays className="size-4 shrink-0 text-faint" />
       <input
         type="date"

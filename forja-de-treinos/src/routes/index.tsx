@@ -7,7 +7,6 @@ import { forAthlete } from "@/lib/athlete-view";
 import { WorkoutCard } from "@/components/workout-card";
 import { formatMonthYear, parseDate, todayIso } from "@/lib/format";
 import { filterByPeriod, PERIOD_IN_PHRASE, PERIODS, type Period } from "@/lib/period";
-import { cn } from "@/lib/utils";
 import { sortedWorkouts, useWorkoutStore } from "@/store/workouts";
 import { DEFAULT_ATHLETES, type Focus } from "@/lib/types";
 
@@ -62,17 +61,17 @@ function Home() {
   }
 
   return (
-    <main className="relative px-5 pb-28 pt-16">
-      <header className="mb-6">
+    <main className="relative px-5 pb-36 pt-16">
+      <header className="mb-7">
         <BrandBar />
         <p className="mt-3 max-w-xs text-2xl font-normal text-muted-foreground">
           Treinos de Cada Dia
         </p>
       </header>
 
-      <div className="mb-5 space-y-3">
+      <div className="mb-6 space-y-4">
         <FilterGroup label="Foco">
-          <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+          <div className="seg-track grid grid-cols-3 gap-1">
             {(
               [
                 { value: "todos", label: "Todos" },
@@ -84,10 +83,8 @@ function Home() {
                 key={opt.value}
                 type="button"
                 onClick={() => setFocus(opt.value)}
-                className={cn(
-                  "min-h-10 rounded-md text-[24px] font-medium transition-colors duration-150",
-                  focus === opt.value ? "bg-foreground text-background" : "text-muted-foreground",
-                )}
+                data-on={focus === opt.value}
+                className="seg-item min-h-11 text-[24px] font-medium"
               >
                 {opt.label}
               </button>
@@ -115,13 +112,14 @@ function Home() {
       {workouts.length === 0 ? (
         <EmptyState />
       ) : visible.length === 0 ? (
-        <div className="rounded-xl bg-card px-5 py-10 text-center shadow-[0_0_0_1px_rgba(244,239,232,0.08)]">
+        <div className="glass-card px-5 py-10 text-center">
           <p className="font-display text-2xl">Nenhum treino</p>
           <p className="mt-2 text-sm text-muted-foreground">Nada encontrado com esses filtros.</p>
           <button
             type="button"
             onClick={clearFilters}
-            className="mt-5 inline-flex min-h-11 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background"
+            className="seg-item mt-5 inline-flex min-h-11 items-center px-5 text-sm font-medium"
+            data-on="true"
           >
             Limpar filtros
           </button>
@@ -163,14 +161,15 @@ function Home() {
 
 function EmptyState() {
   return (
-    <div className="rounded-xl bg-card px-5 py-10 text-center shadow-[0_0_0_1px_rgba(244,239,232,0.08)]">
+    <div className="glass-card px-5 py-10 text-center">
       <p className="font-display text-2xl">Nenhum treino</p>
       <p className="mt-2 text-sm text-muted-foreground">
         Registre o primeiro dia na Forja de Treinos.
       </p>
       <Link
         to="/novo"
-        className="mt-5 inline-flex min-h-11 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background"
+        className="seg-item mt-5 inline-flex min-h-11 items-center px-5 text-sm font-medium"
+            data-on="true"
       >
         Novo treino
       </Link>

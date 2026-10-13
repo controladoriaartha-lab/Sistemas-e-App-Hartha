@@ -30,22 +30,36 @@ export function WorkoutCard({ workout }: { workout: Workout }) {
     toast.success("Treino excluído");
   }
 
+  const day = workout.date.slice(8, 10);
+  const month = formatDayMonth(workout.date).split(" ")[1] ?? "";
+  const chips = workout.muscleGroups.filter((g) => g.trim());
+
   return (
-    <article className="rounded-xl bg-card p-4 shadow-[0_0_0_1px_rgba(244,239,232,0.08)]">
+    <article className="glass-card p-4">
       <Link to="/treino/$id" params={{ id: workout.id }} className="block">
-        <header className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-2xl font-normal text-muted-foreground">
-              {formatDayMonth(workout.date)} · {formatWeekday(workout.date)}
-            </p>
-            <h2 className="mt-1 font-display text-2xl font-medium tracking-tight text-foreground">
-              {workout.focusLabel}
-            </h2>
+        <header className="flex items-start gap-3.5">
+          <div className="date-block shrink-0">
+            <span className="text-[13px] font-semibold uppercase leading-none tracking-[0.14em] text-accent">
+              {month}
+            </span>
+            <span className="halo-text mt-1 font-display text-[40px] font-semibold leading-none tabular-nums text-foreground">
+              {day}
+            </span>
           </div>
-          <IntensityBadge intensity={workout.intensity} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="min-w-0 font-display text-2xl font-medium leading-tight tracking-tight text-foreground">
+                {workout.focusLabel}
+              </h2>
+              <IntensityBadge intensity={workout.intensity} />
+            </div>
+            <p className="mt-1.5 text-[18px] leading-snug first-letter:uppercase text-muted-foreground">
+              {formatWeekday(workout.date)}
+            </p>
+          </div>
         </header>
 
-        <p className="mt-3 text-2xl font-normal text-muted-foreground">
+        <p className="mt-4 text-2xl font-normal text-muted-foreground">
           <span className="tabular-nums text-foreground">{formatDuration(workout.durationMin)}</span>
           <span className="mx-2 text-faint">·</span>
           {workout.athletes.join(", ")}
@@ -60,9 +74,6 @@ export function WorkoutCard({ workout }: { workout: Workout }) {
                 : "—"
             }
           />
-          {workout.muscleGroups.length > 0 && (
-            <Row label="Grupo muscular" value={workout.muscleGroups.join(", ")} />
-          )}
           {workout.extras ? <Row label="Outros treinos" value={displayExtras(workout.extras)} /> : null}
           {workout.core.map((row, i) => (
             <Row
@@ -76,21 +87,39 @@ export function WorkoutCard({ workout }: { workout: Workout }) {
           ))}
           {workout.notes ? <Row label="Nota" value={workout.notes} /> : null}
         </dl>
+
+        {chips.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-2 text-[24px] text-faint">Grupo muscular</p>
+            <ul className="flex flex-wrap gap-2">
+              {chips.map((group, i) => (
+                <li key={`${group}-${i}`} className="chip-3d first-letter:uppercase" data-hot={i < 2}>
+                  {group}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </Link>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <Button variant="secondary" className="h-14 text-[24px] [&_svg]:size-6" onClick={onDuplicate}>
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <Button variant="ghost" className="btn-3d h-14 text-[24px] [&_svg]:size-6" onClick={onDuplicate}>
           <Copy />
           Duplicar
         </Button>
-        <Button variant="outline" className="h-14 text-[24px] [&_svg]:size-6" asChild>
+        <Button variant="ghost" className="btn-3d h-14 text-[24px] [&_svg]:size-6" asChild>
           <Link to="/treino/$id/editar" params={{ id: workout.id }}>
             <Pencil />
             Editar
           </Link>
         </Button>
       </div>
-      <Button variant="destructive" className="mt-2 h-14 w-full text-[24px] [&_svg]:size-6" onClick={onDelete}>
+      <Button
+        variant="ghost"
+        data-danger="true"
+        className="btn-3d mt-3 h-14 w-full text-[24px] [&_svg]:size-6"
+        onClick={onDelete}
+      >
         <Trash2 />
         Excluir
       </Button>

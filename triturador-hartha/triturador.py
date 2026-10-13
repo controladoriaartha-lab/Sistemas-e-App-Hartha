@@ -146,136 +146,88 @@ def run_cli(args):
 
 
 # ----------------------------------------------------------------------------- GUI
-class Tesouras:
-    """Duas tesouras de aco com cabos dourados cortando papel e soltando faiscas.
+class Faiscas:
+    """O logo do triturador "moendo aco": treme e jorra faiscas rapidas por baixo.
     Logica pura (sem janela): shapes() devolve primitivas de desenho."""
 
-    L = 96.0           # comprimento da lamina (escala 1)
-    BG = "#0a0f18"     # cor do painel (o "furo" dos cabos usa esta cor)
-    LAMINA = [(-8, -6), (18, -8.5), (58, -6.5), (96, -1.4), (96, 0.6), (0, 3.2), (-8, 3.2)]
-    BRILHO = [(-6, -5), (18, -7.4), (58, -5.6), (94, -1.0), (94, -0.2), (58, -4), (18, -5.6), (-6, -3.2)]
-    HASTE = [(-8, -4), (-42, -4), (-42, 4), (-8, 4)]
+    BG = "#0a0f18"
 
     def __init__(self, w, h):
         self.w, self.h, self.t = w, h, 0
-        self.tes, self.sparks = [], []
-        self.duas = True  # duas tesouras (painel grande) ou uma (painel mini)
-        self.rng = random.Random(5)
+        self.sparks = []   # [x, y, vx, vy, vida, vmax, divide, quicadas]
+        self.intensity = 0.0
+        self.carga = 1.0   # 0.35..1: a janela reduz se o computador estiver lento
+        self.mini = False
+        self.rng = random.Random(9)
 
     def resize(self, w, h):
         self.w, self.h = w, h
 
-    def escala(self):
-        return max(0.5, min(1.25, self.h / 150.0))
-
     def vivo(self):
-        return bool(self.tes or self.sparks)
+        return bool(self.sparks) or self.intensity > 0.02
 
-    def _novas(self):
-        s = self.escala()
-        linhas = [(0.29, 1, 5.2, 0.0), (0.73, -1, 4.2, 1.7)] if self.duas else [(0.52, 1, 4.6, 0.0)]
-        self.tes = [{"x": self.w * (0.14 if d > 0 else 0.86), "fy": fy, "y": self.h * fy, "dir": d,
-                     "vel": v * s, "fase": f, "flash": 0} for fy, d, v, f in linhas]
+    def escala(self):
+        return max(0.45, min(1.3, self.h / 176.0))
+
+    def logo_box(self):
+        lw = 42 if self.mini else 84
+        return self.w / 2.0, 6 if self.mini else 8, lw
 
     def step(self, burning):
         self.t += 1
-        s = self.escala()
-        if burning and not self.tes:
-            self._novas()
-        vivas = []
-        for t in self.tes:
-            t["y"] = self.h * t["fy"]  # sempre relativo a altura atual do painel
-            if not burning:
-                t["vel"] *= 1.12  # terminou: as tesouras aceleram e saem de cena
-            t["x"] += t["dir"] * t["vel"]
-            ph = self.t * 0.30 + t["fase"]
-            fechando = math.cos(ph) < 0
-            theta = self._theta(ph)
-            if burning and fechando and theta < 2.5 + 0.40 * 23.5:  # lamina quase fechada: corta e solta faiscas
-                cx = t["x"] + t["dir"] * 0.70 * self.L * s
-                for _ in range(6):
-                    a = self.rng.uniform(-1.25, 1.25)
-                    sp = self.rng.uniform(2.6, 11.0) * s
-                    frente = 1 if self.rng.random() > 0.22 else -1
-                    vida = self.rng.randint(18, 40)
-                    self.sparks.append([cx, t["y"] + self.rng.uniform(-2, 2),
-                                        t["dir"] * frente * math.cos(a) * sp,
-                                        math.sin(a) * sp - 1.4 * s, vida, vida])
-                t["flash"] = 5
-            elif t["flash"] > 0:
-                t["flash"] -= 1
-            sai = (t["dir"] > 0 and t["x"] - 70 * s > self.w) or (t["dir"] < 0 and t["x"] + 70 * s < 0)
-            if sai:
-                if burning:  # recomeca do outro lado
-                    t["x"] = -self.L * s * 0.9 if t["dir"] > 0 else self.w + self.L * s * 0.9
-                    vivas.append(t)
-            else:
-                vivas.append(t)
-        self.tes = vivas
+        rng, s = self.rng, self.escala()
+        alvo = 1.0 if burning else 0.0
+        self.intensity += (alvo - self.intensity) * (0.45 if burning else 0.30)
+        if not burning and self.intensity < 0.03:
+            self.intensity = 0.0
+        cx, top, lw = self.logo_box()
+        boca = top + lw - 3 * s              # borda de baixo do logo = saida das faiscas
+        if self.intensity > 0.1:
+            vigor = self.intensity * (0.75 + 0.5 * rng.random())  # oscila: moagem irregular
+            for _ in range(int(round(vigor * self.carga * (8 if self.mini else 13)))):
+                ang = math.pi / 2 + rng.gauss(0, 0.60)
+                ang = max(0.18, min(math.pi - 0.18, ang))
+                sp = rng.uniform(9.0, 20.0) * s * (1.45 if rng.random() < 0.12 else 1.0)
+                vida = rng.randint(14, 30)
+                self.sparks.append([cx + rng.uniform(-0.40, 0.40) * lw, boca,
+                                    math.cos(ang) * sp, math.sin(ang) * sp, vida, vida,
+                                    rng.random() < 0.38, 0])
+        novas = []
         for q in self.sparks:
             q[0] += q[2]
             q[1] += q[3]
-            q[3] += 0.30 * s   # gravidade
-            q[2] *= 0.985
+            q[3] += 0.55 * s                 # gravidade
+            q[2] *= 0.972
             q[4] -= 1
-        self.sparks = [q for q in self.sparks if q[4] > 0 and -20 < q[1] < self.h + 20]
-
-    @staticmethod
-    def _theta(ph):
-        return 2.5 + 23.5 * (0.5 + 0.5 * math.sin(ph))
-
-    @staticmethod
-    def _xf(pts, ang, s, dx, ox, oy, flip):
-        ca, sa = math.cos(ang), math.sin(ang)
-        out = []
-        for x, y in pts:
-            if flip:
-                y = -y
-            out += [ox + dx * (x * ca - y * sa) * s, oy + (x * sa + y * ca) * s]
-        return out
-
-    @staticmethod
-    def _elipse(cx, cy, rx, ry, n=26):
-        return [(cx + rx * math.cos(2 * math.pi * k / n), cy + ry * math.sin(2 * math.pi * k / n))
-                for k in range(n)]
-
-    def _desenhar_tesoura(self, t, out):
-        s, d, ox, oy = self.escala(), t["dir"], t["x"], t["y"]
-        th = math.radians(self._theta(self.t * 0.30 + t["fase"]))
-        # trilho do papel + corte (fenda atras, tracejado a frente)
-        cx = ox + d * 0.70 * self.L * s
-        out.append(("rect", 0, oy - 9 * s, self.w, oy + 9 * s, "#0f1a2d", ""))
-        ini, fim = (0, cx) if d > 0 else (cx, self.w)
-        out.append(("line", [ini, oy - 1.2, fim, oy - 1.2], "#9fb0cc", 1, None))
-        out.append(("line", [ini, oy + 1.2, fim, oy + 1.2], "#9fb0cc", 1, None))
-        ahead = (cx, self.w) if d > 0 else (0, cx)
-        out.append(("line", [ahead[0], oy, ahead[1], oy], "#6f5d24", 1, (5, 4)))
-        if t["flash"] > 0:  # brilho no ponto de corte
-            f = t["flash"] / 5.0
-            for r, col in ((30, "#241a08"), (21, "#4d330b"), (13, "#a9701a"), (7, "#ffd36a"), (3.5, "#ffffff")):
-                out.append(("oval", cx - r * f * s, oy - r * f * s, cx + r * f * s, oy + r * f * s, col, ""))
-        for ang, flip, cabo in ((th, True, "#c99a2e"), (-th, False, "#e6bf45")):
-            out.append(("poly", self._xf(self.LAMINA, ang, s, d, ox, oy, flip), "#cdd7e6", "#5d6c86", 1))
-            out.append(("poly", self._xf(self.BRILHO, ang, s, d, ox, oy, flip), "#f4f8ff", "", 0))
-            out.append(("poly", self._xf(self.HASTE, ang, s, d, ox, oy, flip), cabo, "#6e5412", 1))
-            out.append(("poly", self._xf(self._elipse(-56, 0, 17, 13), ang, s, d, ox, oy, flip), cabo, "#6e5412", 1))
-            out.append(("poly", self._xf(self._elipse(-56, 0, 10, 7), ang, s, d, ox, oy, flip), self.BG, "#6e5412", 1))
-            arco = self._elipse(-56, 0, 15, 11, 26)[15:24]
-            out.append(("line", self._xf(arco, ang, s, d, ox, oy, flip), "#fff0b0", 2, None))
-        r = 5.2 * s
-        out.append(("oval", ox - r, oy - r, ox + r, oy + r, "#a8841f", "#3b2c06"))
-        out.append(("oval", ox - r * .6, oy - r * .7, ox - r * .1, oy - r * .2, "#fff0b0", ""))
+            if q[1] > self.h - 3 and q[3] > 0 and q[7] < 2:   # quica no chao de aco
+                q[1], q[3], q[2] = self.h - 3, -q[3] * 0.38, q[2] * 0.85
+                q[7] += 1
+            if q[6] and q[4] == int(q[5] * 0.45):             # a faisca "estoura" em estrelinhas
+                for _ in range(3):
+                    v = rng.randint(8, 14)
+                    novas.append([q[0], q[1], q[2] * 0.4 + rng.uniform(-3, 3) * s,
+                                  q[3] * 0.4 + rng.uniform(-4, 1) * s, v, v, False, 2])
+            if q[4] > 0 and -30 < q[0] < self.w + 30 and q[1] < self.h + 30:
+                novas.append(q)
+        self.sparks = novas[-1000:]
 
     def shapes(self):
         out = []
-        for t in self.tes:
-            self._desenhar_tesoura(t, out)
-        for x, y, vx, vy, vida, vmax in self.sparks:
+        cx, top, lw = self.logo_box()
+        s, i = self.escala(), self.intensity
+        boca = top + lw - 3 * s
+        if i > 0.05:  # clarao quente sob o logo
+            for r, col in ((74, "#150d05"), (54, "#27160a"), (38, "#46250c"), (24, "#74410e"), (12, "#c0791d")):
+                rr = r * s * (0.55 + 0.45 * i)
+                out.append(("oval", cx - rr * 1.7, boca + 4 - rr * 0.55, cx + rr * 1.7, boca + 4 + rr * 0.55, col, ""))
+        for x, y, vx, vy, vida, vmax, _d, _b in self.sparks:
             r = vida / float(vmax)
-            cor = "#ffffff" if r > .82 else "#fff1b0" if r > .6 else "#ffc233" if r > .38 else "#ff7a1a" if r > .18 else "#8a3410"
-            out.append(("line", [x, y, x - vx * 2.4, y - vy * 2.4], cor, 3 if r > .6 else 2 if r > .3 else 1, None))
-            if r > .5:
-                out.append(("oval", x - 2.3, y - 2.3, x + 2.3, y + 2.3, "#ffffff" if r > .8 else "#ffe27a", ""))
+            cor = "#ffffff" if r > .8 else "#fff1b0" if r > .6 else "#ffc233" if r > .4 else "#ff7a1a" if r > .2 else "#8a3410"
+            out.append(("line", [x, y, x - vx * 2.7, y - vy * 2.7], cor, 2 if r > .5 else 1, None))
+            if r > .7:
+                out.append(("oval", x - 1.8, y - 1.8, x + 1.8, y + 1.8, "#ffffff" if r > .85 else "#ffe27a", ""))
+        tremor = 2.2 * i                      # o logo vibra enquanto mói
+        out.append(("logo", cx + self.rng.uniform(-tremor, tremor), top + self.rng.uniform(-tremor, tremor) * 0.6))
         return out
 
 
@@ -768,7 +720,7 @@ def run_gui():
     from tkinter import filedialog, messagebox, ttk
 
     NORMAL_W, NORMAL_H = 800, 640
-    MINI_W, MINI_H = 360, 236  # ~6x menor em area que a janela normal
+    MINI_W, MINI_H = 360, 244  # ~6x menor em area que a janela normal
     ui = {"mini": False, "F": MOLDURA, "tam": (NORMAL_W, NORMAL_H)}
 
     root = tk.Tk()
@@ -834,8 +786,10 @@ def run_gui():
                baixo=CRIMSON_DARK, borda=GOLD, cor_texto="#ffffff",
                fonte=("Segoe UI", 14, "bold"))
     go.pack(side="bottom", fill="x", padx=14, pady=(8, 14))
-    fogo = tk.Canvas(miolo, height=156, bg=Tesouras.BG, highlightthickness=0)
-    sim = Tesouras(740, 156)
+    fogo = tk.Canvas(miolo, height=176, bg=Faiscas.BG, highlightthickness=0)
+    sim = Faiscas(740, 176)
+    logo_img = tk.PhotoImage(data="".join(LOGO_B64))   # 84 px
+    logo_peq = logo_img.subsample(2)                    # 42 px (modo mini)
     est = {"burning": False, "msg": "", "ativo": False, "n": 0}
     fila = []  # caminhos recebidos do arrastar (lidos pela janela no tick)
 
@@ -858,10 +812,10 @@ def run_gui():
     def mostrar_painel():
         if ui["mini"]:
             drop.pack_forget()
-            fogo.config(height=80)
+            fogo.config(height=96)
             fogo.pack(in_=zona_box, fill="x", padx=14, pady=(8, 6))
         else:
-            fogo.config(height=156)
+            fogo.config(height=176)
             fogo.pack(side="bottom", fill="x", padx=14, before=frame)
 
     def esconder_painel():
@@ -874,7 +828,7 @@ def run_gui():
             return  # nao troca de tamanho no meio da trituracao
         if est["ativo"]:  # animacao terminando: encerra e esconde antes de trocar
             est["ativo"] = False
-            sim.tes, sim.sparks = [], []
+            sim.sparks, sim.intensity = [], 0.0
             esconder_painel()
         ui["mini"] = not ui["mini"]
         mini = ui["mini"]
@@ -909,7 +863,19 @@ def run_gui():
         btn_mini.set_mini(mini)
         redesenhar()
 
+    def lw_msg():
+        return 30 if ui["mini"] else 60
+
     def tick():
+        agora = time.perf_counter()
+        dt = (agora - est.get("t_ant", agora)) * 1000.0
+        est["t_ant"] = agora
+        if est["ativo"]:  # ajuste automatico: PC lento => menos faiscas, animacao continua fluida
+            est["ema"] = est.get("ema", 30.0) * 0.85 + min(dt, 300.0) * 0.15
+            if est["ema"] > 55:
+                sim.carga = max(0.35, sim.carga - 0.06)
+            elif est["ema"] < 38:
+                sim.carga = min(1.0, sim.carga + 0.02)
         if fila:
             novos = list(fila)
             del fila[:len(novos)]
@@ -925,25 +891,20 @@ def run_gui():
             fogo.delete("all")
             for sh in sim.shapes():
                 k = sh[0]
-                if k == "rect":
-                    fogo.create_rectangle(sh[1], sh[2], sh[3], sh[4], fill=sh[5], outline=sh[6])
-                elif k == "poly":
-                    fogo.create_polygon(sh[1], fill=sh[2], outline=sh[3], width=max(1, sh[4]))
-                elif k == "line":
-                    if sh[4]:
-                        fogo.create_line(*sh[1], fill=sh[2], width=sh[3], dash=sh[4])
-                    else:
-                        fogo.create_line(*sh[1], fill=sh[2], width=sh[3], capstyle="round")
-                else:
+                if k == "line":
+                    fogo.create_line(*sh[1], fill=sh[2], width=sh[3], capstyle="round")
+                elif k == "oval":
                     fogo.create_oval(sh[1], sh[2], sh[3], sh[4], fill=sh[5], outline=sh[6])
+                else:  # logo
+                    fogo.create_image(sh[1], sh[2], image=logo_peq if ui["mini"] else logo_img, anchor="n")
             if est["msg"]:
                 for dx, dy, cor in ((1, 1, "black"), (0, 0, "#f4dd8c")):
-                    fogo.create_text(w / 2 + dx, 14 + dy, text=est["msg"], fill=cor,
-                                     font=("Segoe UI", 10, "bold"), width=w - 40)
+                    fogo.create_text(10 + dx, 8 + dy, text=est["msg"], fill=cor, anchor="nw",
+                                     font=("Segoe UI", 10, "bold"), width=max(60, w / 2 - lw_msg()))
             if not est["burning"] and not sim.vivo():
                 est["ativo"] = False
                 esconder_painel()
-        root.after(40, tick)
+        root.after(30, tick)
 
     def add(paths):
         for p in paths:
@@ -1029,8 +990,8 @@ def run_gui():
         go.config(state="disabled")
         if not ui["mini"]:
             drop.set_text("ARRASTE E SOLTE AQUI")
-        sim.tes, sim.sparks = [], []
-        sim.duas = not ui["mini"]
+        sim.sparks, sim.intensity, sim.mini = [], 0.0, ui["mini"]
+        est["ema"] = 30.0
         mostrar_painel()
         est.update(burning=True, ativo=True, msg="")
         threading.Thread(target=work, args=(list(items),), daemon=True).start()

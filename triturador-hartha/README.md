@@ -39,9 +39,10 @@ são seguidos (remove só o atalho).
 - **Janela comum:** não fica mais "por cima de tudo". Outras janelas podem cobri-la, lado a lado ou
   parcialmente sobrepostas. Soltar arquivos funciona em qualquer ponto visível da janela.
 - **Modo mini:** botão no canto superior direito do cabeçalho reduz a janela para ~6x menos área
-  (360x236) e amplia de volta. No mini dá para soltar arquivos e triturar normalmente.
-- **Animação:** duas tesouras de aço com cabos dourados cortam papel e soltam faíscas
-  (uma tesoura no modo mini). Substitui o fogo.
+  (360x244) e amplia de volta. No mini dá para soltar arquivos e triturar normalmente.
+- **Animação ao triturar:** o logo do triturador aparece no painel de baixo, vibrando como máquina
+  em trabalho, e por baixo dele jorra uma chuva rápida de faíscas (como aço sendo moído), com rastro,
+  quique no chão e estrelinhas. Se o computador for lento, o programa reduz sozinho a quantidade de faíscas.
 
 ## Se a janela sumir (corrigido na v7)
 Causa real encontrada em teste: o gancho de arrastar-e-soltar era descartado da memória e, depois,

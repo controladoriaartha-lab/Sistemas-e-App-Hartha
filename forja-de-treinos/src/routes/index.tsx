@@ -8,7 +8,7 @@ import { WorkoutCard } from "@/components/workout-card";
 import { formatMonthYear, parseDate, todayIso } from "@/lib/format";
 import { filterByPeriod, PERIOD_IN_PHRASE, PERIODS, type Period } from "@/lib/period";
 import { sortedWorkouts, useWorkoutStore } from "@/store/workouts";
-import { DEFAULT_ATHLETES, type Focus } from "@/lib/types";
+import { DEFAULT_ATHLETES, FOCUS_LABEL, type Focus } from "@/lib/types";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -36,7 +36,10 @@ function Home() {
 
   const visible = useMemo(() => {
     let list = sortedWorkouts(workouts);
-    if (focus !== "todos") list = list.filter((w) => w.focus === focus);
+    if (focus !== "todos")
+      list = list.filter(
+        (w) => w.focus === focus || w.focusLabel.split(" + ").includes(FOCUS_LABEL[focus]),
+      );
     if (athlete !== "todos") list = forAthlete(list, athlete);
     list = filterByPeriod(list, period, 0, dayIso);
     return list;

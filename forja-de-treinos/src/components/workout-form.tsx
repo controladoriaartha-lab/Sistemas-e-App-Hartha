@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Play, Plus, Square, Trash2, Volume2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Play, Plus, Square, Trash2, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,8 @@ import { formatDuration } from "@/lib/format";
 import { formatExtras, parseExtras, type ExtraItem } from "@/lib/extras";
 import type { NovoSnapshot, NovoTimers } from "@/lib/novo-draft";
 import { useWorkoutStore } from "@/store/workouts";
+
+const FOCUS_ORDER: Focus[] = ["pernas", "bracos", "outro"];
 
 /** Timer de treino esquecido ligado para sozinho depois disso. */
 const TIMER_MAX_MS = 3 * 60 * 60 * 1000;
@@ -275,8 +277,31 @@ export function WorkoutForm({
     });
   }
 
-  function setFocus(focus: Focus) {
-    patch({ focus, focusLabel: FOCUS_LABEL[focus] });
+  // Mais de um foco no mesmo treino: o primeiro segue em `focus` (estatisticas
+  // e filtros) e todos ficam no rotulo "Pernas + Braços", que ja e salvo.
+  const foci: Focus[] = (() => {
+    const list = draft.focusLabel
+      .split(" + ")
+      .map((label) => FOCUS_ORDER.find((f) => FOCUS_LABEL[f] === label))
+      .filter((f): f is Focus => Boolean(f));
+    return list.length > 0 && list[0] === draft.focus ? [...new Set(list)] : [draft.focus];
+  })();
+
+  function setFoci(list: Focus[]) {
+    patch({ focus: list[0], focusLabel: list.map((f) => FOCUS_LABEL[f]).join(" + ") });
+  }
+
+  function changeFocusAt(index: number, focus: Focus) {
+    setFoci(foci.map((f, i) => (i === index ? focus : f)));
+  }
+
+  function addFocus() {
+    const next = FOCUS_ORDER.find((f) => !foci.includes(f));
+    if (next) setFoci([...foci, next]);
+  }
+
+  function removeFocusAt(index: number) {
+    setFoci(foci.filter((_, i) => i !== index));
   }
 
   // Timer do treino: aperta pra começar, aperta de novo pra terminar — o
@@ -472,17 +497,43 @@ export function WorkoutForm({
         />
       </Field>
 
-      <Field label="Foco">
-        <Segmented
-          value={draft.focus}
-          onChange={setFocus}
-          options={[
-            { value: "pernas", label: "Pernas" },
-            { value: "bracos", label: "Braços" },
-            { value: "outro", label: "Outro" },
-          ]}
-        />
-      </Field>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-3">
+          <Label>Foco</Label>
+          {foci.length < FOCUS_ORDER.length && (
+            <button
+              type="button"
+              onClick={addFocus}
+              className="flex min-h-9 items-center gap-1 rounded-full px-3 text-[18px] font-medium text-accent ring-1 ring-accent/50"
+            >
+              <Plus className="size-4" />
+              Mais um foco
+            </button>
+          )}
+        </div>
+        {foci.map((focus, index) => (
+          <div key={index} className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <Segmented
+                value={focus}
+                onChange={(next: Focus) => changeFocusAt(index, next)}
+                isDisabled={(v) => v !== focus && foci.includes(v)}
+                options={FOCUS_ORDER.map((f) => ({ value: f, label: FOCUS_LABEL[f] }))}
+              />
+            </div>
+            {index > 0 && (
+              <button
+                type="button"
+                onClick={() => removeFocusAt(index)}
+                aria-label="Remover foco"
+                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+              >
+                <X className="size-5" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
 
       <Field label="Intensidade">
         <Segmented
@@ -990,10 +1041,12 @@ function Segmented<T extends string>({
   value,
   onChange,
   options,
+  isDisabled,
 }: {
   value: T;
   onChange: (value: T) => void;
   options: { value: T; label: string }[];
+  isDisabled?: (value: T) => boolean;
 }) {
   return (
     <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
@@ -1003,9 +1056,10 @@ function Segmented<T extends string>({
           <button
             key={opt.value}
             type="button"
+            disabled={isDisabled?.(opt.value)}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "min-h-14 rounded-md text-[24px] font-medium transition-colors duration-150",
+              "min-h-14 rounded-md text-[24px] font-medium transition-colors duration-150 disabled:opacity-35",
               on ? "bg-foreground text-background" : "text-muted-foreground",
             )}
           >

@@ -221,6 +221,9 @@ TITULO = "TRITURADOR DE ARQUIVO PERMANENTE"
 NAVY, GOLD, RED = "#142642", "#d4af37", "#c82d2d"
 
 
+_REFS_ARRASTAR = []  # mantem os callbacks vivos (se o Python os descartar, o programa trava)
+
+
 def _ativar_arrastar_windows(widgets, on_files):
     """Arrastar-e-soltar nativo do Windows (sem bibliotecas extras). Chama on_files(lista)."""
     import ctypes
@@ -244,7 +247,7 @@ def _ativar_arrastar_windows(widgets, on_files):
     user32.GetParent.restype = wintypes.HWND
     user32.ChangeWindowMessageFilterEx.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.DWORD,
                                                    ctypes.c_void_p]
-    keep = []  # evita o coletor de lixo apagar os callbacks
+    keep = _REFS_ARRASTAR  # permanente: o Windows chama estes callbacks ate o fim do programa
 
     def hook(hwnd):
         old = {}
@@ -351,6 +354,7 @@ def run_gui():
     fogo = tk.Canvas(root, height=140, bg="#10151f", highlightthickness=0)
     sim = Fire(740, 140)
     est = {"burning": False, "msg": "", "ativo": False}
+    fila = []  # caminhos recebidos do arrastar (lidos pela janela no tick)
 
     frame = ttk.Frame(root, padding=(12, 6))
     frame.pack(fill="both", expand=True)
@@ -361,6 +365,14 @@ def run_gui():
     lb.pack(side="left", fill="both", expand=True)
 
     def tick():
+        if fila:
+            novos = list(fila)
+            del fila[:len(novos)]
+            add(novos)
+        r = est.get("result")
+        if r and time.time() >= r[2]:
+            est["result"] = None
+            done(r[0], r[1])
         if est["ativo"]:
             w, h = max(fogo.winfo_width(), 100), max(fogo.winfo_height(), 60)
             sim.resize(w, h)
@@ -405,12 +417,19 @@ def run_gui():
     ttk.Button(bar_btn, text="Limpar", command=clear_all).pack(side="left")
 
     if os.name == "nt":
-        try:
-            _ativar_arrastar_windows([root, drop, lb], lambda ps: root.after(0, add, ps))
-        except Exception:  # noqa: BLE001  (sem arrastar, os botoes continuam funcionando)
-            pass
+        def ligar_arrastar():
+            # So depois da janela existir de fato; antes disso o Windows recria a janela
+            # externa e o gancho ficaria apontando para uma janela destruida (travamento).
+            try:
+                # Dentro do callback do Windows NAO se pode chamar o tkinter: so anota na fila.
+                _ativar_arrastar_windows([root, drop, lb], fila.extend)
+            except Exception:  # noqa: BLE001  (sem arrastar, os botoes continuam funcionando)
+                registrar_erro()
+        root.update()
+        root.after(300, ligar_arrastar)
 
     def work(targets):
+        # Roda em segundo plano: NAO mexe na janela; so guarda o resultado (a janela le no tick).
         errs, count = [], [0]
         t0 = time.time()
 
@@ -418,9 +437,12 @@ def run_gui():
             count[0] += 1
             est["msg"] = os.path.basename(p)
 
-        for t in targets:
-            shred_path(t, 3, prog, errs)
-        root.after(int(max(0, 3.0 - (time.time() - t0)) * 1000), done, errs, count[0])
+        try:
+            for t in targets:
+                shred_path(t, 3, prog, errs)
+        except Exception as e:  # noqa: BLE001
+            errs.append(("(geral)", str(e)))
+        est["result"] = (errs, count[0], t0 + 3.0)  # fogo fica aceso no minimo 3 s
 
     def done(errs, count):
         est["burning"] = False

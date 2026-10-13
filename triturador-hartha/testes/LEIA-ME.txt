@@ -1,0 +1,3 @@
+Testes automatizados da interface (rodam sob Xvfb; os "windows" usam Wine + Python do Windows):
+- teste_janela_linux.py: abre a janela, adiciona itens, tritura, confere fogo e mensagem final.
+- teste_arrastar_windows_wine.py: envia WM_DROPFILES reais a 4 areas da janela e tritura.

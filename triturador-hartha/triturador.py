@@ -8,7 +8,9 @@ Uso (GUI):  python triturador.py
 Uso (CLI):  python triturador.py [--passes N] [--yes] CAMINHO [CAMINHO ...]
 """
 import argparse
+import math
 import os
+import random
 import secrets
 import stat
 import sys
@@ -144,6 +146,63 @@ def run_cli(args):
 
 
 # ----------------------------------------------------------------------------- GUI
+class Fire:
+    """Sistema de particulas das chamas (logica pura, independente da janela)."""
+
+    def __init__(self, width, height):
+        self.w, self.h = width, height
+        self.p = []  # [x, y, vx, vy, vida, vida_max, raio, faisca]
+        self.t = 0
+
+    def resize(self, width, height):
+        self.w, self.h = width, height
+
+    def step(self, burning):
+        self.t += 1
+        if burning:
+            for _ in range(max(4, self.w // 24)):  # chamas ao longo de toda a largura
+                x = random.uniform(0, self.w)
+                centro = 1 - abs(x - self.w / 2) / (self.w / 2)  # mais alto no meio
+                vida = random.randint(18, 30 + int(22 * centro))
+                self.p.append([x, self.h + 4, random.uniform(-.6, .6),
+                               random.uniform(2.6, 4.6) * (0.8 + .5 * centro),
+                               vida, vida, random.uniform(6, 12), False])
+            for _ in range(2):  # faiscas
+                vida = random.randint(25, 45)
+                self.p.append([random.uniform(0, self.w), self.h - 5, random.uniform(-1.5, 1.5),
+                               random.uniform(3, 6), vida, vida, random.uniform(1.5, 2.8), True])
+        alive = []
+        for q in self.p:
+            q[0] += q[2] + math.sin((self.t + q[1]) / 9.0) * .7
+            q[1] -= q[3]
+            q[4] -= 1
+            if q[4] > 0 and q[1] > -10:
+                alive.append(q)
+        self.p = alive[-1800:]
+
+    @staticmethod
+    def color(ratio, spark=False):
+        """ratio 1 (nasce) -> 0 (morre): branco-amarelo, laranja, vermelho, brasa."""
+        stops = [(0.0, (70, 20, 20)), (0.35, (190, 30, 15)), (0.7, (255, 115, 20)),
+                 (1.0, (255, 205, 80))]
+        if spark:
+            return "#%02x%02x%02x" % (255, int(180 + 70 * ratio), int(60 + 120 * ratio))
+        for (a, ca), (b, cb) in zip(stops, stops[1:]):
+            if ratio <= b:
+                f = (ratio - a) / (b - a)
+                return "#%02x%02x%02x" % tuple(int(x + (y - x) * f) for x, y in zip(ca, cb))
+        return "#ffcd50"
+
+    def shapes(self):
+        """Lista (x0, y0, x1, y1, cor) de baixo p/ cima: velhas (grandes) primeiro."""
+        out = []
+        for x, y, _vx, _vy, vida, vmax, r, spark in sorted(self.p, key=lambda q: q[4]):
+            ratio = vida / vmax
+            rr = r * (0.35 + 0.65 * ratio) if not spark else r
+            out.append((x - rr, y - rr * 1.35, x + rr, y + rr * 1.35, self.color(ratio, spark)))
+        return out
+
+
 TITULO = "TRITURADOR DE ARQUIVO PERMANENTE"
 NAVY, GOLD, RED = "#142642", "#d4af37", "#c82d2d"
 
@@ -155,6 +214,7 @@ def parse_drop(tk_root, data):
 
 def run_gui():
     import threading
+    import time
     import tkinter as tk
     from tkinter import filedialog, messagebox, ttk
 
@@ -257,8 +317,24 @@ def run_gui():
     ttk.Label(bar_btn, text="Passadas:").pack(side="left", padx=(14, 2))
     ttk.Spinbox(bar_btn, from_=1, to=35, width=4, textvariable=passes).pack(side="left")
 
-    bar = ttk.Progressbar(root, mode="indeterminate")
-    bar.pack(fill="x", padx=12, pady=(2, 4))
+    fogo = tk.Canvas(root, height=130, bg="#10151f", highlightthickness=0)
+    fogo.pack(fill="x", padx=12, pady=(2, 4))
+    sim = Fire(740, 130)
+    est = {"burning": False, "msg": "Pronto para triturar"}
+
+    def tick():
+        w, h = max(fogo.winfo_width(), 100), max(fogo.winfo_height(), 60)
+        sim.resize(w, h)
+        sim.step(est["burning"])
+        fogo.delete("all")
+        for x0, y0, x1, y1, c in sim.shapes():
+            fogo.create_oval(x0, y0, x1, y1, fill=c, outline="")
+        for dx, dy, cor in ((2, 2, "black"), (0, 0, "white")):  # sombra p/ leitura
+            fogo.create_text(w / 2 + dx, h / 2 + dy, text=est["msg"], fill=cor,
+                             font=("Segoe UI", 13, "bold"), width=w - 40)
+        root.after(40, tick)
+
+    tick()
     ttk.Label(root, textvariable=status).pack(fill="x", padx=12)
     go = tk.Button(root, text="ACEITAR E TRITURAR", bg=RED, fg="white", bd=0,
                    font=("Segoe UI", 12, "bold"), activebackground="#9c2020",
@@ -267,19 +343,22 @@ def run_gui():
 
     def work(targets, n):
         errs, count = [], [0]
+        t0 = time.time()
 
         def prog(p):
             count[0] += 1
-            root.after(0, status.set, "Triturado: %s" % p)
+            est["msg"] = "TRITURANDO...  " + os.path.basename(p)
 
         for t in targets:
             shred_path(t, n, prog, errs)
-        root.after(0, done, errs, count[0])
+        # garante que as chamas aparecam mesmo para arquivos pequenos (min. 3 s)
+        root.after(int(max(0, 3.0 - (time.time() - t0)) * 1000), done, errs, count[0])
 
     def done(errs, count):
-        bar.stop()
+        est["burning"] = False
         go.config(state="normal")
         clear_all()
+        est["msg"] = "Concluido: %d arquivo(s) apagado(s) permanentemente" % count
         status.set("Concluido: %d arquivo(s) triturado(s), %d erro(s)." % (count, len(errs)))
         if errs:
             messagebox.showwarning("Erros", "\n".join("%s: %s" % e for e in errs[:20]))
@@ -294,7 +373,8 @@ def run_gui():
                 % len(items), icon="warning"):
             return
         go.config(state="disabled")
-        bar.start(12)
+        est["burning"] = True
+        est["msg"] = "TRITURANDO..."
         threading.Thread(target=work, args=(list(items), max(1, passes.get())),
                          daemon=True).start()
 

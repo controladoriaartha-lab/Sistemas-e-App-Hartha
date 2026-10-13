@@ -1,3 +1,2 @@
-tkinterdnd2
 pyinstaller
 pillow

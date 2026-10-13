@@ -8,7 +8,7 @@ aleatórios; a última passada é sempre aleatória, padrão 3 passadas), força
 no disco (`fsync`), zera o tamanho, troca o nome por um aleatório e só então remove.
 
 ## Usar
-- **Arrastar e soltar:** arraste quantos arquivos e pastas quiser para a janela (ou use os botões), confira a lista e clique em **ACEITAR E TRITURAR**. Durante a exclusão, uma animação de fogo mostra que os arquivos estão sendo destruídos.
+- **Arrastar e soltar:** arraste quantos arquivos e pastas quiser para a janela (ou use os botões), confira a lista e clique em **TRITURAR AGORA OS ARQUIVOS**. Durante a exclusão, chamas animadas mostram que os arquivos estão sendo destruídos.
 - **Interface (sem tela preta):** `TrituradorHartha.exe` ou duplo clique em `Triturador.pyw`.
 - **Linha de comando:** `python triturador.py [-p N] [-y] CAMINHO ...` (sem `-y` exige digitar `APAGAR`).
 - **Gerar o .exe portátil (Windows):** rodar `build_windows.bat` → `dist\TrituradorHartha.exe` (sem console, com ícone).

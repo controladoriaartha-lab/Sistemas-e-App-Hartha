@@ -147,59 +147,73 @@ def run_cli(args):
 
 # ----------------------------------------------------------------------------- GUI
 class Fire:
-    """Sistema de particulas das chamas (logica pura, independente da janela)."""
+    """Chamas nitidas (linguas de fogo em camadas) + faiscas. Logica pura, sem janela."""
+
+    LAYERS = ((1.00, 1.00, "#d9301a"), (0.80, 0.78, "#ff7a1a"),
+              (0.58, 0.55, "#ffc12e"), (0.34, 0.32, "#fff4b8"))  # (largura, altura, cor)
 
     def __init__(self, width, height):
-        self.w, self.h = width, height
-        self.p = []  # [x, y, vx, vy, vida, vida_max, raio, faisca]
-        self.t = 0
+        self.w, self.h, self.t = width, height, 0
+        self.sparks = []  # [x, y, vx, vy, vida, vida_max, raio]
+        self.n = 0
+        self.tongues = []
+        self.intensity = 0.0
+
+    def _build(self):
+        self.n = max(7, int(self.w // 60))
+        self.tongues = [(random.uniform(0, 6.3), random.uniform(.10, .17), random.uniform(.8, 1.0))
+                        for _ in range(self.n)]
 
     def resize(self, width, height):
         self.w, self.h = width, height
+        if not self.n or self.n != max(7, int(width // 60)):
+            self._build()
 
     def step(self, burning):
         self.t += 1
-        if burning:
-            for _ in range(max(4, self.w // 24)):  # chamas ao longo de toda a largura
-                x = random.uniform(0, self.w)
-                centro = 1 - abs(x - self.w / 2) / (self.w / 2)  # mais alto no meio
-                vida = random.randint(18, 30 + int(22 * centro))
-                self.p.append([x, self.h + 4, random.uniform(-.6, .6),
-                               random.uniform(2.6, 4.6) * (0.8 + .5 * centro),
-                               vida, vida, random.uniform(6, 12), False])
-            for _ in range(2):  # faiscas
-                vida = random.randint(25, 45)
-                self.p.append([random.uniform(0, self.w), self.h - 5, random.uniform(-1.5, 1.5),
-                               random.uniform(3, 6), vida, vida, random.uniform(1.5, 2.8), True])
-        alive = []
-        for q in self.p:
-            q[0] += q[2] + math.sin((self.t + q[1]) / 9.0) * .7
+        self.intensity = min(1.0, self.intensity + 0.12) if burning else max(0.0, self.intensity - 0.07)
+        if self.intensity > 0.3:
+            for _ in range(2):
+                vida = random.randint(26, 46)
+                self.sparks.append([random.uniform(self.w * .05, self.w * .95), self.h * .8,
+                                    random.uniform(-.9, .9), random.uniform(2.4, 4.6),
+                                    vida, vida, random.uniform(1.4, 2.6)])
+        for q in self.sparks:
+            q[0] += q[2] + math.sin((self.t + q[1]) / 7.0) * .6
             q[1] -= q[3]
             q[4] -= 1
-            if q[4] > 0 and q[1] > -10:
-                alive.append(q)
-        self.p = alive[-1800:]
+        self.sparks = [q for q in self.sparks if q[4] > 0 and q[1] > -6]
 
-    @staticmethod
-    def color(ratio, spark=False):
-        """ratio 1 (nasce) -> 0 (morre): branco-amarelo, laranja, vermelho, brasa."""
-        stops = [(0.0, (70, 20, 20)), (0.35, (190, 30, 15)), (0.7, (255, 115, 20)),
-                 (1.0, (255, 205, 80))]
-        if spark:
-            return "#%02x%02x%02x" % (255, int(180 + 70 * ratio), int(60 + 120 * ratio))
-        for (a, ca), (b, cb) in zip(stops, stops[1:]):
-            if ratio <= b:
-                f = (ratio - a) / (b - a)
-                return "#%02x%02x%02x" % tuple(int(x + (y - x) * f) for x, y in zip(ca, cb))
-        return "#ffcd50"
+    def _tongue(self, i):
+        phase, speed, base = self.tongues[i]
+        cx = (i + .5) * self.w / self.n
+        centro = 1 - abs(cx - self.w / 2) / (self.w / 2) * .55
+        flick = .72 + .18 * math.sin(self.t * speed * 3 + phase) + .10 * math.sin(self.t * speed * 7.3 + phase * 2)
+        height = self.h * .95 * centro * base * flick * self.intensity
+        sway = math.sin(self.t * speed + phase) * self.w / self.n * .30
+        return cx, (self.w / self.n) * 1.15, height, sway
 
     def shapes(self):
-        """Lista (x0, y0, x1, y1, cor) de baixo p/ cima: velhas (grandes) primeiro."""
+        """[('poly', [x,y,...], cor)] de tras para frente, depois [('spark', x,y,r,cor)]."""
         out = []
-        for x, y, _vx, _vy, vida, vmax, r, spark in sorted(self.p, key=lambda q: q[4]):
+        if self.intensity > 0.02:
+            order = sorted(range(self.n), key=lambda i: self._tongue(i)[2])  # altas ao fundo
+            for i in reversed(order):
+                cx, bw, height, sway = self._tongue(i)
+                for wk, hk, cor in self.LAYERS:
+                    pts_l, pts_r = [], []
+                    for k in range(0, 13):
+                        u = k / 12.0
+                        half = bw / 2 * wk * (1 - u ** 1.5) ** 1.15
+                        x = cx + sway * u * u
+                        y = self.h + 2 - u * height * hk
+                        pts_l += [x - half, y]
+                        pts_r = [x + half, y] + pts_r
+                    out.append(("poly", pts_l + pts_r, cor))
+        for x, y, _vx, _vy, vida, vmax, r in self.sparks:
             ratio = vida / vmax
-            rr = r * (0.35 + 0.65 * ratio) if not spark else r
-            out.append((x - rr, y - rr * 1.35, x + rr, y + rr * 1.35, self.color(ratio, spark)))
+            cor = "#fff6c8" if ratio > .55 else "#ffc233" if ratio > .25 else "#ff7a1a"
+            out.append(("spark", x, y, r * (.5 + .5 * ratio), cor))
         return out
 
 
@@ -207,9 +221,61 @@ TITULO = "TRITURADOR DE ARQUIVO PERMANENTE"
 NAVY, GOLD, RED = "#142642", "#d4af37", "#c82d2d"
 
 
-def parse_drop(tk_root, data):
-    """Converte o texto de um evento de arrastar-e-soltar em lista de caminhos."""
-    return [p for p in tk_root.tk.splitlist(data) if p]
+def _ativar_arrastar_windows(widgets, on_files):
+    """Arrastar-e-soltar nativo do Windows (sem bibliotecas extras). Chama on_files(lista)."""
+    import ctypes
+    from ctypes import wintypes
+
+    user32, shell32 = ctypes.windll.user32, ctypes.windll.shell32
+    WM_DROPFILES, GWL_WNDPROC = 0x0233, -4
+    WNDPROC = ctypes.WINFUNCTYPE(ctypes.c_ssize_t, wintypes.HWND, wintypes.UINT,
+                                 wintypes.WPARAM, wintypes.LPARAM)
+    set_long = getattr(user32, "SetWindowLongPtrW", None) or user32.SetWindowLongW
+    set_long.restype = ctypes.c_void_p
+    set_long.argtypes = [wintypes.HWND, ctypes.c_int, WNDPROC]
+    call = user32.CallWindowProcW
+    call.restype = ctypes.c_ssize_t
+    call.argtypes = [ctypes.c_void_p, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    shell32.DragQueryFileW.argtypes = [ctypes.c_void_p, wintypes.UINT, wintypes.LPWSTR, wintypes.UINT]
+    shell32.DragQueryFileW.restype = wintypes.UINT
+    shell32.DragFinish.argtypes = [ctypes.c_void_p]
+    shell32.DragAcceptFiles.argtypes = [wintypes.HWND, wintypes.BOOL]
+    keep = []  # evita o coletor de lixo apagar os callbacks
+
+    def hook(hwnd):
+        old = {}
+
+        def proc(h, msg, wp, lp):
+            if msg == WM_DROPFILES:
+                n = shell32.DragQueryFileW(wp, 0xFFFFFFFF, None, 0)
+                paths = []
+                for i in range(n):
+                    buf = ctypes.create_unicode_buffer(32768)
+                    shell32.DragQueryFileW(wp, i, buf, 32768)
+                    paths.append(buf.value)
+                shell32.DragFinish(wp)
+                on_files(paths)
+                return 0
+            return call(old["p"], h, msg, wp, lp)
+
+        cb = WNDPROC(proc)
+        keep.append((cb, old))
+        try:  # permite soltar mesmo se o app estiver como administrador
+            for m in (WM_DROPFILES, 0x0049, 0x004A):
+                user32.ChangeWindowMessageFilterEx(hwnd, m, 1, None)
+        except Exception:  # noqa: BLE001
+            pass
+        shell32.DragAcceptFiles(hwnd, True)
+        old["p"] = set_long(hwnd, GWL_WNDPROC, cb)
+
+    for w in widgets:
+        w.update_idletasks()
+        hwnd = w.winfo_id()
+        hook(hwnd)
+        if w is widgets[0]:  # janela principal: tambem a janela de nivel superior
+            top = user32.GetParent(hwnd)
+            if top:
+                hook(top)
 
 
 def run_gui():
@@ -218,15 +284,7 @@ def run_gui():
     import tkinter as tk
     from tkinter import filedialog, messagebox, ttk
 
-    try:  # arrastar-e-soltar (pip install tkinterdnd2); sem ele, so os botoes
-        from tkinterdnd2 import DND_FILES, TkinterDnD
-        root = TkinterDnD.Tk()
-        dnd = True
-    except Exception:  # noqa: BLE001
-        root = tk.Tk()
-        dnd = False
-        DND_FILES = None
-
+    root = tk.Tk()
     root.title(TITULO)
     root.geometry("760x560")
     root.minsize(620, 460)
@@ -239,127 +297,104 @@ def run_gui():
 
     items = []
 
-    # Cabecalho com o nome do aplicativo
-    head = tk.Frame(root, bg=NAVY, height=70)
+    # Cabecalho: so o nome do aplicativo
+    head = tk.Frame(root, bg=NAVY)
     head.pack(fill="x")
     tk.Label(head, text=TITULO, bg=NAVY, fg=GOLD,
-             font=("Segoe UI", 18, "bold")).pack(expand=True, pady=(10, 0))
-    tk.Label(head, text="Exclui sem lixeira e sem recuperacao", bg=NAVY, fg="#cfd6e4",
-             font=("Segoe UI", 9)).pack(pady=(0, 8))
+             font=("Segoe UI", 18, "bold")).pack(pady=16)
 
-    # Area de soltar
-    drop = tk.Label(
-        root, bg="#fff7f7", fg=RED, bd=2, relief="groove", height=4,
-        font=("Segoe UI", 12, "bold"),
-        text=("ARRASTE E SOLTE AQUI\nquantos arquivos e pastas quiser" if dnd else
-              "Use os botoes abaixo para escolher arquivos e pastas\n"
-              "(arrastar exige: pip install tkinterdnd2)"))
+    drop = tk.Label(root, bg="#fff7f7", fg=RED, bd=2, relief="groove", height=3,
+                    font=("Segoe UI", 13, "bold"), text="ARRASTE E SOLTE AQUI")
     drop.pack(fill="x", padx=12, pady=(12, 6))
 
     bar_btn = ttk.Frame(root, padding=(12, 0))
     bar_btn.pack(fill="x")
 
+    # Botao e painel de fogo ficam no rodape (empacotados antes da lista p/ nao sumirem)
+    go = tk.Button(root, text="TRITURAR AGORA OS ARQUIVOS", bg=RED, fg="white", bd=0,
+                   font=("Segoe UI", 13, "bold"), activebackground="#9c2020",
+                   activeforeground="white", cursor="hand2", pady=10)
+    go.pack(side="bottom", fill="x", padx=12, pady=12)
+    fogo = tk.Canvas(root, height=140, bg="#10151f", highlightthickness=0)
+    sim = Fire(740, 140)
+    est = {"burning": False, "msg": "", "ativo": False}
+
     frame = ttk.Frame(root, padding=(12, 6))
     frame.pack(fill="both", expand=True)
-    lb = tk.Listbox(frame, selectmode="extended", activestyle="none")
+    lb = tk.Listbox(frame, selectmode="extended", activestyle="none", bd=1)
     sb = ttk.Scrollbar(frame, orient="vertical", command=lb.yview)
     lb.config(yscrollcommand=sb.set)
     sb.pack(side="right", fill="y")
     lb.pack(side="left", fill="both", expand=True)
 
-    status = tk.StringVar(value="Nenhum item na lista.")
-    passes = tk.IntVar(value=3)
-
-    def refresh():
-        status.set("%d item(ns) aguardando. Confira e clique em ACEITAR E TRITURAR." % len(items)
-                   if items else "Nenhum item na lista.")
+    def tick():
+        if est["ativo"]:
+            w, h = max(fogo.winfo_width(), 100), max(fogo.winfo_height(), 60)
+            sim.resize(w, h)
+            sim.step(est["burning"])
+            fogo.delete("all")
+            for sh in sim.shapes():
+                if sh[0] == "poly":
+                    fogo.create_polygon(sh[1], fill=sh[2], outline="", smooth=True)
+                else:
+                    _, x, y, r, c = sh
+                    fogo.create_oval(x - r, y - r, x + r, y + r, fill=c, outline="")
+            if est["msg"]:
+                for dx, dy, cor in ((2, 2, "black"), (0, 0, "white")):
+                    fogo.create_text(w / 2 + dx, 22 + dy, text=est["msg"], fill=cor,
+                                     font=("Segoe UI", 11, "bold"), width=w - 40)
+            if not est["burning"] and sim.intensity <= 0 and not sim.sparks:
+                est["ativo"] = False
+                fogo.pack_forget()
+        root.after(40, tick)
 
     def add(paths):
         for p in paths:
             p = os.path.abspath(p)
             if p not in items and os.path.exists(p):
                 items.append(p)
-                lb.insert("end", ("[PASTA] " if os.path.isdir(p) else "") + p)
-        refresh()
-
-    def on_drop(event):
-        add(parse_drop(root, event.data))
-        return event.action
-
-    if dnd:
-        for w in (root, drop, lb):
-            w.drop_target_register(DND_FILES)
-            w.dnd_bind("<<Drop>>", on_drop)
+                lb.insert("end", p)
 
     def add_files():
-        add(filedialog.askopenfilenames(title="Escolha os arquivos (varios permitidos)"))
+        add(filedialog.askopenfilenames(title="Escolha os arquivos"))
 
     def add_folder():
         d = filedialog.askdirectory(title="Escolha a pasta")
         if d:
             add([d])
 
-    def remove_sel():
-        for i in reversed(lb.curselection()):
-            lb.delete(i)
-            del items[i]
-        refresh()
-
     def clear_all():
         lb.delete(0, "end")
         items.clear()
-        refresh()
 
-    ttk.Button(bar_btn, text="Adicionar arquivos...", command=add_files).pack(side="left")
-    ttk.Button(bar_btn, text="Adicionar pasta...", command=add_folder).pack(side="left", padx=4)
-    ttk.Button(bar_btn, text="Remover selecionados", command=remove_sel).pack(side="left")
-    ttk.Button(bar_btn, text="Limpar lista", command=clear_all).pack(side="left", padx=4)
-    ttk.Label(bar_btn, text="Passadas:").pack(side="left", padx=(14, 2))
-    ttk.Spinbox(bar_btn, from_=1, to=35, width=4, textvariable=passes).pack(side="left")
+    ttk.Button(bar_btn, text="Adicionar arquivos", command=add_files).pack(side="left")
+    ttk.Button(bar_btn, text="Adicionar pasta", command=add_folder).pack(side="left", padx=4)
+    ttk.Button(bar_btn, text="Limpar", command=clear_all).pack(side="left")
 
-    fogo = tk.Canvas(root, height=130, bg="#10151f", highlightthickness=0)
-    fogo.pack(fill="x", padx=12, pady=(2, 4))
-    sim = Fire(740, 130)
-    est = {"burning": False, "msg": "Pronto para triturar"}
+    if os.name == "nt":
+        try:
+            _ativar_arrastar_windows([root, drop, lb], lambda ps: root.after(0, add, ps))
+        except Exception:  # noqa: BLE001  (sem arrastar, os botoes continuam funcionando)
+            pass
 
-    def tick():
-        w, h = max(fogo.winfo_width(), 100), max(fogo.winfo_height(), 60)
-        sim.resize(w, h)
-        sim.step(est["burning"])
-        fogo.delete("all")
-        for x0, y0, x1, y1, c in sim.shapes():
-            fogo.create_oval(x0, y0, x1, y1, fill=c, outline="")
-        for dx, dy, cor in ((2, 2, "black"), (0, 0, "white")):  # sombra p/ leitura
-            fogo.create_text(w / 2 + dx, h / 2 + dy, text=est["msg"], fill=cor,
-                             font=("Segoe UI", 13, "bold"), width=w - 40)
-        root.after(40, tick)
-
-    tick()
-    ttk.Label(root, textvariable=status).pack(fill="x", padx=12)
-    go = tk.Button(root, text="ACEITAR E TRITURAR", bg=RED, fg="white", bd=0,
-                   font=("Segoe UI", 12, "bold"), activebackground="#9c2020",
-                   activeforeground="white", cursor="hand2", pady=8)
-    go.pack(fill="x", padx=12, pady=10)
-
-    def work(targets, n):
+    def work(targets):
         errs, count = [], [0]
         t0 = time.time()
 
         def prog(p):
             count[0] += 1
-            est["msg"] = "TRITURANDO...  " + os.path.basename(p)
+            est["msg"] = os.path.basename(p)
 
         for t in targets:
-            shred_path(t, n, prog, errs)
-        # garante que as chamas aparecam mesmo para arquivos pequenos (min. 3 s)
+            shred_path(t, 3, prog, errs)
         root.after(int(max(0, 3.0 - (time.time() - t0)) * 1000), done, errs, count[0])
 
     def done(errs, count):
         est["burning"] = False
+        est["msg"] = ""
         go.config(state="normal")
         clear_all()
-        est["msg"] = "Concluido: %d arquivo(s) apagado(s) permanentemente" % count
-        status.set("Concluido: %d arquivo(s) triturado(s), %d erro(s)." % (count, len(errs)))
+        drop.config(text="CONCLUIDO - %d ARQUIVO(S) APAGADO(S)" % count)
         if errs:
             messagebox.showwarning("Erros", "\n".join("%s: %s" % e for e in errs[:20]))
 
@@ -368,17 +403,18 @@ def run_gui():
             messagebox.showinfo(TITULO, "Arraste arquivos ou pastas para a janela primeiro.")
             return
         if not messagebox.askyesno(
-                "Confirmar exclusao permanente",
-                "%d item(ns) serao apagados PERMANENTEMENTE.\nNao ha como desfazer.\n\nAceitar?"
+                "Confirmar",
+                "%d item(ns) serao apagados PERMANENTEMENTE.\nNao ha como desfazer.\n\nTriturar agora?"
                 % len(items), icon="warning"):
             return
         go.config(state="disabled")
-        est["burning"] = True
-        est["msg"] = "TRITURANDO..."
-        threading.Thread(target=work, args=(list(items), max(1, passes.get())),
-                         daemon=True).start()
+        drop.config(text="ARRASTE E SOLTE AQUI")
+        fogo.pack(side="bottom", fill="x", padx=12, before=frame)
+        est.update(burning=True, ativo=True, msg="")
+        threading.Thread(target=work, args=(list(items),), daemon=True).start()
 
     go.config(command=start)
+    tick()
     root.mainloop()
 
 

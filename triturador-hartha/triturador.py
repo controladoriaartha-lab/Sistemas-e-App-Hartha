@@ -144,56 +144,126 @@ def run_cli(args):
 
 
 # ----------------------------------------------------------------------------- GUI
+TITULO = "TRITURADOR DE ARQUIVO PERMANENTE"
+NAVY, GOLD, RED = "#142642", "#d4af37", "#c82d2d"
+
+
+def parse_drop(tk_root, data):
+    """Converte o texto de um evento de arrastar-e-soltar em lista de caminhos."""
+    return [p for p in tk_root.tk.splitlist(data) if p]
+
+
 def run_gui():
     import threading
     import tkinter as tk
     from tkinter import filedialog, messagebox, ttk
 
-    root = tk.Tk()
-    root.title("Triturador Hartha - exclusao permanente")
+    try:  # arrastar-e-soltar (pip install tkinterdnd2); sem ele, so os botoes
+        from tkinterdnd2 import DND_FILES, TkinterDnD
+        root = TkinterDnD.Tk()
+        dnd = True
+    except Exception:  # noqa: BLE001
+        root = tk.Tk()
+        dnd = False
+        DND_FILES = None
+
+    root.title(TITULO)
+    root.geometry("760x560")
+    root.minsize(620, 460)
+    root.configure(bg="#f3f4f7")
     try:
         base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
         root.iconbitmap(os.path.join(base, "icone.ico"))
-    except Exception:  # noqa: BLE001  (icone e opcional; Linux/Mac ignoram .ico)
+    except Exception:  # noqa: BLE001  (icone e opcional)
         pass
-    root.geometry("720x480")
+
     items = []
 
-    top = ttk.Frame(root, padding=8)
-    top.pack(fill="x")
-    lb = tk.Listbox(root, selectmode="extended")
-    lb.pack(fill="both", expand=True, padx=8)
-    status = tk.StringVar(value="Adicione arquivos ou pastas.")
+    # Cabecalho com o nome do aplicativo
+    head = tk.Frame(root, bg=NAVY, height=70)
+    head.pack(fill="x")
+    tk.Label(head, text=TITULO, bg=NAVY, fg=GOLD,
+             font=("Segoe UI", 18, "bold")).pack(expand=True, pady=(10, 0))
+    tk.Label(head, text="Exclui sem lixeira e sem recuperacao", bg=NAVY, fg="#cfd6e4",
+             font=("Segoe UI", 9)).pack(pady=(0, 8))
+
+    # Area de soltar
+    drop = tk.Label(
+        root, bg="#fff7f7", fg=RED, bd=2, relief="groove", height=4,
+        font=("Segoe UI", 12, "bold"),
+        text=("ARRASTE E SOLTE AQUI\nquantos arquivos e pastas quiser" if dnd else
+              "Use os botoes abaixo para escolher arquivos e pastas\n"
+              "(arrastar exige: pip install tkinterdnd2)"))
+    drop.pack(fill="x", padx=12, pady=(12, 6))
+
+    bar_btn = ttk.Frame(root, padding=(12, 0))
+    bar_btn.pack(fill="x")
+
+    frame = ttk.Frame(root, padding=(12, 6))
+    frame.pack(fill="both", expand=True)
+    lb = tk.Listbox(frame, selectmode="extended", activestyle="none")
+    sb = ttk.Scrollbar(frame, orient="vertical", command=lb.yview)
+    lb.config(yscrollcommand=sb.set)
+    sb.pack(side="right", fill="y")
+    lb.pack(side="left", fill="both", expand=True)
+
+    status = tk.StringVar(value="Nenhum item na lista.")
     passes = tk.IntVar(value=3)
+
+    def refresh():
+        status.set("%d item(ns) aguardando. Confira e clique em ACEITAR E TRITURAR." % len(items)
+                   if items else "Nenhum item na lista.")
 
     def add(paths):
         for p in paths:
-            if p and p not in items:
+            p = os.path.abspath(p)
+            if p not in items and os.path.exists(p):
                 items.append(p)
-                lb.insert("end", p)
+                lb.insert("end", ("[PASTA] " if os.path.isdir(p) else "") + p)
+        refresh()
+
+    def on_drop(event):
+        add(parse_drop(root, event.data))
+        return event.action
+
+    if dnd:
+        for w in (root, drop, lb):
+            w.drop_target_register(DND_FILES)
+            w.dnd_bind("<<Drop>>", on_drop)
 
     def add_files():
-        add(filedialog.askopenfilenames(title="Escolha os arquivos"))
+        add(filedialog.askopenfilenames(title="Escolha os arquivos (varios permitidos)"))
 
     def add_folder():
-        add([filedialog.askdirectory(title="Escolha a pasta")])
+        d = filedialog.askdirectory(title="Escolha a pasta")
+        if d:
+            add([d])
 
     def remove_sel():
         for i in reversed(lb.curselection()):
             lb.delete(i)
             del items[i]
+        refresh()
 
-    ttk.Button(top, text="Adicionar arquivos", command=add_files).pack(side="left")
-    ttk.Button(top, text="Adicionar pasta", command=add_folder).pack(side="left", padx=4)
-    ttk.Button(top, text="Remover da lista", command=remove_sel).pack(side="left")
-    ttk.Label(top, text="Passadas:").pack(side="left", padx=(16, 2))
-    ttk.Spinbox(top, from_=1, to=35, width=4, textvariable=passes).pack(side="left")
+    def clear_all():
+        lb.delete(0, "end")
+        items.clear()
+        refresh()
+
+    ttk.Button(bar_btn, text="Adicionar arquivos...", command=add_files).pack(side="left")
+    ttk.Button(bar_btn, text="Adicionar pasta...", command=add_folder).pack(side="left", padx=4)
+    ttk.Button(bar_btn, text="Remover selecionados", command=remove_sel).pack(side="left")
+    ttk.Button(bar_btn, text="Limpar lista", command=clear_all).pack(side="left", padx=4)
+    ttk.Label(bar_btn, text="Passadas:").pack(side="left", padx=(14, 2))
+    ttk.Spinbox(bar_btn, from_=1, to=35, width=4, textvariable=passes).pack(side="left")
 
     bar = ttk.Progressbar(root, mode="indeterminate")
-    bar.pack(fill="x", padx=8, pady=4)
-    ttk.Label(root, textvariable=status).pack(fill="x", padx=8)
-    go = ttk.Button(root, text="APAGAR PERMANENTEMENTE")
-    go.pack(pady=8)
+    bar.pack(fill="x", padx=12, pady=(2, 4))
+    ttk.Label(root, textvariable=status).pack(fill="x", padx=12)
+    go = tk.Button(root, text="ACEITAR E TRITURAR", bg=RED, fg="white", bd=0,
+                   font=("Segoe UI", 12, "bold"), activebackground="#9c2020",
+                   activeforeground="white", cursor="hand2", pady=8)
+    go.pack(fill="x", padx=12, pady=10)
 
     def work(targets, n):
         errs, count = [], [0]
@@ -209,18 +279,18 @@ def run_gui():
     def done(errs, count):
         bar.stop()
         go.config(state="normal")
-        lb.delete(0, "end")
-        items.clear()
+        clear_all()
         status.set("Concluido: %d arquivo(s) triturado(s), %d erro(s)." % (count, len(errs)))
         if errs:
             messagebox.showwarning("Erros", "\n".join("%s: %s" % e for e in errs[:20]))
 
     def start():
         if not items:
+            messagebox.showinfo(TITULO, "Arraste arquivos ou pastas para a janela primeiro.")
             return
         if not messagebox.askyesno(
-                "Confirmar",
-                "%d item(ns) serao apagados PERMANENTEMENTE.\nNao ha como desfazer.\n\nContinuar?"
+                "Confirmar exclusao permanente",
+                "%d item(ns) serao apagados PERMANENTEMENTE.\nNao ha como desfazer.\n\nAceitar?"
                 % len(items), icon="warning"):
             return
         go.config(state="disabled")

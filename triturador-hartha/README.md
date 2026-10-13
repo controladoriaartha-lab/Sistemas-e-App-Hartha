@@ -1,0 +1,29 @@
+# Triturador Hartha
+
+Aplicativo portátil (um único arquivo, sem instalação, sem dependências) que apaga
+arquivos e pastas **permanentemente**, sem passar pela lixeira.
+
+Como funciona, por arquivo: sobrescreve o conteúdo (padrões 00/FF/55/AA + dados
+aleatórios; a última passada é sempre aleatória, padrão 3 passadas), força gravação
+no disco (`fsync`), zera o tamanho, troca o nome por um aleatório e só então remove.
+
+## Usar
+- **Interface:** `python triturador.py` (ou o `TrituradorHartha.exe`), adicionar arquivos/pastas, confirmar.
+- **Linha de comando:** `python triturador.py [-p N] [-y] CAMINHO ...` (sem `-y` exige digitar `APAGAR`).
+- **Gerar o .exe portátil (Windows):** rodar `build_windows.bat` → `dist\TrituradorHartha.exe`.
+
+## Proteções
+Recusa raiz da unidade, pasta do usuário e pastas do sistema. Links simbólicos nunca
+são seguidos (remove só o atalho).
+
+## Limites (leia antes de confiar)
+- **SSD/NVMe, pendrive e cartão:** o controlador faz *wear-leveling*, então a sobrescrita
+  pode não atingir as células antigas. Para esses discos, o método confiável é **criptografia
+  de disco (BitLocker/VeraCrypt) + TRIM**, ou descartar a chave/o disco. Em HDD comum, funciona bem.
+- **Sistemas com journaling/snapshots** (NTFS com Shadow Copy, APIs de histórico de arquivos,
+  btrfs/ZFS) podem manter cópias antigas.
+- **Cópias fora do arquivo:** nuvem (OneDrive/Drive), backups, histórico de versões, arquivos
+  temporários e miniaturas não são afetados.
+- **Arquivos já enviados à lixeira ou apagados antes** não são triturados; para isso seria
+  necessário limpar o espaço livre (não incluído nesta versão).
+- Não há desfazer. Confira a lista antes de confirmar.

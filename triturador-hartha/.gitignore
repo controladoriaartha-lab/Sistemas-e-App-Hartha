@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+*.estado.json
+*.estado.json.tmp
+triturador_erro.log

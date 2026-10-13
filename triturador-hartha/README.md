@@ -44,6 +44,17 @@ são seguidos (remove só o atalho).
   em trabalho, e por baixo dele jorra uma chuva rápida de faíscas (como aço sendo moído), com rastro,
   quique no chão e estrelinhas. Se o computador for lento, o programa reduz sozinho a quantidade de faíscas.
 
+## Memória da janela (v11)
+O programa lembra **o modo (mini ou aberto) e a posição** em que foi fechado e reabre igual. Fica gravado em
+`TrituradorHartha.estado.json`, ao lado do programa (portátil; se a pasta não permitir escrita, usa `%APPDATA%`).
+Se a posição gravada ficar fora da tela (ex.: monitor desconectado), a janela volta para dentro dela.
+Para "esquecer", apague esse arquivo.
+
+## Percentual e ícone
+- Durante a trituração aparece o **percentual real** (bytes x passadas) ao lado do botão de ampliar/reduzir.
+- O logo aparece na barra de tarefas e no Alt+Tab (o programa se identifica ao Windows como app próprio,
+  em vez de "Python", inclusive quando aberto pelo `Triturador.pyw`).
+
 ## Se a janela sumir (corrigido na v7)
 Causa real encontrada em teste: o gancho de arrastar-e-soltar era descartado da memória e, depois,
 chamava o tkinter dentro do callback do Windows; ambos derrubavam o programa. Foi corrigido e testado.

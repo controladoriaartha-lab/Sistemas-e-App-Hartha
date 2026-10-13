@@ -8,9 +8,11 @@ Uso (GUI):  python triturador.py
 Uso (CLI):  python triturador.py [--passes N] [--yes] CAMINHO [CAMINHO ...]
 """
 import argparse
+import json
 import math
 import os
 import random
+import re
 import secrets
 import stat
 import sys
@@ -39,7 +41,7 @@ def _protected(path):
     return p in blocked
 
 
-def _overwrite(f, size, passes):
+def _overwrite(f, size, passes, bytes_cb=None):
     for n in range(passes):
         f.seek(0)
         last = n == passes - 1
@@ -51,6 +53,8 @@ def _overwrite(f, size, passes):
             k = min(CHUNK, remaining)
             f.write(secrets.token_bytes(k) if use_random else pat * k)
             remaining -= k
+            if bytes_cb:
+                bytes_cb(k)
         f.flush()
         os.fsync(f.fileno())
 
@@ -70,9 +74,11 @@ def _unlink_anonymous(path):
     os.remove(path)
 
 
-def shred_file(path, passes=3, progress=None):
+def shred_file(path, passes=3, progress=None, bytes_cb=None):
     if os.path.islink(path):  # nunca segue link: remove so o atalho
         os.remove(path)
+        if bytes_cb:
+            bytes_cb(1)
         return
     if not os.path.isfile(path):
         raise ShredError("nao e um arquivo regular: %s" % path)
@@ -83,16 +89,18 @@ def shred_file(path, passes=3, progress=None):
     size = os.path.getsize(path)
     if size:
         with open(path, "r+b", buffering=0) as f:
-            _overwrite(f, size, passes)
+            _overwrite(f, size, passes, bytes_cb)
             f.truncate(0)
             f.flush()
             os.fsync(f.fileno())
     _unlink_anonymous(path)
+    if bytes_cb:
+        bytes_cb(1)  # a remocao conta como 1 unidade (arquivos vazios tambem andam)
     if progress:
         progress(path)
 
 
-def shred_path(path, passes=3, progress=None, errors=None):
+def shred_path(path, passes=3, progress=None, errors=None, bytes_cb=None):
     """Tritura arquivo ou pasta (recursivo). Devolve a lista de erros."""
     errors = [] if errors is None else errors
     path = os.path.abspath(path)
@@ -104,7 +112,7 @@ def shred_path(path, passes=3, progress=None, errors=None):
             for name in files:
                 fp = os.path.join(root, name)
                 try:
-                    shred_file(fp, passes, progress)
+                    shred_file(fp, passes, progress, bytes_cb)
                 except Exception as e:  # noqa: BLE001
                     errors.append((fp, str(e)))
             for name in dirs:
@@ -122,13 +130,90 @@ def shred_path(path, passes=3, progress=None, errors=None):
             errors.append((path, str(e)))
     else:
         try:
-            shred_file(path, passes, progress)
+            shred_file(path, passes, progress, bytes_cb)
         except Exception as e:  # noqa: BLE001
             errors.append((path, str(e)))
     return errors
 
 
 # ----------------------------------------------------------------------------- CLI
+def unidades_trabalho(paths, passes=3):
+    """Total de 'unidades' que a trituracao vai executar (bytes x passadas + 1 por arquivo)."""
+    total = 0
+    for p in paths:
+        p = os.path.abspath(p)
+        if os.path.isdir(p) and not os.path.islink(p):
+            for raiz, _dirs, arqs in os.walk(p):
+                for nome in arqs:
+                    total += _unidades_arquivo(os.path.join(raiz, nome), passes)
+        elif os.path.exists(p) or os.path.islink(p):
+            total += _unidades_arquivo(p, passes)
+    return max(1, total)
+
+
+def _unidades_arquivo(fp, passes):
+    try:
+        if os.path.islink(fp) or not os.path.isfile(fp):
+            return 1
+        return os.path.getsize(fp) * passes + 1
+    except OSError:
+        return 1
+
+
+# ----------------------------------------------------------------------------- memoria da janela
+def arquivo_estado():
+    """Onde guardar posicao/modo da janela: ao lado do programa (portatil) ou em %APPDATA%."""
+    env = os.environ.get("TRITURADOR_ESTADO")
+    if env:
+        return env
+    nome = "TrituradorHartha.estado.json"
+    exe = sys.executable if getattr(sys, "frozen", False) else os.path.abspath(__file__)
+    pasta = os.path.dirname(os.path.abspath(exe))
+    if os.access(pasta, os.W_OK):
+        return os.path.join(pasta, nome)
+    base = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), ".config")
+    pasta = os.path.join(base, "TrituradorHartha")
+    try:
+        os.makedirs(pasta, exist_ok=True)
+    except OSError:
+        pass
+    return os.path.join(pasta, nome)
+
+
+def ler_estado():
+    try:
+        with open(arquivo_estado(), "r", encoding="utf-8") as f:
+            d = json.load(f)
+        ok = {}
+        if isinstance(d.get("mini"), bool):
+            ok["mini"] = d["mini"]
+        for k in ("x", "y", "w", "h"):
+            if isinstance(d.get(k), int) and not isinstance(d.get(k), bool):
+                ok[k] = d[k]
+        return ok
+    except Exception:  # noqa: BLE001  (arquivo ausente/corrompido: usa o padrao)
+        return {}
+
+
+def gravar_estado(d):
+    destino = arquivo_estado()
+    tmp = destino + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(d, f)
+        os.replace(tmp, destino)  # troca atomica: nunca deixa o arquivo pela metade
+    except Exception:  # noqa: BLE001  (so memoria de conforto; nunca derruba o programa)
+        pass
+
+
+def ajustar_posicao(x, y, w, h, area):
+    """Mantem a janela visivel: area = (x0, y0, largura, altura) da tela (todos os monitores)."""
+    ax, ay, aw, ah = area
+    x = max(ax - w + 140, min(x, ax + aw - 140))   # sobra >=140 px visiveis na horizontal
+    y = max(ay, min(y, ay + ah - 70))              # barra de titulo sempre alcancavel
+    return x, y
+
+
 def run_cli(args):
     if not args.yes:
         print("Os itens abaixo serao APAGADOS PERMANENTEMENTE (sem recuperacao):")
@@ -508,11 +593,11 @@ if tk is not None:
                                     fill=GOLD, outline=GOLD_DARK)
 
     class Cabecalho(tk.Canvas):
-        """Faixa do titulo: logo grande + nome em relevo dourado sobre degrade azul."""
+        """Faixa do titulo: logo grande + nome em relevo dourado sobre degrade azul, com sombras."""
 
         def __init__(self, master, text, **kw):
             super().__init__(master, bg=NAVY, highlightthickness=0, **kw)
-            self.texto, self.compacto = text, False
+            self.texto, self.compacto, self.pct = text, False, None
             self.logo = tk.PhotoImage(data="".join(LOGO_B64))          # 84 px
             self.logo_peq = self.logo.subsample(2)                     # 42 px
             self.bind("<Configure>", lambda e: self._desenhar())
@@ -522,12 +607,35 @@ if tk is not None:
             self.config(height=54 if v else 98)
             self._desenhar()
 
+        def set_pct(self, v):
+            """Percentual da trituracao (0-100) ao lado do botao de ampliar/reduzir; None = oculto."""
+            if v == self.pct:
+                return
+            self.pct = v
+            self._desenhar_pct()
+
+        def _desenhar_pct(self):
+            self.delete("pct")
+            if self.pct is None:
+                return
+            w = max(self.winfo_width(), 40)
+            x = w - 10 - 32 - 14  # a esquerda do botao (32 px) com 10 px de margem
+            txt = "%d%%" % self.pct
+            fonte = ("Segoe UI", 14 if self.compacto else 17, "bold")
+            for dx, dy, col in ((2, 3, "#02060d"), (1, 2, "#0a1a33"), (1, 1, GOLD_DARK), (0, 0, GOLD_LIGHT)):
+                self.create_text(x + dx, 26 + dy, text=txt, fill=col, font=fonte, anchor="e", tags="pct")
+
         def _desenhar(self):
             import tkinter.font as tkfont
             self.delete("all")
             w, h = max(self.winfo_width(), 40), max(self.winfo_height(), 20)
             for y in range(h):
-                self.create_line(0, y, w, y, fill=_hex(_mix("#1f4373", "#0c1e3a", y / float(h))))
+                base = _mix("#1f4373", "#0c1e3a", y / float(h))
+                if y < 7:                      # sombra interna no alto (faixa "afundada")
+                    base = _mix(base, "#02060d", 0.55 * (1 - y / 7.0))
+                elif y >= h - 14 and y < h - 2:  # sombreado suave na base
+                    base = _mix(base, "#02060d", 0.38 * (y - (h - 14)) / 12.0)
+                self.create_line(0, y, w, y, fill=_hex(base))
             logo = self.logo_peq if self.compacto else self.logo
             texto = "TRITURADOR" if self.compacto else self.texto
             fonte = ("Segoe UI", 13 if self.compacto else 19, "bold")
@@ -536,14 +644,25 @@ if tk is not None:
             folga = 12 if self.compacto else 16
             total = lw + folga + tw
             x0 = max(8, (w - total) / 2 - (18 if self.compacto else 0))
-            self.create_oval(x0 - 4, h / 2 - lw / 2 - 2, x0 + lw + 4, h / 2 + lw / 2 + 6,
-                             fill="#0a1a33", outline="")  # sombra suave sob o logo
+            fundo = "#142c52"
+            # sombra suave (varias camadas, de fora p/ dentro) sob o logo, deslocada p/ baixo-direita
+            for k in range(11):
+                e = 7.0 - k * 0.62
+                cx0, cy0 = x0 + 3 - e, h / 2 - lw / 2 + 6 - e
+                cx1, cy1 = x0 + lw + 3 + e, h / 2 + lw / 2 + 6 + e
+                self.create_polygon(_pts_arredondados(cx0, cy0, cx1, cy1, lw * 0.26 + e * 0.9),
+                                    smooth=True, fill=_hex(_mix(fundo, "#000000", 0.035 + k * 0.04)), outline="")
             self.create_image(x0, h / 2, image=logo, anchor="w")
             tx = x0 + lw + folga
-            for dx, dy, col in ((2, 3, "#02060d"), (1, 1, GOLD_DARK), (0, 0, GOLD_LIGHT)):
+            # sombra suave do titulo (camadas progressivamente mais escuras e proximas)
+            for dx, dy, t in ((6, 7, 0.10), (5, 6, 0.18), (4, 5, 0.30), (3, 4, 0.48), (2, 3, 0.70)):
+                self.create_text(tx + dx, h / 2 + dy, text=texto, fill=_hex(_mix(fundo, "#000000", t)),
+                                 font=fonte, anchor="w")
+            for dx, dy, col in ((1, 1, GOLD_DARK), (0, 0, GOLD_LIGHT)):
                 self.create_text(tx + dx, h / 2 + dy, text=texto, fill=col, font=fonte, anchor="w")
             self.create_line(0, h - 2, w, h - 2, fill=GOLD)
             self.create_line(0, h - 1, w, h - 1, fill=GOLD_DARK)
+            self._desenhar_pct()
 
     class BotaoMini(tk.Canvas):
         """Botao quadrado do canto: alterna entre janela normal e mini."""
@@ -695,6 +814,44 @@ def _estilizar_janela_windows(root):
     attr(34, bgr(GOLD))       # cor da borda
 
 
+def area_visivel(root):
+    """(x, y, largura, altura) da area de todos os monitores."""
+    if os.name == "nt":
+        try:
+            import ctypes
+            gm = ctypes.windll.user32.GetSystemMetrics
+            return gm(76), gm(77), gm(78), gm(79)
+        except Exception:  # noqa: BLE001
+            pass
+    return 0, 0, root.winfo_screenwidth(), root.winfo_screenheight()
+
+
+def definir_identidade_windows():
+    """Faz a barra de tarefas tratar o programa como app proprio (e nao como 'Python')."""
+    import ctypes
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Hartha.TrituradorArquivoPermanente")
+
+
+def definir_icone_windows(root, ico):
+    """Aplica o logo nos icones grande (barra de tarefas/Alt+Tab) e pequeno (titulo) da janela."""
+    import ctypes
+    from ctypes import wintypes
+    user32 = ctypes.windll.user32
+    user32.LoadImageW.restype = wintypes.HANDLE
+    user32.LoadImageW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT, ctypes.c_int,
+                                  ctypes.c_int, wintypes.UINT]
+    user32.SendMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    user32.SendMessageW.restype = ctypes.c_ssize_t
+    user32.GetParent.argtypes = [wintypes.HWND]
+    user32.GetParent.restype = wintypes.HWND
+    alvo = user32.GetParent(root.winfo_id()) or root.winfo_id()
+    gm = user32.GetSystemMetrics
+    for tipo, cx in ((1, gm(11)), (0, gm(49))):  # ICON_BIG (SM_CXICON), ICON_SMALL (SM_CXSMICON)
+        h = user32.LoadImageW(None, ico, 1, cx, cx, 0x10)  # IMAGE_ICON, LR_LOADFROMFILE
+        if h:
+            user32.SendMessageW(alvo, 0x0080, tipo, h)  # WM_SETICON
+
+
 def registrar_erro(exc_info=None):
     """Grava o erro em triturador_erro.log (ao lado do programa) e avisa na tela."""
     import traceback
@@ -723,18 +880,36 @@ def run_gui():
     MINI_W, MINI_H = 360, 244  # ~6x menor em area que a janela normal
     ui = {"mini": False, "F": MOLDURA, "tam": (NORMAL_W, NORMAL_H)}
 
+    if os.name == "nt":
+        try:
+            definir_identidade_windows()
+        except Exception:  # noqa: BLE001
+            pass
+
     root = tk.Tk()
     root.title(TITULO)
     root.minsize(640, 520)
-    root.geometry("%dx%d+%d+%d" % (NORMAL_W, NORMAL_H,
-                                   max(0, (root.winfo_screenwidth() - NORMAL_W) // 2),
-                                   max(0, (root.winfo_screenheight() - NORMAL_H) // 3)))
+    estado = ler_estado()                  # memoria: modo (mini/aberto) e posicao da ultima vez
+    area = area_visivel(root)
+    nw, nh = estado.get("w", NORMAL_W), estado.get("h", NORMAL_H)
+    if not (640 <= nw <= area[2] and 520 <= nh <= area[3]):
+        nw, nh = NORMAL_W, NORMAL_H
+    ui["tam"] = (nw, nh)
+    comeca_mini = estado.get("mini", False)
+    if "x" in estado and "y" in estado:
+        gx, gy = estado["x"], estado["y"]
+    else:
+        gx, gy = max(0, (root.winfo_screenwidth() - nw) // 2), max(0, (root.winfo_screenheight() - nh) // 3)
+    gx, gy = ajustar_posicao(gx, gy, nw, nh, area)
+    root.geometry("%dx%d+%d+%d" % (nw, nh, gx, gy))
     # Janela comum: outras janelas podem ficar na frente dela (lado a lado / sobrepostas).
     root.report_callback_exception = lambda *e: registrar_erro(e)
     root.configure(bg=BG)
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    ico = os.path.join(base, "icone.ico")
     try:
-        base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
-        root.iconbitmap(os.path.join(base, "icone.ico"))
+        root.iconbitmap(ico)
+        root.iconbitmap(default=ico)  # tambem para os dialogos
     except Exception:  # noqa: BLE001  (icone e opcional)
         pass
 
@@ -790,7 +965,7 @@ def run_gui():
     sim = Faiscas(740, 176)
     logo_img = tk.PhotoImage(data="".join(LOGO_B64))   # 84 px
     logo_peq = logo_img.subsample(2)                    # 42 px (modo mini)
-    est = {"burning": False, "msg": "", "ativo": False, "n": 0}
+    est = {"burning": False, "msg": "", "ativo": False, "n": 0, "total": None, "feito": 0, "disp": 0.0}
     fila = []  # caminhos recebidos do arrastar (lidos pela janela no tick)
 
     frame = tk.Frame(miolo, bg=PANEL)
@@ -823,18 +998,16 @@ def run_gui():
         if ui["mini"] and not drop.winfo_ismapped():
             drop.pack(fill="x", padx=14, pady=(8, 6))
 
-    def alternar_mini():
-        if est["burning"]:
-            return  # nao troca de tamanho no meio da trituracao
-        if est["ativo"]:  # animacao terminando: encerra e esconde antes de trocar
-            est["ativo"] = False
-            sim.sparks, sim.intensity = [], 0.0
-            esconder_painel()
-        ui["mini"] = not ui["mini"]
-        mini = ui["mini"]
-        x, y = root.winfo_x(), root.winfo_y()
+    def pos_atual():
+        m = re.match(r"(\d+)x(\d+)\+(-?\d+)\+(-?\d+)", root.geometry())
+        return (int(m.group(3)), int(m.group(4))) if m else (root.winfo_x(), root.winfo_y())
+
+    def definir_mini(mini, pos=None):
+        ui["mini"] = mini
+        x, y = pos if pos else pos_atual()
         if mini:
-            ui["tam"] = (root.winfo_width(), root.winfo_height())
+            if not pos:
+                ui["tam"] = (root.winfo_width(), root.winfo_height())
             ui["F"] = MOLDURA_MINI
             bar_btn.pack_forget()
             frame.pack_forget()
@@ -845,7 +1018,7 @@ def run_gui():
             drop.set_compacto(True)
             root.minsize(300, 220)
             posicionar_miolo()
-            root.geometry("%dx%d+%d+%d" % (MINI_W, MINI_H, x, y))
+            larg, alt = MINI_W, MINI_H
             refresh_drop()
         else:
             ui["F"] = MOLDURA
@@ -859,9 +1032,43 @@ def run_gui():
             drop.set_text("ARRASTE E SOLTE AQUI")
             root.minsize(640, 520)
             posicionar_miolo()
-            root.geometry("%dx%d+%d+%d" % (ui["tam"][0], ui["tam"][1], x, y))
+            larg, alt = ui["tam"]
+        x, y = ajustar_posicao(x, y, larg, alt, area_visivel(root))
+        root.geometry("%dx%d+%d+%d" % (larg, alt, x, y))
         btn_mini.set_mini(mini)
         redesenhar()
+
+    def alternar_mini():
+        if est["burning"]:
+            return  # nao troca de tamanho no meio da trituracao
+        if est["ativo"]:  # animacao terminando: encerra e esconde antes de trocar
+            est["ativo"] = False
+            sim.sparks, sim.intensity = [], 0.0
+            esconder_painel()
+        definir_mini(not ui["mini"])
+        salvar()
+
+    # ---- memoria da janela (modo + posicao), gravada ao mover/redimensionar e ao fechar
+    agenda = {"id": None}
+
+    def salvar():
+        x, y = pos_atual()
+        larg, alt = ui["tam"] if ui["mini"] else (root.winfo_width(), root.winfo_height())
+        gravar_estado({"mini": ui["mini"], "x": x, "y": y, "w": larg, "h": alt})
+
+    def agendar_salvar(e=None):
+        if e is not None and e.widget is not root:
+            return
+        if agenda["id"]:
+            root.after_cancel(agenda["id"])
+        agenda["id"] = root.after(600, salvar)
+
+    def fechar():
+        salvar()
+        root.destroy()
+
+    root.bind("<Configure>", agendar_salvar, add="+")
+    root.protocol("WM_DELETE_WINDOW", fechar)
 
     def lw_msg():
         return 30 if ui["mini"] else 60
@@ -876,6 +1083,16 @@ def run_gui():
                 sim.carga = max(0.35, sim.carga - 0.06)
             elif est["ema"] < 38:
                 sim.carga = min(1.0, sim.carga + 0.02)
+        if est["burning"]:  # percentual real (bytes x passadas), suavizado
+            tot = est.get("total")
+            real = min(1.0, est["feito"] / float(tot)) if tot else 0.0
+            est["disp"] += (real - est["disp"]) * 0.25
+            if real >= 1.0 and est["disp"] > 0.995:
+                est["disp"] = 1.0
+            head.set_pct(int(est["disp"] * 100 + 0.5))
+        elif est.get("pct_ate") and time.time() >= est["pct_ate"]:
+            est["pct_ate"] = None
+            head.set_pct(None)
         if fila:
             novos = list(fila)
             del fila[:len(novos)]
@@ -950,8 +1167,16 @@ def run_gui():
                 _estilizar_janela_windows(root)
             except Exception:  # noqa: BLE001  (so aparencia; nunca derruba o programa)
                 pass
+            try:
+                definir_icone_windows(root, ico)  # logo na barra de tarefas / Alt+Tab
+            except Exception:  # noqa: BLE001
+                pass
+        if comeca_mini:
+            definir_mini(True, pos=(gx, gy))
         root.update()
         root.after(300, ligar_arrastar)
+    elif comeca_mini:
+        definir_mini(True, pos=(gx, gy))
 
     def work(targets):
         # Roda em segundo plano: NAO mexe na janela; so guarda o resultado (a janela le no tick).
@@ -962,9 +1187,13 @@ def run_gui():
             count[0] += 1
             est["msg"] = os.path.basename(p)
 
+        def bcb(n):
+            est["feito"] += n
+
         try:
+            est["total"] = unidades_trabalho(targets, 3)
             for t in targets:
-                shred_path(t, 3, prog, errs)
+                shred_path(t, 3, prog, errs, bcb)
         except Exception as e:  # noqa: BLE001
             errs.append(("(geral)", str(e)))
         est["result"] = (errs, count[0], t0 + 4.0)  # animacao fica no minimo 4 s
@@ -972,6 +1201,8 @@ def run_gui():
     def done(errs, count):
         est["burning"] = False
         est["msg"] = ""
+        head.set_pct(100)
+        est["pct_ate"] = time.time() + 2.5   # mostra 100% por instantes e some
         go.config(state="normal")
         clear_all()
         drop.set_text("CONCLUIDO - %d ARQUIVO(S) APAGADO(S)" % count)
@@ -992,6 +1223,8 @@ def run_gui():
             drop.set_text("ARRASTE E SOLTE AQUI")
         sim.sparks, sim.intensity, sim.mini = [], 0.0, ui["mini"]
         est["ema"] = 30.0
+        est.update(total=None, feito=0, disp=0.0, pct_ate=None)
+        head.set_pct(0)
         mostrar_painel()
         est.update(burning=True, ativo=True, msg="")
         threading.Thread(target=work, args=(list(items),), daemon=True).start()

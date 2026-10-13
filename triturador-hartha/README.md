@@ -33,11 +33,15 @@ são seguidos (remove só o atalho).
   necessário limpar o espaço livre (não incluído nesta versão).
 - Não há desfazer. Confira a lista antes de confirmar.
 
-## Visual (v8)
-Moldura 3D em relevo (metal dourado escovado, chanfro e parafusos) em volta de todo o aplicativo,
-barra de título escura com texto dourado (Windows 11), botões modernos e paleta azul-marinho + dourado.
-A janela fica sempre por cima das demais (reafirmado a cada segundo) e aceita soltar arquivos
-em qualquer ponto dela, mesmo sobreposta a outras janelas.
+## Visual e comportamento (v9)
+- Moldura 3D em relevo (metal dourado escovado, chanfro e parafusos) em volta de todo o aplicativo;
+  paleta azul-marinho + dourado; logo grande ao lado do título; barra de título escura (Windows 11).
+- **Janela comum:** não fica mais "por cima de tudo". Outras janelas podem cobri-la, lado a lado ou
+  parcialmente sobrepostas. Soltar arquivos funciona em qualquer ponto visível da janela.
+- **Modo mini:** botão no canto superior direito do cabeçalho reduz a janela para ~6x menos área
+  (360x236) e amplia de volta. No mini dá para soltar arquivos e triturar normalmente.
+- **Animação:** duas tesouras de aço com cabos dourados cortam papel e soltam faíscas
+  (uma tesoura no modo mini). Substitui o fogo.
 
 ## Se a janela sumir (corrigido na v7)
 Causa real encontrada em teste: o gancho de arrastar-e-soltar era descartado da memória e, depois,

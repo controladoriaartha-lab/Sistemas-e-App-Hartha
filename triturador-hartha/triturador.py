@@ -146,74 +146,136 @@ def run_cli(args):
 
 
 # ----------------------------------------------------------------------------- GUI
-class Fire:
-    """Chamas nitidas (linguas de fogo em camadas) + faiscas. Logica pura, sem janela."""
+class Tesouras:
+    """Duas tesouras de aco com cabos dourados cortando papel e soltando faiscas.
+    Logica pura (sem janela): shapes() devolve primitivas de desenho."""
 
-    LAYERS = ((1.00, 1.00, "#d9301a"), (0.80, 0.78, "#ff7a1a"),
-              (0.58, 0.55, "#ffc12e"), (0.34, 0.32, "#fff4b8"))  # (largura, altura, cor)
+    L = 96.0           # comprimento da lamina (escala 1)
+    BG = "#0a0f18"     # cor do painel (o "furo" dos cabos usa esta cor)
+    LAMINA = [(-8, -6), (18, -8.5), (58, -6.5), (96, -1.4), (96, 0.6), (0, 3.2), (-8, 3.2)]
+    BRILHO = [(-6, -5), (18, -7.4), (58, -5.6), (94, -1.0), (94, -0.2), (58, -4), (18, -5.6), (-6, -3.2)]
+    HASTE = [(-8, -4), (-42, -4), (-42, 4), (-8, 4)]
 
-    def __init__(self, width, height):
-        self.w, self.h, self.t = width, height, 0
-        self.sparks = []  # [x, y, vx, vy, vida, vida_max, raio]
-        self.n = 0
-        self.tongues = []
-        self.intensity = 0.0
+    def __init__(self, w, h):
+        self.w, self.h, self.t = w, h, 0
+        self.tes, self.sparks = [], []
+        self.duas = True  # duas tesouras (painel grande) ou uma (painel mini)
+        self.rng = random.Random(5)
 
-    def _build(self):
-        self.n = max(7, int(self.w // 60))
-        self.tongues = [(random.uniform(0, 6.3), random.uniform(.10, .17), random.uniform(.8, 1.0))
-                        for _ in range(self.n)]
+    def resize(self, w, h):
+        self.w, self.h = w, h
 
-    def resize(self, width, height):
-        self.w, self.h = width, height
-        if not self.n or self.n != max(7, int(width // 60)):
-            self._build()
+    def escala(self):
+        return max(0.5, min(1.25, self.h / 150.0))
+
+    def vivo(self):
+        return bool(self.tes or self.sparks)
+
+    def _novas(self):
+        s = self.escala()
+        linhas = [(0.29, 1, 5.2, 0.0), (0.73, -1, 4.2, 1.7)] if self.duas else [(0.52, 1, 4.6, 0.0)]
+        self.tes = [{"x": self.w * (0.14 if d > 0 else 0.86), "fy": fy, "y": self.h * fy, "dir": d,
+                     "vel": v * s, "fase": f, "flash": 0} for fy, d, v, f in linhas]
 
     def step(self, burning):
         self.t += 1
-        self.intensity = min(1.0, self.intensity + 0.12) if burning else max(0.0, self.intensity - 0.07)
-        if self.intensity > 0.3:
-            for _ in range(2):
-                vida = random.randint(26, 46)
-                self.sparks.append([random.uniform(self.w * .05, self.w * .95), self.h * .8,
-                                    random.uniform(-.9, .9), random.uniform(2.4, 4.6),
-                                    vida, vida, random.uniform(1.4, 2.6)])
+        s = self.escala()
+        if burning and not self.tes:
+            self._novas()
+        vivas = []
+        for t in self.tes:
+            t["y"] = self.h * t["fy"]  # sempre relativo a altura atual do painel
+            if not burning:
+                t["vel"] *= 1.12  # terminou: as tesouras aceleram e saem de cena
+            t["x"] += t["dir"] * t["vel"]
+            ph = self.t * 0.30 + t["fase"]
+            fechando = math.cos(ph) < 0
+            theta = self._theta(ph)
+            if burning and fechando and theta < 2.5 + 0.40 * 23.5:  # lamina quase fechada: corta e solta faiscas
+                cx = t["x"] + t["dir"] * 0.70 * self.L * s
+                for _ in range(6):
+                    a = self.rng.uniform(-1.25, 1.25)
+                    sp = self.rng.uniform(2.6, 11.0) * s
+                    frente = 1 if self.rng.random() > 0.22 else -1
+                    vida = self.rng.randint(18, 40)
+                    self.sparks.append([cx, t["y"] + self.rng.uniform(-2, 2),
+                                        t["dir"] * frente * math.cos(a) * sp,
+                                        math.sin(a) * sp - 1.4 * s, vida, vida])
+                t["flash"] = 5
+            elif t["flash"] > 0:
+                t["flash"] -= 1
+            sai = (t["dir"] > 0 and t["x"] - 70 * s > self.w) or (t["dir"] < 0 and t["x"] + 70 * s < 0)
+            if sai:
+                if burning:  # recomeca do outro lado
+                    t["x"] = -self.L * s * 0.9 if t["dir"] > 0 else self.w + self.L * s * 0.9
+                    vivas.append(t)
+            else:
+                vivas.append(t)
+        self.tes = vivas
         for q in self.sparks:
-            q[0] += q[2] + math.sin((self.t + q[1]) / 7.0) * .6
-            q[1] -= q[3]
+            q[0] += q[2]
+            q[1] += q[3]
+            q[3] += 0.30 * s   # gravidade
+            q[2] *= 0.985
             q[4] -= 1
-        self.sparks = [q for q in self.sparks if q[4] > 0 and q[1] > -6]
+        self.sparks = [q for q in self.sparks if q[4] > 0 and -20 < q[1] < self.h + 20]
 
-    def _tongue(self, i):
-        phase, speed, base = self.tongues[i]
-        cx = (i + .5) * self.w / self.n
-        centro = 1 - abs(cx - self.w / 2) / (self.w / 2) * .55
-        flick = .72 + .18 * math.sin(self.t * speed * 3 + phase) + .10 * math.sin(self.t * speed * 7.3 + phase * 2)
-        height = self.h * .95 * centro * base * flick * self.intensity
-        sway = math.sin(self.t * speed + phase) * self.w / self.n * .30
-        return cx, (self.w / self.n) * 1.15, height, sway
+    @staticmethod
+    def _theta(ph):
+        return 2.5 + 23.5 * (0.5 + 0.5 * math.sin(ph))
+
+    @staticmethod
+    def _xf(pts, ang, s, dx, ox, oy, flip):
+        ca, sa = math.cos(ang), math.sin(ang)
+        out = []
+        for x, y in pts:
+            if flip:
+                y = -y
+            out += [ox + dx * (x * ca - y * sa) * s, oy + (x * sa + y * ca) * s]
+        return out
+
+    @staticmethod
+    def _elipse(cx, cy, rx, ry, n=26):
+        return [(cx + rx * math.cos(2 * math.pi * k / n), cy + ry * math.sin(2 * math.pi * k / n))
+                for k in range(n)]
+
+    def _desenhar_tesoura(self, t, out):
+        s, d, ox, oy = self.escala(), t["dir"], t["x"], t["y"]
+        th = math.radians(self._theta(self.t * 0.30 + t["fase"]))
+        # trilho do papel + corte (fenda atras, tracejado a frente)
+        cx = ox + d * 0.70 * self.L * s
+        out.append(("rect", 0, oy - 9 * s, self.w, oy + 9 * s, "#0f1a2d", ""))
+        ini, fim = (0, cx) if d > 0 else (cx, self.w)
+        out.append(("line", [ini, oy - 1.2, fim, oy - 1.2], "#9fb0cc", 1, None))
+        out.append(("line", [ini, oy + 1.2, fim, oy + 1.2], "#9fb0cc", 1, None))
+        ahead = (cx, self.w) if d > 0 else (0, cx)
+        out.append(("line", [ahead[0], oy, ahead[1], oy], "#6f5d24", 1, (5, 4)))
+        if t["flash"] > 0:  # brilho no ponto de corte
+            f = t["flash"] / 5.0
+            for r, col in ((30, "#241a08"), (21, "#4d330b"), (13, "#a9701a"), (7, "#ffd36a"), (3.5, "#ffffff")):
+                out.append(("oval", cx - r * f * s, oy - r * f * s, cx + r * f * s, oy + r * f * s, col, ""))
+        for ang, flip, cabo in ((th, True, "#c99a2e"), (-th, False, "#e6bf45")):
+            out.append(("poly", self._xf(self.LAMINA, ang, s, d, ox, oy, flip), "#cdd7e6", "#5d6c86", 1))
+            out.append(("poly", self._xf(self.BRILHO, ang, s, d, ox, oy, flip), "#f4f8ff", "", 0))
+            out.append(("poly", self._xf(self.HASTE, ang, s, d, ox, oy, flip), cabo, "#6e5412", 1))
+            out.append(("poly", self._xf(self._elipse(-56, 0, 17, 13), ang, s, d, ox, oy, flip), cabo, "#6e5412", 1))
+            out.append(("poly", self._xf(self._elipse(-56, 0, 10, 7), ang, s, d, ox, oy, flip), self.BG, "#6e5412", 1))
+            arco = self._elipse(-56, 0, 15, 11, 26)[15:24]
+            out.append(("line", self._xf(arco, ang, s, d, ox, oy, flip), "#fff0b0", 2, None))
+        r = 5.2 * s
+        out.append(("oval", ox - r, oy - r, ox + r, oy + r, "#a8841f", "#3b2c06"))
+        out.append(("oval", ox - r * .6, oy - r * .7, ox - r * .1, oy - r * .2, "#fff0b0", ""))
 
     def shapes(self):
-        """[('poly', [x,y,...], cor)] de tras para frente, depois [('spark', x,y,r,cor)]."""
         out = []
-        if self.intensity > 0.02:
-            order = sorted(range(self.n), key=lambda i: self._tongue(i)[2])  # altas ao fundo
-            for i in reversed(order):
-                cx, bw, height, sway = self._tongue(i)
-                for wk, hk, cor in self.LAYERS:
-                    pts_l, pts_r = [], []
-                    for k in range(0, 13):
-                        u = k / 12.0
-                        half = bw / 2 * wk * (1 - u ** 1.5) ** 1.15
-                        x = cx + sway * u * u
-                        y = self.h + 2 - u * height * hk
-                        pts_l += [x - half, y]
-                        pts_r = [x + half, y] + pts_r
-                    out.append(("poly", pts_l + pts_r, cor))
-        for x, y, _vx, _vy, vida, vmax, r in self.sparks:
-            ratio = vida / vmax
-            cor = "#fff6c8" if ratio > .55 else "#ffc233" if ratio > .25 else "#ff7a1a"
-            out.append(("spark", x, y, r * (.5 + .5 * ratio), cor))
+        for t in self.tes:
+            self._desenhar_tesoura(t, out)
+        for x, y, vx, vy, vida, vmax in self.sparks:
+            r = vida / float(vmax)
+            cor = "#ffffff" if r > .82 else "#fff1b0" if r > .6 else "#ffc233" if r > .38 else "#ff7a1a" if r > .18 else "#8a3410"
+            out.append(("line", [x, y, x - vx * 2.4, y - vy * 2.4], cor, 3 if r > .6 else 2 if r > .3 else 1, None))
+            if r > .5:
+                out.append(("oval", x - 2.3, y - 2.3, x + 2.3, y + 2.3, "#ffffff" if r > .8 else "#ffe27a", ""))
         return out
 
 
@@ -225,7 +287,77 @@ GOLD, GOLD_LIGHT, GOLD_DARK = "#d4af37", "#f4dd8c", "#8a6d1c"
 TEXT, MUTED = "#e9eef8", "#8ea3c4"
 CRIMSON, CRIMSON_DARK = "#d1313f", "#7d1220"
 MOLDURA = 20  # espessura da moldura 3D (px)
-INSET = MOLDURA + 4
+MOLDURA_MINI = 9
+
+LOGO_B64 = (
+    "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"
+    "uCE0q9cbWotKYPvZkSFVNd/XW78t3I97kkJvTZi2v+NTfxvpO45JMusHtlrPbp41JVmwZM0hbv6L3hEiO/FiZNEipKMD9+Stx37Z"
+    "8+1HrUnZ2KXpD5YG3s3LfVm32SAGAtt4McAr40ULOM3dyDgVMgcHtitnHZvoBSfH2fTJWIclSbP/eW0pvIiT78rQQbwYYDuoC6Wj"
+    "o8Otuu2E96rqVS0lOVCzlLWbJL17hZXlj1vz1DqRrj7DCKua7zMt9GFiizJzitPjZqc69w2pe82Bao219NXcVt/j04e8Y/k3adQt"
+    "HNSrK3Zs/bXtV900ZzqhuTRz8t4JZZnge0o1cnT1oN19uL5XxMtVoFyA9rJ6k9qQUkHInEd3b1b1jCwOC95nDz7t3jW6cKFhUccu"
+    "zwTvlll3fJPAn3950sw4TeYnsZ7t4OhywbQUQ4P1XhlSNMugFit9NVczwqO+Z24rlWTx9FPuX/liLAaUw4PYO3zJC6qe/fVx07JE"
+    "Z/VVdEZ/MdKXdejCgzhJu0NrOwPDU4ecteyZ7etfaBYt6qCjg9Gtlr1wmK8Ve7m2O++ca3Xh0MJE/w+TEsGA8HfAEQAAAABJRU5E"
+    "rkJggg=="
+)
 
 try:
     import tkinter as tk
@@ -309,9 +441,11 @@ def desenhar_moldura(c, w, h, F=MOLDURA, seed=11):
         c.create_line(w - off, off, w - off, h - off, fill=inf)
 
     m = F // 2  # parafusos
-    for x, y in ((m, m), (w - m, m), (m, h - m), (w - m, h - m), (w // 2, m), (w // 2, h - m),
-                 (m, h // 2), (w - m, h // 2)):
-        r = 4
+    pontos = [(m, m), (w - m, m), (m, h - m), (w - m, h - m)]
+    if F >= 16:
+        pontos += [(w // 2, m), (w // 2, h - m), (m, h // 2), (w - m, h // 2)]
+    for x, y in pontos:
+        r = 4 if F >= 16 else 3
         c.create_oval(x - r - 1, y - r, x + r + 1, y + r + 2, fill="#3b2c06", outline="")
         c.create_oval(x - r, y - r, x + r, y + r, fill="#b8922c", outline="#6e5412")
         c.create_oval(x - r + 1, y - r + 1, x, y, fill="#f3dc8a", outline="")
@@ -352,10 +486,11 @@ if tk is not None:
                 self.command()
 
         def config(self, **kw):
-            for k in ("text", "command", "state"):
+            for k in ("text", "command", "state", "fonte"):
                 if k in kw:
                     v = kw.pop(k)
-                    setattr(self, {"text": "texto", "command": "command", "state": "estado"}[k], v)
+                    setattr(self, {"text": "texto", "command": "command", "state": "estado",
+                                   "fonte": "fonte"}[k], v)
             if kw:
                 super().configure(**kw)
             self._desenhar()
@@ -388,50 +523,127 @@ if tk is not None:
 
         def __init__(self, master, text, **kw):
             super().__init__(master, bg=PANEL, highlightthickness=0, **kw)
-            self.texto = text
+            self.texto, self.compacto = text, False
             self.bind("<Configure>", lambda e: self._desenhar())
 
         def set_text(self, text):
             self.texto = text
             self._desenhar()
 
+        def set_compacto(self, v):
+            self.compacto = v
+            self._desenhar()
+
         def _desenhar(self):
             self.delete("all")
             w, h = max(self.winfo_width(), 40), max(self.winfo_height(), 40)
-            _gradiente_arredondado(self, 3, 3, w - 3, h - 3, 12, "#10264a", "#0b1a33")
-            x0, y0, x1, y1, r = 3, 3, w - 3, h - 3, 12  # borda tracejada: retas + cantos em arco
+            r = 9 if self.compacto else 12
+            _gradiente_arredondado(self, 3, 3, w - 3, h - 3, r, "#10264a", "#0b1a33")
+            x0, y0, x1, y1 = 3, 3, w - 3, h - 3  # borda tracejada: retas + cantos em arco
             for ln in ((x0 + r, y0, x1 - r, y0), (x1, y0 + r, x1, y1 - r),
                        (x0 + r, y1, x1 - r, y1), (x0, y0 + r, x0, y1 - r)):
                 self.create_line(*ln, fill=GOLD, width=2, dash=(7, 5))
             for box, ini in (((x0, y0, x0 + 2 * r, y0 + 2 * r), 90), ((x1 - 2 * r, y0, x1, y0 + 2 * r), 0),
                              ((x1 - 2 * r, y1 - 2 * r, x1, y1), 270), ((x0, y1 - 2 * r, x0 + 2 * r, y1), 180)):
                 self.create_arc(*box, start=ini, extent=90, style="arc", outline=GOLD, width=2)
-            self.create_text(w / 2 + 1, h / 2 + 1, text=self.texto, fill="#000000",
-                             font=("Segoe UI", 15, "bold"))
-            self.create_text(w / 2, h / 2, text=self.texto, fill=GOLD_LIGHT,
-                             font=("Segoe UI", 15, "bold"))
-            for cx in (40, w - 40):  # setas para baixo
-                self.create_polygon(cx - 11, h / 2 - 8, cx + 11, h / 2 - 8, cx, h / 2 + 10,
+            fonte = ("Segoe UI", 11 if self.compacto else 15, "bold")
+            self.create_text(w / 2 + 1, h / 2 + 1, text=self.texto, fill="#000000", font=fonte,
+                             width=w - 90)
+            self.create_text(w / 2, h / 2, text=self.texto, fill=GOLD_LIGHT, font=fonte, width=w - 90)
+            k = 0.6 if self.compacto else 1.0
+            for cx in ((24 * 1, w - 24) if self.compacto else (40, w - 40)):  # setas para baixo
+                self.create_polygon(cx - 11 * k, h / 2 - 8 * k, cx + 11 * k, h / 2 - 8 * k, cx, h / 2 + 10 * k,
                                     fill=GOLD, outline=GOLD_DARK)
 
     class Cabecalho(tk.Canvas):
-        """Faixa do titulo: degrade azul, texto dourado em relevo e filete dourado."""
+        """Faixa do titulo: logo grande + nome em relevo dourado sobre degrade azul."""
 
         def __init__(self, master, text, **kw):
             super().__init__(master, bg=NAVY, highlightthickness=0, **kw)
-            self.texto = text
+            self.texto, self.compacto = text, False
+            self.logo = tk.PhotoImage(data="".join(LOGO_B64))          # 84 px
+            self.logo_peq = self.logo.subsample(2)                     # 42 px
             self.bind("<Configure>", lambda e: self._desenhar())
 
+        def set_compacto(self, v):
+            self.compacto = v
+            self.config(height=54 if v else 98)
+            self._desenhar()
+
         def _desenhar(self):
+            import tkinter.font as tkfont
             self.delete("all")
             w, h = max(self.winfo_width(), 40), max(self.winfo_height(), 20)
             for y in range(h):
-                self.create_line(0, y, w, y, fill=_hex(_mix("#1f4373", "#0c1e3a", y / h)))
+                self.create_line(0, y, w, y, fill=_hex(_mix("#1f4373", "#0c1e3a", y / float(h))))
+            logo = self.logo_peq if self.compacto else self.logo
+            texto = "TRITURADOR" if self.compacto else self.texto
+            fonte = ("Segoe UI", 13 if self.compacto else 19, "bold")
+            lw = logo.width()
+            tw = tkfont.Font(font=fonte).measure(texto)
+            folga = 12 if self.compacto else 16
+            total = lw + folga + tw
+            x0 = max(8, (w - total) / 2 - (18 if self.compacto else 0))
+            self.create_oval(x0 - 4, h / 2 - lw / 2 - 2, x0 + lw + 4, h / 2 + lw / 2 + 6,
+                             fill="#0a1a33", outline="")  # sombra suave sob o logo
+            self.create_image(x0, h / 2, image=logo, anchor="w")
+            tx = x0 + lw + folga
             for dx, dy, col in ((2, 3, "#02060d"), (1, 1, GOLD_DARK), (0, 0, GOLD_LIGHT)):
-                self.create_text(w / 2 + dx, h / 2 - 1 + dy, text=self.texto, fill=col,
-                                 font=("Segoe UI", 19, "bold"))
+                self.create_text(tx + dx, h / 2 + dy, text=texto, fill=col, font=fonte, anchor="w")
             self.create_line(0, h - 2, w, h - 2, fill=GOLD)
             self.create_line(0, h - 1, w, h - 1, fill=GOLD_DARK)
+
+    class BotaoMini(tk.Canvas):
+        """Botao quadrado do canto: alterna entre janela normal e mini."""
+
+        def __init__(self, master, command=None, size=32, **kw):
+            super().__init__(master, width=size, height=size, bg=NAVY, highlightthickness=0,
+                             cursor="hand2", **kw)
+            self.command, self.mini, self.sobre, self.size = command, False, False, size
+            self.bind("<Configure>", lambda e: self._desenhar())
+            self.bind("<Enter>", lambda e: self._set(sobre=True))
+            self.bind("<Leave>", lambda e: self._set(sobre=False))
+            self.bind("<ButtonRelease-1>", lambda e: self.invoke())
+
+        def _set(self, **kw):
+            self.__dict__.update(kw)
+            self._desenhar()
+
+        def invoke(self):
+            if self.command:
+                self.command()
+
+        def set_mini(self, v):
+            self.mini = v
+            self._desenhar()
+
+        def _seta(self, tx, ty, dx, dy, cor):
+            n = math.hypot(dx, dy)
+            dx, dy = dx / n, dy / n
+            bx, by = tx - dx * 6, ty - dy * 6
+            px, py = -dy * 3.4, dx * 3.4
+            self.create_polygon(tx, ty, bx + px, by + py, bx - px, by - py, fill=cor, outline=cor)
+
+        def _desenhar(self):
+            self.delete("all")
+            s = self.size
+            cima, baixo = ("#2c5a96", "#16335c") if self.sobre else (NAVY2, NAVY)
+            _gradiente_arredondado(self, 1, 1, s - 1, s - 1, 7, cima, baixo)
+            self.create_polygon(_pts_arredondados(1, 1, s - 1, s - 1, 7), smooth=True, fill="",
+                                outline=GOLD_LIGHT if self.sobre else GOLD, width=2)
+            c, k = s / 2.0, s * 0.30
+            cor = GOLD_LIGHT
+            # modo normal: setas apontam p/ dentro (encolher); modo mini: p/ fora (ampliar)
+            if not self.mini:
+                self.create_line(c + k, c - k, c + 2, c - 2, fill=cor, width=2)
+                self.create_line(c - k, c + k, c - 2, c + 2, fill=cor, width=2)
+                self._seta(c + 1, c - 1, -1, 1, cor)
+                self._seta(c - 1, c + 1, 1, -1, cor)
+            else:
+                self.create_line(c + 2, c - 2, c + k, c - k, fill=cor, width=2)
+                self.create_line(c - 2, c + 2, c - k, c + k, fill=cor, width=2)
+                self._seta(c + k + 1, c - k - 1, 1, -1, cor)
+                self._seta(c - k - 1, c + k + 1, -1, 1, cor)
 
 
 
@@ -531,21 +743,6 @@ def _estilizar_janela_windows(root):
     attr(34, bgr(GOLD))       # cor da borda
 
 
-def _forcar_topo_windows(root):
-    """Mantem a janela acima de TODAS as outras (inclusive Explorador e janelas reduzidas)."""
-    import ctypes
-    from ctypes import wintypes
-    user32 = ctypes.windll.user32
-    user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
-    user32.GetAncestor.restype = wintypes.HWND
-    user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
-                                    ctypes.c_int, ctypes.c_int, wintypes.UINT]
-    hwnd = user32.GetAncestor(root.winfo_id(), 2)  # GA_ROOT
-    if hwnd:
-        # HWND_TOPMOST=-1; NOMOVE|NOSIZE|NOACTIVATE: so sobe na ordem, sem roubar o foco
-        user32.SetWindowPos(hwnd, wintypes.HWND(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010)
-
-
 def registrar_erro(exc_info=None):
     """Grava o erro em triturador_erro.log (ao lado do programa) e avisa na tela."""
     import traceback
@@ -570,13 +767,17 @@ def run_gui():
     import time
     from tkinter import filedialog, messagebox, ttk
 
+    NORMAL_W, NORMAL_H = 800, 640
+    MINI_W, MINI_H = 360, 236  # ~6x menor em area que a janela normal
+    ui = {"mini": False, "F": MOLDURA, "tam": (NORMAL_W, NORMAL_H)}
+
     root = tk.Tk()
     root.title(TITULO)
-    root.minsize(640, 500)
-    w0, h0 = 800, 620
-    root.geometry("%dx%d+%d+%d" % (w0, h0, max(0, (root.winfo_screenwidth() - w0) // 2),
-                                   max(0, (root.winfo_screenheight() - h0) // 3)))
-    root.attributes("-topmost", True)  # fica sempre por cima: nao some atras do Explorador
+    root.minsize(640, 520)
+    root.geometry("%dx%d+%d+%d" % (NORMAL_W, NORMAL_H,
+                                   max(0, (root.winfo_screenwidth() - NORMAL_W) // 2),
+                                   max(0, (root.winfo_screenheight() - NORMAL_H) // 3)))
+    # Janela comum: outras janelas podem ficar na frente dela (lado a lado / sobrepostas).
     root.report_callback_exception = lambda *e: registrar_erro(e)
     root.configure(bg=BG)
     try:
@@ -598,35 +799,43 @@ def run_gui():
     moldura = tk.Canvas(root, highlightthickness=0, bg=BG)
     moldura.place(x=0, y=0, relwidth=1, relheight=1)
     miolo = tk.Frame(root, bg=PANEL)
-    miolo.place(x=INSET, y=INSET, relwidth=1, relheight=1, width=-2 * INSET, height=-2 * INSET)
     pendente = {"id": None}
 
     def redesenhar(_e=None):
         if pendente["id"]:
             root.after_cancel(pendente["id"])
-        pendente["id"] = root.after(60, lambda: desenhar_moldura(
-            moldura, max(moldura.winfo_width(), 100), max(moldura.winfo_height(), 100)))
+        pendente["id"] = root.after(50, lambda: desenhar_moldura(
+            moldura, max(moldura.winfo_width(), 100), max(moldura.winfo_height(), 100), ui["F"]))
+
+    def posicionar_miolo():
+        inset = ui["F"] + 4
+        miolo.place(x=inset, y=inset, relwidth=1, relheight=1, width=-2 * inset, height=-2 * inset)
 
     moldura.bind("<Configure>", redesenhar)
+    posicionar_miolo()
 
     items = []
 
-    head = Cabecalho(miolo, TITULO, height=66)
+    head = Cabecalho(miolo, TITULO, height=98)
     head.pack(fill="x")
+    btn_mini = BotaoMini(head, lambda: alternar_mini())
+    btn_mini.place(relx=1.0, x=-10, y=10, anchor="ne")
 
-    drop = Zona(miolo, "ARRASTE E SOLTE AQUI", height=84)
+    zona_box = tk.Frame(miolo, bg=PANEL)
+    zona_box.pack(fill="x")
+    drop = Zona(zona_box, "ARRASTE E SOLTE AQUI", height=84)
     drop.pack(fill="x", padx=14, pady=(14, 8))
 
     bar_btn = tk.Frame(miolo, bg=PANEL)
     bar_btn.pack(fill="x", padx=14)
 
-    # Botao e painel de fogo ficam no rodape (empacotados antes da lista p/ nao sumirem)
+    # Botao e painel de animacao ficam no rodape (empacotados antes da lista p/ nao sumirem)
     go = Botao(miolo, "TRITURAR AGORA OS ARQUIVOS", width=300, height=54, cima=CRIMSON,
                baixo=CRIMSON_DARK, borda=GOLD, cor_texto="#ffffff",
                fonte=("Segoe UI", 14, "bold"))
     go.pack(side="bottom", fill="x", padx=14, pady=(8, 14))
-    fogo = tk.Canvas(miolo, height=140, bg="#0a0f18", highlightthickness=0)
-    sim = Fire(740, 140)
+    fogo = tk.Canvas(miolo, height=156, bg=Tesouras.BG, highlightthickness=0)
+    sim = Tesouras(740, 156)
     est = {"burning": False, "msg": "", "ativo": False, "n": 0}
     fila = []  # caminhos recebidos do arrastar (lidos pela janela no tick)
 
@@ -641,6 +850,65 @@ def run_gui():
     sb.pack(side="right", fill="y")
     lb.pack(side="left", fill="both", expand=True)
 
+    def refresh_drop():
+        if ui["mini"]:
+            n = len(items)
+            drop.set_text("%d ITEM(NS) PRONTO(S)\nSOLTE MAIS OU TRITURE" % n if n else "SOLTE AQUI")
+
+    def mostrar_painel():
+        if ui["mini"]:
+            drop.pack_forget()
+            fogo.config(height=80)
+            fogo.pack(in_=zona_box, fill="x", padx=14, pady=(8, 6))
+        else:
+            fogo.config(height=156)
+            fogo.pack(side="bottom", fill="x", padx=14, before=frame)
+
+    def esconder_painel():
+        fogo.pack_forget()
+        if ui["mini"] and not drop.winfo_ismapped():
+            drop.pack(fill="x", padx=14, pady=(8, 6))
+
+    def alternar_mini():
+        if est["burning"]:
+            return  # nao troca de tamanho no meio da trituracao
+        if est["ativo"]:  # animacao terminando: encerra e esconde antes de trocar
+            est["ativo"] = False
+            sim.tes, sim.sparks = [], []
+            esconder_painel()
+        ui["mini"] = not ui["mini"]
+        mini = ui["mini"]
+        x, y = root.winfo_x(), root.winfo_y()
+        if mini:
+            ui["tam"] = (root.winfo_width(), root.winfo_height())
+            ui["F"] = MOLDURA_MINI
+            bar_btn.pack_forget()
+            frame.pack_forget()
+            drop.pack_configure(pady=(8, 6))
+            drop.config(height=70)
+            go.config(height=42, text="TRITURAR AGORA", fonte=("Segoe UI", 12, "bold"))
+            head.set_compacto(True)
+            drop.set_compacto(True)
+            root.minsize(300, 220)
+            posicionar_miolo()
+            root.geometry("%dx%d+%d+%d" % (MINI_W, MINI_H, x, y))
+            refresh_drop()
+        else:
+            ui["F"] = MOLDURA
+            drop.pack_configure(pady=(14, 8))
+            drop.config(height=84)
+            go.config(height=54, text="TRITURAR AGORA OS ARQUIVOS", fonte=("Segoe UI", 14, "bold"))
+            head.set_compacto(False)
+            drop.set_compacto(False)
+            bar_btn.pack(fill="x", padx=14, after=zona_box)
+            frame.pack(fill="both", expand=True, padx=14, pady=(8, 0), after=bar_btn)
+            drop.set_text("ARRASTE E SOLTE AQUI")
+            root.minsize(640, 520)
+            posicionar_miolo()
+            root.geometry("%dx%d+%d+%d" % (ui["tam"][0], ui["tam"][1], x, y))
+        btn_mini.set_mini(mini)
+        redesenhar()
+
     def tick():
         if fila:
             novos = list(fila)
@@ -650,30 +918,31 @@ def run_gui():
         if r and time.time() >= r[2]:
             est["result"] = None
             done(r[0], r[1])
-        est["n"] += 1
-        if os.name == "nt" and est["n"] % 25 == 0:  # ~1x por segundo: reafirma "sempre no topo"
-            try:
-                _forcar_topo_windows(root)
-            except Exception:  # noqa: BLE001
-                pass
         if est["ativo"]:
             w, h = max(fogo.winfo_width(), 100), max(fogo.winfo_height(), 60)
             sim.resize(w, h)
             sim.step(est["burning"])
             fogo.delete("all")
             for sh in sim.shapes():
-                if sh[0] == "poly":
-                    fogo.create_polygon(sh[1], fill=sh[2], outline="", smooth=True)
+                k = sh[0]
+                if k == "rect":
+                    fogo.create_rectangle(sh[1], sh[2], sh[3], sh[4], fill=sh[5], outline=sh[6])
+                elif k == "poly":
+                    fogo.create_polygon(sh[1], fill=sh[2], outline=sh[3], width=max(1, sh[4]))
+                elif k == "line":
+                    if sh[4]:
+                        fogo.create_line(*sh[1], fill=sh[2], width=sh[3], dash=sh[4])
+                    else:
+                        fogo.create_line(*sh[1], fill=sh[2], width=sh[3], capstyle="round")
                 else:
-                    _, x, y, r, c = sh
-                    fogo.create_oval(x - r, y - r, x + r, y + r, fill=c, outline="")
+                    fogo.create_oval(sh[1], sh[2], sh[3], sh[4], fill=sh[5], outline=sh[6])
             if est["msg"]:
-                for dx, dy, cor in ((2, 2, "black"), (0, 0, "white")):
-                    fogo.create_text(w / 2 + dx, 22 + dy, text=est["msg"], fill=cor,
-                                     font=("Segoe UI", 11, "bold"), width=w - 40)
-            if not est["burning"] and sim.intensity <= 0 and not sim.sparks:
+                for dx, dy, cor in ((1, 1, "black"), (0, 0, "#f4dd8c")):
+                    fogo.create_text(w / 2 + dx, 14 + dy, text=est["msg"], fill=cor,
+                                     font=("Segoe UI", 10, "bold"), width=w - 40)
+            if not est["burning"] and not sim.vivo():
                 est["ativo"] = False
-                fogo.pack_forget()
+                esconder_painel()
         root.after(40, tick)
 
     def add(paths):
@@ -682,6 +951,7 @@ def run_gui():
             if p not in items and os.path.exists(p):
                 items.append(p)
                 lb.insert("end", p)
+        refresh_drop()
 
     def add_files():
         add(filedialog.askopenfilenames(title="Escolha os arquivos"))
@@ -694,6 +964,7 @@ def run_gui():
     def clear_all():
         lb.delete(0, "end")
         items.clear()
+        refresh_drop()
 
     Botao(bar_btn, "ADICIONAR ARQUIVOS", add_files, width=190).pack(side="left")
     Botao(bar_btn, "ADICIONAR PASTA", add_folder, width=160).pack(side="left", padx=8)
@@ -716,7 +987,6 @@ def run_gui():
                 registrar_erro()
             try:
                 _estilizar_janela_windows(root)
-                _forcar_topo_windows(root)
             except Exception:  # noqa: BLE001  (so aparencia; nunca derruba o programa)
                 pass
         root.update()
@@ -736,7 +1006,7 @@ def run_gui():
                 shred_path(t, 3, prog, errs)
         except Exception as e:  # noqa: BLE001
             errs.append(("(geral)", str(e)))
-        est["result"] = (errs, count[0], t0 + 3.0)  # fogo fica aceso no minimo 3 s
+        est["result"] = (errs, count[0], t0 + 4.0)  # animacao fica no minimo 4 s
 
     def done(errs, count):
         est["burning"] = False
@@ -757,8 +1027,11 @@ def run_gui():
                 % len(items), icon="warning"):
             return
         go.config(state="disabled")
-        drop.set_text("ARRASTE E SOLTE AQUI")
-        fogo.pack(side="bottom", fill="x", padx=14, before=frame)
+        if not ui["mini"]:
+            drop.set_text("ARRASTE E SOLTE AQUI")
+        sim.tes, sim.sparks = [], []
+        sim.duas = not ui["mini"]
+        mostrar_painel()
         est.update(burning=True, ativo=True, msg="")
         threading.Thread(target=work, args=(list(items),), daemon=True).start()
 

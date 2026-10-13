@@ -36,22 +36,31 @@ def pump(root, s):
 def script(root):
     pump(root, 1.5)
     print("janela existe apos 1.5s:", bool(root.winfo_exists()), "topmost:", root.attributes("-topmost"))
-    lb = [w for w in triturador_walk(root) if isinstance(w, tk.Listbox)][0]
-    drop = [w for w in triturador_walk(root) if isinstance(w, tk.Label) and "ARRASTE" in str(w.cget("text"))][0]
+    W = list(triturador_walk(root))
+    lb = [w for w in W if isinstance(w, tk.Listbox)][0]
+    zona = [w for w in W if isinstance(w, triturador.Zona)][0]
+    cab = [w for w in W if isinstance(w, triturador.Cabecalho)][0]
+    bots = [w for w in W if isinstance(w, triturador.Botao)]
+    go = [b for b in bots if "TRITURAR" in b.texto][0]
+    peq = [b for b in bots if "LIMPAR" in b.texto][0]
+    mold = [w for w in W if isinstance(w, tk.Canvas) and w not in bots and w not in (zona, cab)][0]
     top = u32.GetParent(root.winfo_id())
-    alvos = {"lista": lb.winfo_id(), "faixa": drop.winfo_id(), "root": root.winfo_id(), "toplevel": top}
-    for nome, hwnd in alvos.items():
+    alvos = [("lista", lb.winfo_id()), ("faixa", zona.winfo_id()), ("titulo", cab.winfo_id()),
+             ("botao", peq.winfo_id()), ("moldura", mold.winfo_id()), ("root", root.winfo_id()),
+             ("toplevel", top)]
+    arqs = []
+    for i, (nome, hwnd) in enumerate(alvos):
+        f = os.path.join(tmp, "alvo_%s.bin" % nome); open(f, "wb").write(os.urandom(20000)); arqs.append(f)
         antes = lb.size()
-        u32.PostMessageW(hwnd, 0x0233, make_hdrop([{"lista": f1, "faixa": f2, "root": f3, "toplevel": f4}[nome]]), 0)
+        u32.PostMessageW(hwnd, 0x0233, make_hdrop([f]), 0)
         pump(root, 0.5)
-        print("drop em %-8s -> itens: %d -> %d" % (nome, antes, lb.size()))
-    pump(root, 1.0)
-    print("janela ainda existe:", bool(root.winfo_exists()), "| itens:", list(lb.get(0, "end")))
-    go = [w for w in triturador_walk(root) if isinstance(w, tk.Button) and "TRITURAR" in w.cget("text")][0]
+        print("drop em %-9s -> itens: %d -> %d" % (nome, antes, lb.size()))
+    pump(root, 0.5)
+    print("janela ainda existe:", bool(root.winfo_exists()), "| itens:", lb.size())
     go.invoke()
     pump(root, 6)
-    print("apos triturar -> existem:", [os.path.exists(x) for x in (f1, f2, f3, f4)], "| lista:", lb.size())
-    print("faixa:", [w.cget("text") for w in triturador_walk(root) if isinstance(w, tk.Label) and ("CONCL" in str(w.cget("text")) or "ARRASTE" in str(w.cget("text")))])
+    print("apos triturar -> restantes:", [os.path.exists(x) for x in arqs], "| lista:", lb.size())
+    print("faixa:", zona.texto)
     root.destroy()
 
 def triturador_walk(w):

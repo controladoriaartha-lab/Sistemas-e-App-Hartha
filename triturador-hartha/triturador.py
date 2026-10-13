@@ -218,7 +218,221 @@ class Fire:
 
 
 TITULO = "TRITURADOR DE ARQUIVO PERMANENTE"
-NAVY, GOLD, RED = "#142642", "#d4af37", "#c82d2d"
+# Paleta: azul-marinho profundo + dourado (cores da marca) + vermelho so no botao de perigo
+BG, PANEL = "#08111f", "#0d1b33"
+NAVY, NAVY2 = "#12284a", "#1d3d6b"
+GOLD, GOLD_LIGHT, GOLD_DARK = "#d4af37", "#f4dd8c", "#8a6d1c"
+TEXT, MUTED = "#e9eef8", "#8ea3c4"
+CRIMSON, CRIMSON_DARK = "#d1313f", "#7d1220"
+MOLDURA = 20  # espessura da moldura 3D (px)
+INSET = MOLDURA + 4
+
+try:
+    import tkinter as tk
+except ImportError:  # modo linha de comando em maquina sem tkinter
+    tk = None
+
+
+def _rgb(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _hex(c):
+    return "#%02x%02x%02x" % tuple(max(0, min(255, int(round(v)))) for v in c)
+
+
+def _mix(a, b, t):
+    a, b = (_rgb(a) if isinstance(a, str) else a), (_rgb(b) if isinstance(b, str) else b)
+    return tuple(x + (y - x) * t for x, y in zip(a, b))
+
+
+def _pts_arredondados(x0, y0, x1, y1, r):
+    """Pontos para create_polygon(smooth=True) formando um retangulo de cantos redondos."""
+    return [x0 + r, y0, x0 + r, y0, x1 - r, y0, x1 - r, y0, x1, y0, x1, y0 + r, x1, y0 + r,
+            x1, y1 - r, x1, y1 - r, x1, y1, x1 - r, y1, x1 - r, y1, x0 + r, y1, x0 + r, y1,
+            x0, y1, x0, y1 - r, x0, y1 - r, x0, y0 + r, x0, y0 + r, x0, y0]
+
+
+def _gradiente_arredondado(c, x0, y0, x1, y1, r, cima, baixo):
+    """Preenche um retangulo arredondado com degrade vertical (linha a linha)."""
+    h = max(1, int(y1 - y0))
+    for k in range(h + 1):
+        y = y0 + k
+        d = min(k, h - k)
+        dx = r - math.sqrt(max(0.0, r * r - (r - d) ** 2)) if d < r else 0
+        c.create_line(x0 + dx, y, x1 - dx, y, fill=_hex(_mix(cima, baixo, k / h)))
+
+
+def desenhar_moldura(c, w, h, F=MOLDURA, seed=11):
+    """Moldura em relevo 3D: metal dourado escovado, chanfro convexo, parafusos e encaixe."""
+    c.delete("all")
+    rng = random.Random(seed)
+    base = (206, 168, 52)
+    ajuste = {"t": 0.17, "l": 0.07, "r": -0.15, "b": -0.27}
+
+    def cor(lado, i, extra=0.0):
+        t = i / float(F - 1)
+        prof = math.sin(math.pi * min(1.0, t * 0.96 + 0.02)) ** 0.9
+        lum = (prof - 0.55) * 0.95 + ajuste[lado] + extra
+        return _hex(_mix(base, (255, 246, 205) if lum > 0 else (28, 18, 3), min(1.0, abs(lum))))
+
+    for i in range(F):  # aneis concentricos = perfil do chanfro
+        polys = {"t": [i, i, w - i, i, w - i - 1, i + 1, i + 1, i + 1],
+                 "b": [i, h - i, w - i, h - i, w - i - 1, h - i - 1, i + 1, h - i - 1],
+                 "l": [i, i, i, h - i, i + 1, h - i - 1, i + 1, i + 1],
+                 "r": [w - i, i, w - i, h - i, w - i - 1, h - i - 1, w - i - 1, i + 1]}
+        for lado, pts in polys.items():
+            c.create_polygon(pts, fill=cor(lado, i), outline=cor(lado, i))
+
+    for _ in range(int((w + h) * 1.4)):  # textura de metal escovado
+        lado = rng.choice("tblr")
+        i = rng.randint(1, F - 2)
+        extra = rng.choice((-0.09, -0.05, 0.05, 0.1))
+        col = cor(lado, i, extra)
+        n = rng.randint(14, 80)
+        if lado in "tb":
+            x = rng.randint(F, max(F + 1, w - F - n))
+            y = i if lado == "t" else h - i
+            c.create_line(x, y, x + n, y, fill=col)
+        else:
+            y = rng.randint(F, max(F + 1, h - F - n))
+            x = i if lado == "l" else w - i
+            c.create_line(x, y, x, y + n, fill=col)
+
+    # encaixe (borda interna): sombra no alto/esquerda, luz embaixo/direita
+    a, b = F, F + 1
+    for off, sup, inf in ((a, "#050b16", "#3a5c8c"), (b, "#0a1730", "#274a7a")):
+        c.create_line(off, off, w - off, off, fill=sup)
+        c.create_line(off, off, off, h - off, fill=sup)
+        c.create_line(off, h - off, w - off, h - off, fill=inf)
+        c.create_line(w - off, off, w - off, h - off, fill=inf)
+
+    m = F // 2  # parafusos
+    for x, y in ((m, m), (w - m, m), (m, h - m), (w - m, h - m), (w // 2, m), (w // 2, h - m),
+                 (m, h // 2), (w - m, h // 2)):
+        r = 4
+        c.create_oval(x - r - 1, y - r, x + r + 1, y + r + 2, fill="#3b2c06", outline="")
+        c.create_oval(x - r, y - r, x + r, y + r, fill="#b8922c", outline="#6e5412")
+        c.create_oval(x - r + 1, y - r + 1, x, y, fill="#f3dc8a", outline="")
+        c.create_line(x - 2, y + 2, x + 2, y - 2, fill="#4a3808", width=1)
+
+
+if tk is not None:
+    class Botao(tk.Canvas):
+        """Botao moderno: degrade, cantos redondos, borda dourada, hover e clique."""
+
+        def __init__(self, master, text, command=None, width=150, height=34,
+                     cima=NAVY2, baixo=NAVY, borda=GOLD, cor_texto=GOLD_LIGHT,
+                     fonte=("Segoe UI", 10, "bold"), **kw):
+            super().__init__(master, width=width, height=height, bg=PANEL,
+                             highlightthickness=0, cursor="hand2", **kw)
+            self.texto, self.command, self.estado = text, command, "normal"
+            self.paleta = (cima, baixo, borda, cor_texto)
+            self.fonte, self.sobre, self.preso = fonte, False, False
+            self.bind("<Configure>", lambda e: self._desenhar())
+            self.bind("<Enter>", lambda e: self._set(sobre=True))
+            self.bind("<Leave>", lambda e: self._set(sobre=False, preso=False))
+            self.bind("<ButtonPress-1>", lambda e: self._set(preso=True))
+            self.bind("<ButtonRelease-1>", self._soltou)
+
+        def _set(self, **kw):
+            self.__dict__.update(kw)
+            self._desenhar()
+
+        def _soltou(self, e):
+            tinha = self.preso
+            self._set(preso=False)
+            if tinha and self.estado == "normal" and 0 <= e.x <= self.winfo_width() \
+                    and 0 <= e.y <= self.winfo_height():
+                self.invoke()
+
+        def invoke(self):
+            if self.estado == "normal" and self.command:
+                self.command()
+
+        def config(self, **kw):
+            for k in ("text", "command", "state"):
+                if k in kw:
+                    v = kw.pop(k)
+                    setattr(self, {"text": "texto", "command": "command", "state": "estado"}[k], v)
+            if kw:
+                super().configure(**kw)
+            self._desenhar()
+
+        configure = config
+
+        def _desenhar(self):
+            self.delete("all")
+            w, h = max(self.winfo_width(), 20), max(self.winfo_height(), 20)
+            cima, baixo, borda, ct = self.paleta
+            if self.estado != "normal":
+                cima, baixo, borda, ct = "#2a3446", "#1c2432", "#4a5568", "#6b7a92"
+            elif self.preso:
+                cima, baixo = baixo, _hex(_mix(baixo, "#000000", .25))
+            elif self.sobre:
+                cima, baixo = _hex(_mix(cima, "#ffffff", .16)), _hex(_mix(baixo, "#ffffff", .10))
+                borda = GOLD_LIGHT
+            self.create_polygon(_pts_arredondados(2, 4, w - 2, h - 1, 9), smooth=True,
+                                fill="#02060d", outline="")  # sombra
+            _gradiente_arredondado(self, 2, 2, w - 2, h - 4, 9, cima, baixo)
+            self.create_polygon(_pts_arredondados(2, 2, w - 2, h - 4, 9), smooth=True,
+                                fill="", outline=borda, width=2)
+            dy = 1 if self.preso else 0
+            self.create_text(w / 2 + 1, (h - 2) / 2 + 1 + dy, text=self.texto, fill="#000000",
+                             font=self.fonte)
+            self.create_text(w / 2, (h - 2) / 2 + dy, text=self.texto, fill=ct, font=self.fonte)
+
+    class Zona(tk.Canvas):
+        """Area de soltar: moldura tracejada dourada, setas e texto."""
+
+        def __init__(self, master, text, **kw):
+            super().__init__(master, bg=PANEL, highlightthickness=0, **kw)
+            self.texto = text
+            self.bind("<Configure>", lambda e: self._desenhar())
+
+        def set_text(self, text):
+            self.texto = text
+            self._desenhar()
+
+        def _desenhar(self):
+            self.delete("all")
+            w, h = max(self.winfo_width(), 40), max(self.winfo_height(), 40)
+            _gradiente_arredondado(self, 3, 3, w - 3, h - 3, 12, "#10264a", "#0b1a33")
+            x0, y0, x1, y1, r = 3, 3, w - 3, h - 3, 12  # borda tracejada: retas + cantos em arco
+            for ln in ((x0 + r, y0, x1 - r, y0), (x1, y0 + r, x1, y1 - r),
+                       (x0 + r, y1, x1 - r, y1), (x0, y0 + r, x0, y1 - r)):
+                self.create_line(*ln, fill=GOLD, width=2, dash=(7, 5))
+            for box, ini in (((x0, y0, x0 + 2 * r, y0 + 2 * r), 90), ((x1 - 2 * r, y0, x1, y0 + 2 * r), 0),
+                             ((x1 - 2 * r, y1 - 2 * r, x1, y1), 270), ((x0, y1 - 2 * r, x0 + 2 * r, y1), 180)):
+                self.create_arc(*box, start=ini, extent=90, style="arc", outline=GOLD, width=2)
+            self.create_text(w / 2 + 1, h / 2 + 1, text=self.texto, fill="#000000",
+                             font=("Segoe UI", 15, "bold"))
+            self.create_text(w / 2, h / 2, text=self.texto, fill=GOLD_LIGHT,
+                             font=("Segoe UI", 15, "bold"))
+            for cx in (40, w - 40):  # setas para baixo
+                self.create_polygon(cx - 11, h / 2 - 8, cx + 11, h / 2 - 8, cx, h / 2 + 10,
+                                    fill=GOLD, outline=GOLD_DARK)
+
+    class Cabecalho(tk.Canvas):
+        """Faixa do titulo: degrade azul, texto dourado em relevo e filete dourado."""
+
+        def __init__(self, master, text, **kw):
+            super().__init__(master, bg=NAVY, highlightthickness=0, **kw)
+            self.texto = text
+            self.bind("<Configure>", lambda e: self._desenhar())
+
+        def _desenhar(self):
+            self.delete("all")
+            w, h = max(self.winfo_width(), 40), max(self.winfo_height(), 20)
+            for y in range(h):
+                self.create_line(0, y, w, y, fill=_hex(_mix("#1f4373", "#0c1e3a", y / h)))
+            for dx, dy, col in ((2, 3, "#02060d"), (1, 1, GOLD_DARK), (0, 0, GOLD_LIGHT)):
+                self.create_text(w / 2 + dx, h / 2 - 1 + dy, text=self.texto, fill=col,
+                                 font=("Segoe UI", 19, "bold"))
+            self.create_line(0, h - 2, w, h - 2, fill=GOLD)
+            self.create_line(0, h - 1, w, h - 1, fill=GOLD_DARK)
+
 
 
 _REFS_ARRASTAR = []  # mantem os callbacks vivos (se o Python os descartar, o programa trava)
@@ -291,6 +505,47 @@ def _ativar_arrastar_windows(widgets, on_files):
                 hook(top)
 
 
+def _estilizar_janela_windows(root):
+    """Barra de titulo escura com texto dourado (Windows 11); em outras versoes e ignorado."""
+    import ctypes
+    from ctypes import wintypes
+    user32 = ctypes.windll.user32
+    user32.GetParent.argtypes = [wintypes.HWND]
+    user32.GetParent.restype = wintypes.HWND
+    dwm = ctypes.windll.dwmapi
+    dwm.DwmSetWindowAttribute.argtypes = [wintypes.HWND, wintypes.DWORD, ctypes.c_void_p,
+                                          wintypes.DWORD]
+    hwnd = user32.GetParent(root.winfo_id()) or root.winfo_id()
+
+    def attr(n, v):
+        val = ctypes.c_int(v)
+        dwm.DwmSetWindowAttribute(hwnd, n, ctypes.byref(val), 4)
+
+    def bgr(h):
+        r, g, b = _rgb(h)
+        return (b << 16) | (g << 8) | r
+
+    attr(20, 1)               # tema escuro
+    attr(35, bgr("#0c1e3a"))  # cor da barra
+    attr(36, bgr(GOLD_LIGHT))  # cor do titulo
+    attr(34, bgr(GOLD))       # cor da borda
+
+
+def _forcar_topo_windows(root):
+    """Mantem a janela acima de TODAS as outras (inclusive Explorador e janelas reduzidas)."""
+    import ctypes
+    from ctypes import wintypes
+    user32 = ctypes.windll.user32
+    user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
+    user32.GetAncestor.restype = wintypes.HWND
+    user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+                                    ctypes.c_int, ctypes.c_int, wintypes.UINT]
+    hwnd = user32.GetAncestor(root.winfo_id(), 2)  # GA_ROOT
+    if hwnd:
+        # HWND_TOPMOST=-1; NOMOVE|NOSIZE|NOACTIVATE: so sobe na ordem, sem roubar o foco
+        user32.SetWindowPos(hwnd, wintypes.HWND(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010)
+
+
 def registrar_erro(exc_info=None):
     """Grava o erro em triturador_erro.log (ao lado do programa) e avisa na tela."""
     import traceback
@@ -313,52 +568,74 @@ def registrar_erro(exc_info=None):
 def run_gui():
     import threading
     import time
-    import tkinter as tk
     from tkinter import filedialog, messagebox, ttk
 
     root = tk.Tk()
     root.title(TITULO)
-    root.minsize(620, 460)
-    w0, h0 = 760, 560
+    root.minsize(640, 500)
+    w0, h0 = 800, 620
     root.geometry("%dx%d+%d+%d" % (w0, h0, max(0, (root.winfo_screenwidth() - w0) // 2),
                                    max(0, (root.winfo_screenheight() - h0) // 3)))
     root.attributes("-topmost", True)  # fica sempre por cima: nao some atras do Explorador
     root.report_callback_exception = lambda *e: registrar_erro(e)
-    root.configure(bg="#f3f4f7")
+    root.configure(bg=BG)
     try:
         base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
         root.iconbitmap(os.path.join(base, "icone.ico"))
     except Exception:  # noqa: BLE001  (icone e opcional)
         pass
 
+    estilo = ttk.Style(root)
+    try:
+        estilo.theme_use("clam")
+        estilo.configure("Vertical.TScrollbar", background=NAVY2, troughcolor=PANEL,
+                         bordercolor=PANEL, arrowcolor=GOLD, lightcolor=NAVY2, darkcolor=NAVY)
+        estilo.map("Vertical.TScrollbar", background=[("active", GOLD_DARK)])
+    except tk.TclError:
+        pass
+
+    # Moldura 3D (atras) + miolo (conteudo) por cima
+    moldura = tk.Canvas(root, highlightthickness=0, bg=BG)
+    moldura.place(x=0, y=0, relwidth=1, relheight=1)
+    miolo = tk.Frame(root, bg=PANEL)
+    miolo.place(x=INSET, y=INSET, relwidth=1, relheight=1, width=-2 * INSET, height=-2 * INSET)
+    pendente = {"id": None}
+
+    def redesenhar(_e=None):
+        if pendente["id"]:
+            root.after_cancel(pendente["id"])
+        pendente["id"] = root.after(60, lambda: desenhar_moldura(
+            moldura, max(moldura.winfo_width(), 100), max(moldura.winfo_height(), 100)))
+
+    moldura.bind("<Configure>", redesenhar)
+
     items = []
 
-    # Cabecalho: so o nome do aplicativo
-    head = tk.Frame(root, bg=NAVY)
+    head = Cabecalho(miolo, TITULO, height=66)
     head.pack(fill="x")
-    tk.Label(head, text=TITULO, bg=NAVY, fg=GOLD,
-             font=("Segoe UI", 18, "bold")).pack(pady=16)
 
-    drop = tk.Label(root, bg="#fff7f7", fg=RED, bd=2, relief="groove", height=3,
-                    font=("Segoe UI", 13, "bold"), text="ARRASTE E SOLTE AQUI")
-    drop.pack(fill="x", padx=12, pady=(12, 6))
+    drop = Zona(miolo, "ARRASTE E SOLTE AQUI", height=84)
+    drop.pack(fill="x", padx=14, pady=(14, 8))
 
-    bar_btn = ttk.Frame(root, padding=(12, 0))
-    bar_btn.pack(fill="x")
+    bar_btn = tk.Frame(miolo, bg=PANEL)
+    bar_btn.pack(fill="x", padx=14)
 
     # Botao e painel de fogo ficam no rodape (empacotados antes da lista p/ nao sumirem)
-    go = tk.Button(root, text="TRITURAR AGORA OS ARQUIVOS", bg=RED, fg="white", bd=0,
-                   font=("Segoe UI", 13, "bold"), activebackground="#9c2020",
-                   activeforeground="white", cursor="hand2", pady=10)
-    go.pack(side="bottom", fill="x", padx=12, pady=12)
-    fogo = tk.Canvas(root, height=140, bg="#10151f", highlightthickness=0)
+    go = Botao(miolo, "TRITURAR AGORA OS ARQUIVOS", width=300, height=54, cima=CRIMSON,
+               baixo=CRIMSON_DARK, borda=GOLD, cor_texto="#ffffff",
+               fonte=("Segoe UI", 14, "bold"))
+    go.pack(side="bottom", fill="x", padx=14, pady=(8, 14))
+    fogo = tk.Canvas(miolo, height=140, bg="#0a0f18", highlightthickness=0)
     sim = Fire(740, 140)
-    est = {"burning": False, "msg": "", "ativo": False}
+    est = {"burning": False, "msg": "", "ativo": False, "n": 0}
     fila = []  # caminhos recebidos do arrastar (lidos pela janela no tick)
 
-    frame = ttk.Frame(root, padding=(12, 6))
-    frame.pack(fill="both", expand=True)
-    lb = tk.Listbox(frame, selectmode="extended", activestyle="none", bd=1)
+    frame = tk.Frame(miolo, bg=PANEL)
+    frame.pack(fill="both", expand=True, padx=14, pady=(8, 0))
+    lb = tk.Listbox(frame, selectmode="extended", activestyle="none", bd=0,
+                    bg=PANEL, fg=TEXT, selectbackground=GOLD_DARK, selectforeground="#ffffff",
+                    highlightthickness=1, highlightbackground=GOLD_DARK, highlightcolor=GOLD,
+                    font=("Segoe UI", 10))
     sb = ttk.Scrollbar(frame, orient="vertical", command=lb.yview)
     lb.config(yscrollcommand=sb.set)
     sb.pack(side="right", fill="y")
@@ -373,6 +650,12 @@ def run_gui():
         if r and time.time() >= r[2]:
             est["result"] = None
             done(r[0], r[1])
+        est["n"] += 1
+        if os.name == "nt" and est["n"] % 25 == 0:  # ~1x por segundo: reafirma "sempre no topo"
+            try:
+                _forcar_topo_windows(root)
+            except Exception:  # noqa: BLE001
+                pass
         if est["ativo"]:
             w, h = max(fogo.winfo_width(), 100), max(fogo.winfo_height(), 60)
             sim.resize(w, h)
@@ -412,9 +695,14 @@ def run_gui():
         lb.delete(0, "end")
         items.clear()
 
-    ttk.Button(bar_btn, text="Adicionar arquivos", command=add_files).pack(side="left")
-    ttk.Button(bar_btn, text="Adicionar pasta", command=add_folder).pack(side="left", padx=4)
-    ttk.Button(bar_btn, text="Limpar", command=clear_all).pack(side="left")
+    Botao(bar_btn, "ADICIONAR ARQUIVOS", add_files, width=190).pack(side="left")
+    Botao(bar_btn, "ADICIONAR PASTA", add_folder, width=160).pack(side="left", padx=8)
+    Botao(bar_btn, "LIMPAR", clear_all, width=100).pack(side="left")
+
+    def todos(w):
+        yield w
+        for c in w.winfo_children():
+            yield from todos(c)
 
     if os.name == "nt":
         def ligar_arrastar():
@@ -422,9 +710,15 @@ def run_gui():
             # externa e o gancho ficaria apontando para uma janela destruida (travamento).
             try:
                 # Dentro do callback do Windows NAO se pode chamar o tkinter: so anota na fila.
-                _ativar_arrastar_windows([root, drop, lb], fila.extend)
+                # Liga em TODOS os componentes: soltar funciona em qualquer ponto da janela.
+                _ativar_arrastar_windows(list(todos(root)), fila.extend)
             except Exception:  # noqa: BLE001  (sem arrastar, os botoes continuam funcionando)
                 registrar_erro()
+            try:
+                _estilizar_janela_windows(root)
+                _forcar_topo_windows(root)
+            except Exception:  # noqa: BLE001  (so aparencia; nunca derruba o programa)
+                pass
         root.update()
         root.after(300, ligar_arrastar)
 
@@ -449,7 +743,7 @@ def run_gui():
         est["msg"] = ""
         go.config(state="normal")
         clear_all()
-        drop.config(text="CONCLUIDO - %d ARQUIVO(S) APAGADO(S)" % count)
+        drop.set_text("CONCLUIDO - %d ARQUIVO(S) APAGADO(S)" % count)
         if errs:
             messagebox.showwarning("Erros", "\n".join("%s: %s" % e for e in errs[:20]))
 
@@ -463,8 +757,8 @@ def run_gui():
                 % len(items), icon="warning"):
             return
         go.config(state="disabled")
-        drop.config(text="ARRASTE E SOLTE AQUI")
-        fogo.pack(side="bottom", fill="x", padx=12, before=frame)
+        drop.set_text("ARRASTE E SOLTE AQUI")
+        fogo.pack(side="bottom", fill="x", padx=14, before=frame)
         est.update(burning=True, ativo=True, msg="")
         threading.Thread(target=work, args=(list(items),), daemon=True).start()
 

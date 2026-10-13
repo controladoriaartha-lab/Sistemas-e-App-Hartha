@@ -32,20 +32,19 @@ def script(root):
     pump(root, 0.8); shot("1_inicio")
     print("topmost:", root.attributes("-topmost"))
     lb = [w for w in walk(root) if isinstance(w, tk.Listbox)][0]
-    go = [w for w in walk(root) if isinstance(w, tk.Button)][0]
+    go = [w for w in walk(root) if isinstance(w, triturador.Botao) and "TRITURAR" in w.texto][0]
     # simula o que o arrastar chama: add() via botoes nao testavel; usa callback do 'Adicionar' substituindo dialogos
     from tkinter import filedialog
     filedialog.askopenfilenames = lambda **k: files[:3]
     filedialog.askdirectory = lambda **k: files[3]
-    btns = [w for w in walk(root) if w.winfo_class() == "TButton"]
-    for b in btns:
-        if "arquivos" in b.cget("text"): b.invoke()
-        if "pasta" in b.cget("text"): b.invoke()
+    for b in [w for w in walk(root) if isinstance(w, triturador.Botao)]:
+        if "ADICIONAR" in b.texto: b.invoke()
     pump(root, 0.3); shot("2_lista"); print("itens na lista:", lb.size())
     go.invoke()
     pump(root, 1.0); shot("3_fogo")
     pump(root, 3.5); shot("4_fim")
     print("restantes no disco:", [os.path.exists(f) for f in files])
+    print("faixa:", [w.texto for w in walk(root) if isinstance(w, triturador.Zona)])
     root.destroy()
 
 orig = tk.Tk.mainloop

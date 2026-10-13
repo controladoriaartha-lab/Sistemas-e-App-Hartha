@@ -33,6 +33,12 @@ são seguidos (remove só o atalho).
   necessário limpar o espaço livre (não incluído nesta versão).
 - Não há desfazer. Confira a lista antes de confirmar.
 
+## Visual (v8)
+Moldura 3D em relevo (metal dourado escovado, chanfro e parafusos) em volta de todo o aplicativo,
+barra de título escura com texto dourado (Windows 11), botões modernos e paleta azul-marinho + dourado.
+A janela fica sempre por cima das demais (reafirmado a cada segundo) e aceita soltar arquivos
+em qualquer ponto dela, mesmo sobreposta a outras janelas.
+
 ## Se a janela sumir (corrigido na v7)
 Causa real encontrada em teste: o gancho de arrastar-e-soltar era descartado da memória e, depois,
 chamava o tkinter dentro do callback do Windows; ambos derrubavam o programa. Foi corrigido e testado.

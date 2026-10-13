@@ -151,6 +151,11 @@ def run_gui():
 
     root = tk.Tk()
     root.title("Triturador Hartha - exclusao permanente")
+    try:
+        base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+        root.iconbitmap(os.path.join(base, "icone.ico"))
+    except Exception:  # noqa: BLE001  (icone e opcional; Linux/Mac ignoram .ico)
+        pass
     root.geometry("720x480")
     items = []
 
@@ -228,6 +233,11 @@ def run_gui():
 
 
 def main():
+    # Em executavel "sem console" (--windowed) stdout/stderr nao existem.
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w")
     ap = argparse.ArgumentParser(description="Exclusao permanente de arquivos e pastas.")
     ap.add_argument("paths", nargs="*", help="arquivos/pastas (sem argumentos abre a interface)")
     ap.add_argument("-p", "--passes", type=int, default=3, help="passadas de sobrescrita (padrao 3)")

@@ -8,9 +8,11 @@ aleatórios; a última passada é sempre aleatória, padrão 3 passadas), força
 no disco (`fsync`), zera o tamanho, troca o nome por um aleatório e só então remove.
 
 ## Usar
-- **Interface:** `python triturador.py` (ou o `TrituradorHartha.exe`), adicionar arquivos/pastas, confirmar.
+- **Interface (sem tela preta):** `TrituradorHartha.exe` ou duplo clique em `Triturador.pyw`.
 - **Linha de comando:** `python triturador.py [-p N] [-y] CAMINHO ...` (sem `-y` exige digitar `APAGAR`).
-- **Gerar o .exe portátil (Windows):** rodar `build_windows.bat` → `dist\TrituradorHartha.exe`.
+- **Gerar o .exe portátil (Windows):** rodar `build_windows.bat` → `dist\TrituradorHartha.exe` (sem console, com ícone).
+- **Atalho na Área de Trabalho:** duplo clique em `criar_atalho.vbs`.
+- `gerar_icone.py` recria o `icone.ico` (opcional, requer Pillow).
 
 ## Proteções
 Recusa raiz da unidade, pasta do usuário e pastas do sistema. Links simbólicos nunca

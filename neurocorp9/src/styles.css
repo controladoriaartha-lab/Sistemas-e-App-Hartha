@@ -432,3 +432,8 @@ small { color: var(--muted); }
 .demo-banner div { display: flex; flex-direction: column; gap: 2px; font-size: 13px; min-width: 0; }
 .demo-banner span { color: var(--muted); font-size: 12px; line-height: 1.4; }
 @media (max-width: 520px) { .demo-banner { flex-direction: column; align-items: stretch; } }
+
+/* bloqueio por digital */
+.lock { z-index: 200; background: rgba(5, 8, 7, 0.94); }
+.lock-card { align-items: center; text-align: center; }
+.lock-card .muted { margin: 0; }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { ativarBiometria, biometriaAtiva, biometriaDisponivel, desativarBiometria, verificarBiometria } from "./biometria";
 
 function traduzir(msg: string, code?: string) {
   if (code === "email_not_confirmed" || /not confirmed/i.test(msg)) return "E-mail ainda não confirmado. Abra o último e-mail recebido e toque no link, ou use \"Reenviar e-mail\".";
@@ -24,6 +25,16 @@ export function AuthPanel({ sessao }: { sessao: Session | null }) {
   const [ocupado, setOcupado] = useState(false);
   const [espera, setEspera] = useState(0);
   const [trocando, setTrocando] = useState(false);
+  const [bioOk, setBioOk] = useState(false);
+  const [bioOn, setBioOn] = useState(false);
+  const userId = sessao?.user.id ?? null;
+
+  useEffect(() => {
+    biometriaDisponivel().then(setBioOk);
+  }, []);
+  useEffect(() => {
+    setBioOn(userId ? biometriaAtiva(userId) : false);
+  }, [userId]);
 
   useEffect(() => {
     const abrir = () => {
@@ -52,6 +63,26 @@ export function AuthPanel({ sessao }: { sessao: Session | null }) {
         </span>
         <div className="auth-links">
           <button className="link" onClick={() => setTrocando(true)}>Alterar senha</button>
+          {bioOk && (
+            <button
+              className="link"
+              onClick={async () => {
+                if (bioOn) {
+                  desativarBiometria(sessao.user.id);
+                  setBioOn(false);
+                  return;
+                }
+                try {
+                  await ativarBiometria(sessao.user.id, sessao.user.email ?? "");
+                  setBioOn(true);
+                } catch {
+                  /* cancelado pela pessoa */
+                }
+              }}
+            >
+              {bioOn ? "Desativar digital" : "Ativar digital"}
+            </button>
+          )}
           <button className="link" onClick={() => sb.auth.signOut()}>Sair</button>
         </div>
         {trocando && <NovaSenha aoConcluir={() => setTrocando(false)} />}
@@ -234,6 +265,49 @@ export function NovaSenha({ aoConcluir }: { aoConcluir: () => void }) {
         </button>
         {msg && !feito && <small className="auth-msg">{msg}</small>}
       </form>
+    </div>
+  );
+}
+
+/** Tela de bloqueio: pede a digital antes de mostrar os dados. */
+export function BloqueioDigital({ userId, aoDesbloquear }: { userId: string; aoDesbloquear: () => void }) {
+  const [tentando, setTentando] = useState(false);
+  const [falhou, setFalhou] = useState(false);
+
+  const tentar = async () => {
+    setTentando(true);
+    setFalhou(false);
+    const ok = await verificarBiometria(userId);
+    setTentando(false);
+    if (ok) aoDesbloquear();
+    else setFalhou(true);
+  };
+
+  useEffect(() => {
+    tentar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="modal lock" role="dialog" aria-modal="true" aria-label="Desbloquear com a digital">
+      <div className="modal-card lock-card">
+        <img src="/logo.png" alt="" width={72} height={72} />
+        <h3>NEUROCORP9 bloqueado</h3>
+        <p className="muted">Use a digital, o rosto ou o PIN do aparelho para abrir.</p>
+        <button className="btn" onClick={tentar} disabled={tentando}>
+          {tentando ? "Aguardando..." : "Desbloquear com a digital"}
+        </button>
+        {falhou && <small className="auth-msg">Não foi possível confirmar. Tente de novo ou entre com a senha.</small>}
+        <button
+          className="link"
+          onClick={() => {
+            desativarBiometria(userId);
+            supabase?.auth.signOut();
+          }}
+        >
+          Entrar com e-mail e senha
+        </button>
+      </div>
     </div>
   );
 }

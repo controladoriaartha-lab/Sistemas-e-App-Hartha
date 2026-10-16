@@ -16,7 +16,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AuthPanel, NovaSenha } from "./AuthPanel";
+import { AuthPanel, BloqueioDigital, NovaSenha } from "./AuthPanel";
+import { biometriaAtiva } from "./biometria";
 import { classificar } from "./classifier";
 import { exemploAtividades, gerarDemo } from "./demo";
 import { conquistas, insights, maiorSequencia, nivel, paraCsv, xpTotal } from "./gamification";
@@ -102,6 +103,9 @@ export function App() {
   const exemploLista = useMemo(() => exemploAtividades(), []);
   const lista = exemplo ? exemploLista : reais.lista;
   const [aba, setAba] = useState<Aba>("hoje");
+  const [desbloqueado, setDesbloqueado] = useState(false);
+  const userIdAtual = sessao?.user.id ?? null;
+  const bloqueado = Boolean(userIdAtual) && biometriaAtiva(userIdAtual as string) && !desbloqueado;
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
   const [texto, setTexto] = useState("");
   const [aviso, setAviso] = useState<string | null>(null);
@@ -311,6 +315,7 @@ export function App() {
     <div className="app">
       <div className="aurora" aria-hidden />
       {recuperando && <NovaSenha aoConcluir={fimRecuperacao} />}
+      {bloqueado && <BloqueioDigital userId={userIdAtual as string} aoDesbloquear={() => setDesbloqueado(true)} />}
 
       <header className="top">
         <div className="brand">

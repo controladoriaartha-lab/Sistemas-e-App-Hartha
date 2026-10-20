@@ -1,3 +1,6 @@
-Testes automatizados da interface (rodam sob Xvfb; os "windows" usam Wine + Python do Windows):
-- teste_janela_linux.py: abre a janela, adiciona itens, tritura, confere fogo e mensagem final.
-- teste_arrastar_windows_wine.py: envia WM_DROPFILES reais a 4 areas da janela e tritura.
+Testes (rodam sob Xvfb; os "windows" usam Wine + Python do Windows):
+- teste_janela_linux.py / teste_arrastar_windows_wine.py: janela, arrastar em 8 areas, triturar, mini.
+- teste_memoria_percentual_linux.py / teste_memoria_icone_windows_wine.py: memoria da janela, percentual, icone.
+- teste_console_simulado.py: decisao de esconder a tela preta (python3 teste_console_simulado.py).
+- Atalho: wine python.exe triturador.py --criar-atalho SAIDA.txt  e leia o .lnk com LnkParse3
+  (alvo = pythonw.exe, argumento = Triturador.pyw, icone = %LOCALAPPDATA%\TrituradorHartha\TrituradorHartha.ico).

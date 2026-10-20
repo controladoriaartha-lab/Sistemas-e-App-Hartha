@@ -55,11 +55,24 @@ Para "esquecer", apague esse arquivo.
 - O logo aparece na barra de tarefas e no Alt+Tab (o programa se identifica ao Windows como app próprio,
   em vez de "Python", inclusive quando aberto pelo `Triturador.pyw`).
 
-## Ícone com o logo em uma pasta
-O Windows mostra sempre o ícone do Python em arquivos `.pyw` (o ícone não fica dentro do arquivo).
-Para ter o logo numa pasta: use o `TrituradorHartha.exe` (já traz o logo) **ou** dê dois cliques em
-`criar_atalho.vbs` (na mesma pasta do `Triturador.pyw` e do `icone.ico`): ele cria `Triturador Hartha.lnk`
-com o logo, na própria pasta e na Área de Trabalho. O atalho pode ser copiado para qualquer lugar.
+## Instalar em outro computador (atalho com o logo, sem tela preta)
+1. Copie a pasta inteira do programa para o computador (precisa ter `triturador.py` + `Triturador.pyw` +
+   `icone.ico` + `criar_atalho.vbs`; ou só o `TrituradorHartha.exe` se o computador não tiver Python).
+2. **Neste computador**, dê dois cliques em `criar_atalho.vbs`. Ele localiza o Python instalado (registro do
+   Windows, PATH e pastas comuns), cria `Triturador Hartha.lnk` **com o logo** na própria pasta e na Área de
+   Trabalho, confere o resultado e mostra uma mensagem. Sem tela preta.
+3. Não copie o `.lnk` de um computador para outro: ele guarda o caminho do computador onde foi criado.
+   Rode o `criar_atalho.vbs` em cada computador (pode rodar de novo quando quiser; ele recria do zero).
+
+O atalho aponta direto para o `pythonw.exe` (Python sem console), por isso **não depende** de como o Windows
+associa arquivos `.pyw`, que era a causa da tela preta. O logo fica guardado em
+`%LOCALAPPDATA%\TrituradorHartha\TrituradorHartha.ico` (não some se a pasta do programa mudar).
+Se o Windows bloquear arquivos `.vbs`, rode no Prompt: `pythonw triturador.py --criar-atalho`.
+Sem Python, o `TrituradorHartha.exe` já traz o logo e não abre console.
+
+**Proteções extras:** se o programa for aberto de outro jeito (por exemplo, duplo clique em `triturador.py`) e
+aparecer a tela preta, ele a esconde sozinho (mas não mexe se você abriu pelo Prompt/PowerShell). Se o
+Python do computador estiver sem tkinter, aparece um aviso explicando, em vez de não abrir nada.
 
 ## Se a janela sumir (corrigido na v7)
 Causa real encontrada em teste: o gancho de arrastar-e-soltar era descartado da memória e, depois,

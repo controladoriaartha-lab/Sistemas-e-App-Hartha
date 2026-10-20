@@ -852,6 +852,230 @@ def definir_icone_windows(root, ico):
             user32.SendMessageW(alvo, 0x0080, tipo, h)  # WM_SETICON
 
 
+# ----------------------------------------------------------------------------- Windows: console e atalhos
+NOME_ATALHO = "Triturador Hartha.lnk"
+
+
+def aviso_windows(titulo, texto, erro=False):
+    """Caixa de mensagem nativa (funciona mesmo sem tkinter). Fora do Windows, so imprime."""
+    if os.name == "nt":
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, texto, titulo, 0x10 if erro else 0x40)
+            return
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        print("%s: %s" % (titulo, texto))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+_PROCESSOS_PYTHON = ("py.exe", "pyw.exe", "python.exe", "pythonw.exe")
+
+
+def ocultar_console_windows(api=None, nomes=None):
+    """Aberto por python.exe/py.exe com duplo clique (console proprio)? Esconde a 'tela preta'.
+    Se o console pertence a um terminal em uso (cmd, PowerShell...), nao mexe. `api`/`nomes` so p/ teste."""
+    import ctypes
+    if api is None:
+        if os.name != "nt":
+            return False
+        api = ctypes.windll
+    try:
+        k, u = api.kernel32, api.user32
+        hwnd = k.GetConsoleWindow()
+        if not hwnd:
+            return False                      # sem console (pythonw/.exe): nada a fazer
+        pids = (ctypes.c_uint * 16)()
+        n = k.GetConsoleProcessList(pids, 16)
+        outros = [pids[i] for i in range(min(n, 16)) if pids[i] != os.getpid()]
+        if outros:
+            ler = nomes or (lambda pid: _nome_processo_windows(api, pid))
+            if any((ler(pid) or "").lower() not in _PROCESSOS_PYTHON for pid in outros):
+                return False                  # tem um terminal de verdade nesse console
+        u.ShowWindow(hwnd, 0)                 # SW_HIDE: some a janela preta...
+        k.FreeConsole()                       # ...e solta o console
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _nome_processo_windows(api, pid):
+    import ctypes
+    h = api.kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return ""
+    try:
+        buf = ctypes.create_unicode_buffer(520)
+        tam = ctypes.c_uint(520)
+        if api.kernel32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(tam)):
+            return os.path.basename(buf.value)
+    finally:
+        api.kernel32.CloseHandle(h)
+    return ""
+
+
+class _AtalhoCOM:
+    """Cria/le arquivos .lnk pela interface IShellLinkW do Windows (sem PowerShell/VBScript)."""
+
+    CLSID = "{00021401-0000-0000-C000-000000000046}"
+    IID_LINK = "{000214F9-0000-0000-C000-000000000046}"
+    IID_ARQ = "{0000010B-0000-0000-C000-000000000046}"
+
+    def __init__(self):
+        import ctypes
+        self.c = ctypes
+        self.ole = ctypes.OleDLL("ole32")
+        self.ole.CoInitialize(None)
+        self.p = ctypes.c_void_p()
+        self.ole.CoCreateInstance(ctypes.byref(self._guid(self.CLSID)), None, 1,
+                                  ctypes.byref(self._guid(self.IID_LINK)), ctypes.byref(self.p))
+        self.arq = ctypes.c_void_p()
+        self._m(self.p, 0, ctypes.c_void_p, ctypes.c_void_p)(
+            self.p, ctypes.byref(self._guid(self.IID_ARQ)), ctypes.byref(self.arq))
+
+    def _guid(self, texto):
+        c = self.c
+
+        class GUID(c.Structure):
+            _fields_ = [("a", c.c_ulong), ("b", c.c_ushort), ("c", c.c_ushort), ("d", c.c_ubyte * 8)]
+        g = GUID()
+        self.ole.CLSIDFromString(c.c_wchar_p(texto), c.byref(g))
+        return g
+
+    def _m(self, ptr, idx, *tipos):
+        c = self.c
+        tabela = c.cast(c.cast(ptr, c.POINTER(c.c_void_p))[0], c.POINTER(c.c_void_p))
+        return c.WINFUNCTYPE(c.HRESULT, c.c_void_p, *tipos)(tabela[idx])
+
+    def _texto(self, idx, cch=2048):
+        buf = self.c.create_unicode_buffer(cch)
+        self._m(self.p, idx, self.c.c_void_p, self.c.c_int)(self.p, self.c.addressof(buf), cch)
+        return buf.value
+
+    def salvar(self, caminho, alvo, args, pasta, icone, indice, descricao):
+        c = self.c
+        self._m(self.p, 20, c.c_wchar_p)(self.p, alvo)               # SetPath
+        self._m(self.p, 11, c.c_wchar_p)(self.p, args)               # SetArguments
+        self._m(self.p, 9, c.c_wchar_p)(self.p, pasta)               # SetWorkingDirectory
+        self._m(self.p, 7, c.c_wchar_p)(self.p, descricao)           # SetDescription
+        self._m(self.p, 17, c.c_wchar_p, c.c_int)(self.p, icone, indice)  # SetIconLocation
+        self._m(self.arq, 6, c.c_wchar_p, c.c_int)(self.arq, caminho, 1)  # IPersistFile::Save
+
+    def ler(self, caminho):
+        """Reabre o .lnk do disco e devolve (alvo, argumentos, pasta, icone, indice)."""
+        c = self.c
+        self._m(self.arq, 5, c.c_wchar_p, c.c_uint)(self.arq, caminho, 0)  # IPersistFile::Load
+        alvo = c.create_unicode_buffer(2048)
+        self._m(self.p, 3, c.c_void_p, c.c_int, c.c_void_p, c.c_uint)(self.p, c.addressof(alvo), 2048, None, 0)
+        ico = c.create_unicode_buffer(2048)
+        idx = c.c_int()
+        self._m(self.p, 16, c.c_void_p, c.c_int, c.c_void_p)(self.p, c.addressof(ico), 2048, c.byref(idx))
+        return alvo.value, self._texto(10), self._texto(8), ico.value, idx.value
+
+    def fechar(self):
+        for ptr in (self.arq, self.p):
+            try:
+                self.c.WINFUNCTYPE(self.c.c_ulong, self.c.c_void_p)(
+                    self.c.cast(self.c.cast(ptr, self.c.POINTER(self.c.c_void_p))[0],
+                                self.c.POINTER(self.c.c_void_p))[2])(ptr)  # Release
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def _pasta_area_de_trabalho():
+    import ctypes
+    buf = ctypes.create_unicode_buffer(1024)
+    # CSIDL_DESKTOPDIRECTORY: a pasta REAL da Area de Trabalho (inclusive se estiver no OneDrive)
+    if ctypes.windll.shell32.SHGetFolderPathW(None, 0x10, None, 0, buf) == 0:
+        return buf.value
+    return os.path.join(os.path.expanduser("~"), "Desktop")
+
+
+def _pythonw_atual():
+    """pythonw.exe (sem console) do MESMO Python que esta rodando o programa."""
+    exe = sys.executable
+    pasta, nome = os.path.split(exe)
+    if nome.lower() == "pythonw.exe":
+        return exe
+    cand = os.path.join(pasta, "pythonw.exe")
+    return cand if os.path.exists(cand) else exe
+
+
+def _icone_permanente(base):
+    """Copia o logo para %LOCALAPPDATA%\\TrituradorHartha (nome novo => sem icone antigo em cache)."""
+    import shutil
+    origem = os.path.join(base, "icone.ico")
+    pasta = os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "TrituradorHartha")
+    os.makedirs(pasta, exist_ok=True)
+    destino = os.path.join(pasta, "TrituradorHartha.ico")
+    shutil.copyfile(origem, destino)
+    return destino
+
+
+def criar_atalhos():
+    """Cria 'Triturador Hartha.lnk' (com o logo) na pasta do programa e na Area de Trabalho,
+    apontando direto para o pythonw.exe deste computador (nunca depende da associacao de .pyw).
+    Devolve (ok, texto)."""
+    if os.name != "nt":
+        return False, "Atalhos .lnk so existem no Windows."
+    frozen = getattr(sys, "frozen", False)
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    pasta = os.path.dirname(os.path.abspath(sys.executable if frozen else __file__))
+    avisos = []
+    if frozen:
+        alvo, args, icone = sys.executable, "", sys.executable      # logo embutido no proprio .exe
+        quem = "TrituradorHartha.exe"
+    else:
+        alvo = _pythonw_atual()
+        script = os.path.join(pasta, "Triturador.pyw")
+        if not os.path.exists(script):
+            script = os.path.abspath(__file__)
+        args = '"%s"' % script
+        icone = _icone_permanente(base)
+        quem = alvo
+        if os.path.basename(alvo).lower() != "pythonw.exe":
+            avisos.append("Nao achei o pythonw.exe; o programa escondera a tela preta sozinho.")
+        if tk is None:
+            avisos.append("ATENCAO: este Python esta sem o tkinter (Tcl/Tk). Reinstale o Python "
+                          "marcando 'tcl/tk and IDLE', ou use o TrituradorHartha.exe.")
+    destinos = [os.path.join(pasta, NOME_ATALHO), os.path.join(_pasta_area_de_trabalho(), NOME_ATALHO)]
+    feitos = []
+    for destino in destinos:
+        try:
+            if os.path.exists(destino):
+                os.remove(destino)                                  # recria do zero (evita icone em cache)
+            com = _AtalhoCOM()
+            try:
+                com.salvar(destino, alvo, args, pasta, icone, 0, "Triturador de Arquivo Permanente")
+                com.fechar()
+                com = _AtalhoCOM()
+                lido = com.ler(destino)                             # confere o que foi gravado de verdade
+            finally:
+                com.fechar()
+            logo_ok = os.path.exists(lido[3]) and os.path.normcase(lido[3]) == os.path.normcase(icone)
+            if not logo_ok:
+                avisos.append("Atalho sem o logo: %s (icone esperado: %s)" % (destino, icone))
+            feitos.append(destino)
+        except Exception as e:  # noqa: BLE001
+            avisos.append("Falhou em %s: %s" % (destino, e))
+    try:  # pede ao Windows para atualizar os icones na tela
+        import ctypes
+        import subprocess
+        ctypes.windll.shell32.SHChangeNotify(0x08000000, 0, None, None)  # SHCNE_ASSOCCHANGED
+        subprocess.run(["ie4uinit.exe", "-show"], timeout=15, creationflags=0x08000000,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:  # noqa: BLE001
+        pass
+    ok = len(feitos) > 0 and not any(a.startswith(("Falhou", "Atalho sem")) for a in avisos)
+    linhas = ["Atalho com o logo criado:" if feitos else "Nao foi possivel criar o atalho."]
+    linhas += ["  " + f for f in feitos]
+    linhas += ["", "Abre com: " + quem]
+    linhas += [""] + avisos if avisos else []
+    return ok, "\n".join(linhas)
+
+
 def registrar_erro(exc_info=None):
     """Grava o erro em triturador_erro.log (ao lado do programa) e avisa na tela."""
     import traceback
@@ -868,7 +1092,7 @@ def registrar_erro(exc_info=None):
         from tkinter import messagebox
         messagebox.showerror("Triturador - erro", txt[-900:])
     except Exception:  # noqa: BLE001
-        pass
+        aviso_windows("Triturador - erro", txt[-900:], erro=True)
 
 
 def run_gui():
@@ -1244,9 +1468,26 @@ def main():
     ap.add_argument("paths", nargs="*", help="arquivos/pastas (sem argumentos abre a interface)")
     ap.add_argument("-p", "--passes", type=int, default=3, help="passadas de sobrescrita (padrao 3)")
     ap.add_argument("-y", "--yes", action="store_true", help="nao pedir confirmacao")
+    ap.add_argument("--criar-atalho", nargs="?", const="", default=None, metavar="ARQUIVO_SAIDA",
+                    help="cria o atalho com o logo (pasta e Area de Trabalho); opcional: grava o resultado em ARQUIVO")
     a = ap.parse_args()
     a.passes = max(1, a.passes)
+    if a.criar_atalho is not None:
+        ok, texto = criar_atalhos()
+        if a.criar_atalho:
+            with open(a.criar_atalho, "w", encoding="utf-16") as f:
+                f.write(texto)
+        else:
+            aviso_windows("Triturador Hartha", texto, erro=not ok)
+        return 0 if ok else 1
     if not a.paths:
+        ocultar_console_windows()  # aberto por python.exe/duplo clique: some com a tela preta
+        if tk is None:
+            aviso_windows("Triturador Hartha",
+                          "Este Python esta sem o componente tkinter (Tcl/Tk), necessario para a janela.\n\n"
+                          "Reinstale o Python marcando \"tcl/tk and IDLE\" ou use o TrituradorHartha.exe.",
+                          erro=True)
+            return 1
         try:
             run_gui()
         except Exception:  # noqa: BLE001

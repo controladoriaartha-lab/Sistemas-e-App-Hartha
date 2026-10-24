@@ -4,8 +4,8 @@ import type { Workout } from "@/lib/types";
 
 // Chave publicavel (anon): feita para ir no navegador; quem protege os dados
 // e a politica RLS da tabela public.workouts (so o dono le/escreve).
-const SUPABASE_URL = "https://sdaruttbshbnzesjnyqa.supabase.co";
-const SUPABASE_KEY = "sb_publishable_8UK78gb2yCKPdQXzSJabVw_xSdowX_m";
+export const SUPABASE_URL = "https://sdaruttbshbnzesjnyqa.supabase.co";
+export const SUPABASE_KEY ="sb_publishable_8UK78gb2yCKPdQXzSJabVw_xSdowX_m";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },

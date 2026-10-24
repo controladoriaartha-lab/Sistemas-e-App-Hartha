@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { friendlyPasskeyError, hasBiometricUnlock } from "@/lib/biometric";
-import { supabase, useAuth } from "@/lib/cloud";
+import { SUPABASE_KEY, SUPABASE_URL, supabase, useAuth } from "@/lib/cloud";
 import { requestSync, useSyncStatus } from "@/lib/sync";
 import { cn } from "@/lib/utils";
 
@@ -33,8 +33,24 @@ function friendlyError(message: string): string {
   return message;
 }
 
+const SIGNUP_ERRORS: Record<string, string> = {
+  invite_required: "O cadastro é só por convite. Peça um link de convite.",
+  invite_invalid: "Convite inválido, já usado ou expirado. Peça um novo.",
+  email_exists: "Esse e-mail já tem conta — use Entrar.",
+  invalid_email: "E-mail inválido. Confira o endereço.",
+  weak_password: "A senha precisa ter de 6 a 72 caracteres.",
+  rate_limited: "Muitas tentativas seguidas. Aguarde alguns minutos.",
+};
+
+// Convite vem no link: https://.../?convite=inv_...
+function inviteFromLink(): string {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("convite") ?? "";
+}
+
 function LoginForm() {
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const [invite, setInvite] = useState(inviteFromLink);
+  const [mode, setMode] = useState<"in" | "up">(() => (inviteFromLink() ? "up" : "in"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
@@ -96,18 +112,22 @@ function LoginForm() {
     setMessage(null);
     try {
       const creds = { email: email.trim(), password };
-      const { data, error } = creating
-        ? await supabase.auth.signUp(creds)
-        : await supabase.auth.signInWithPassword(creds);
-      if (error) setMessage({ kind: "error", text: friendlyError(error.message) });
-      else if (creating && !data.session) {
-        setMode("in");
-        setRepeat("");
-        setMessage({
-          kind: "ok",
-          text: "Conta criada! Abra o e-mail que enviamos e toque no link de confirmação. A página que abrir pode mostrar um erro — é normal. Depois volte aqui e toque em Entrar.",
+      if (creating) {
+        // Cadastro só por convite: a conta é criada pelo servidor, já confirmada.
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+          body: JSON.stringify({ email: creds.email, password, invite: invite.trim() }),
         });
+        const body = (await res.json().catch(() => ({}))) as { code?: string };
+        if (!res.ok) {
+          setMessage({ kind: "error", text: SIGNUP_ERRORS[body.code ?? ""] ?? "Não foi possível criar a conta agora. Tente de novo." });
+          return;
+        }
       }
+      const { error } = await supabase.auth.signInWithPassword(creds);
+      if (error) setMessage({ kind: "error", text: friendlyError(error.message) });
+      else if (creating) window.history.replaceState(null, "", window.location.pathname);
     } catch (err) {
       setMessage({ kind: "error", text: friendlyError(err instanceof Error ? err.message : String(err)) });
     } finally {
@@ -212,6 +232,20 @@ function LoginForm() {
               </button>
             </div>
           </div>
+
+          {creating && (
+            <div className="space-y-1.5">
+              <Label htmlFor="convite">Código de convite</Label>
+              <Input
+                id="convite"
+                type="text"
+                autoComplete="off"
+                placeholder="inv_..."
+                value={invite}
+                onChange={(e) => setInvite(e.target.value)}
+              />
+            </div>
+          )}
 
           {creating && (
             <div className="space-y-1.5">

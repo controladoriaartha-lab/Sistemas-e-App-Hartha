@@ -15,11 +15,13 @@ function traduzir(msg: string, code?: string) {
 }
 
 export function AuthPanel({ sessao }: { sessao: Session | null }) {
-  const [aberto, setAberto] = useState(false);
+  const [aberto, setAberto] = useState(() => Boolean(new URLSearchParams(window.location.search).get("convite")));
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [senha2, setSenha2] = useState("");
-  const [criando, setCriando] = useState(false);
+  // Convite vem no link: https://.../?convite=inv_...
+  const [convite, setConvite] = useState(() => new URLSearchParams(window.location.search).get("convite") ?? "");
+  const [criando, setCriando] = useState(() => Boolean(new URLSearchParams(window.location.search).get("convite")));
   const [msg, setMsg] = useState<string | null>(null);
   const [pendente, setPendente] = useState(false);
   const [ocupado, setOcupado] = useState(false);
@@ -109,7 +111,7 @@ export function AuthPanel({ sessao }: { sessao: Session | null }) {
         const res = await fetch(`${base}/functions/v1/signup`, {
           method: "POST",
           headers: { "Content-Type": "application/json", apikey: anon, Authorization: `Bearer ${anon}` },
-          body: JSON.stringify({ email, password: senha }),
+          body: JSON.stringify({ email, password: senha, invite: convite.trim() }),
         });
         const corpo = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -119,6 +121,8 @@ export function AuthPanel({ sessao }: { sessao: Session | null }) {
             invalid_email: "E-mail inválido. Confira o endereço.",
             weak_password: "A senha precisa ter de 6 a 72 caracteres.",
             rate_limited: "Muitas tentativas seguidas. Aguarde alguns minutos.",
+            invite_required: "O cadastro é só por convite. Peça um link de convite.",
+            invite_invalid: "Convite inválido, já usado ou expirado. Peça um novo.",
           };
           setMsg(mapa[corpo.code as string] ?? "Não foi possível criar a conta agora. Tente de novo.");
           return;
@@ -191,6 +195,9 @@ export function AuthPanel({ sessao }: { sessao: Session | null }) {
           />
           {criando && (
             <input type="password" placeholder="Confirmar senha" value={senha2} onChange={(e) => setSenha2(e.target.value)} autoComplete="new-password" />
+          )}
+          {criando && (
+            <input type="text" placeholder="Código de convite" value={convite} onChange={(e) => setConvite(e.target.value)} autoComplete="off" />
           )}
           <button type="submit" className="send" disabled={ocupado}>
             {criando ? "Criar conta" : "Entrar"}

@@ -177,8 +177,9 @@ export function renderWebManifest(hostHeader) {
         { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
         // "maskable": o Android usa a imagem inteira como icone do app (sem
         // placa branca ao redor nem logo encolhido).
-        { src: "/icon-maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
-        { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        { src: "/icon-full-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+        { src: "/icon-full-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        { src: "/icon-full-1024.png", sizes: "1024x1024", type: "image/png", purpose: "maskable" },
       ],
     },
     null,

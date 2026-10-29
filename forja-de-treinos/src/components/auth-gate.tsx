@@ -11,13 +11,13 @@ import { cn } from "@/lib/utils";
 
 function Splash({ text }: { text: string }) {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-7 px-8 pb-28">
+    <main className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-7 bg-[#0c0b0a] px-8 pb-28">
       <img
         src="/icon-512.png"
         alt="Forja de Treinos"
         className="w-[80vw] max-w-[360px] rounded-[22%] shadow-[0_24px_60px_rgba(0,0,0,0.55)]"
       />
-      <p className="text-[24px] text-muted-foreground">{text}</p>
+      <p className="text-[24px] text-[#9a9086]">{text}</p>
     </main>
   );
 }

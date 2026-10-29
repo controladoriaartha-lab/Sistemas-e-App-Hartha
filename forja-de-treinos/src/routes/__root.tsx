@@ -48,7 +48,7 @@ export const Route = createRootRoute({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              'try{if(localStorage.getItem("forja-theme-v1")==="light"){document.documentElement.dataset.theme="light";var m=document.querySelector(\'meta[name="theme-color"]\');if(m)m.setAttribute("content","#f4efe8");}}catch(e){}',
+              'try{if(localStorage.getItem("forja-theme-v1")==="light"){document.documentElement.dataset.theme="light";}}catch(e){}',
           }}
         />
       </head>

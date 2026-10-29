@@ -167,15 +167,18 @@ export function renderWebManifest(hostHeader) {
       start_url: "/",
       scope: "/",
       display: "standalone",
-      // Mesmo creme/claro do tema claro do app (--color-background com
-      // data-theme="light"), que é o tema padrão do aparelho em uso — assim a
-      // tela nativa do SO (antes do JS carregar) já nasce na mesma cor do
-      // Splash em React que vem logo depois, sem salto de cor perceptível.
-      background_color: "#f4efe8",
-      theme_color: "#f4efe8",
+      // Escuro, igual ao Splash do app: a tela de abertura nativa do Android
+      // (fundo + icone) nasce preta e segue direto para o Splash escuro, sem
+      // passar por uma tela clara no meio.
+      background_color: "#0c0b0a",
+      theme_color: "#0c0b0a",
       icons: [
         { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
         { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+        // "maskable": o Android usa a imagem inteira como icone do app (sem
+        // placa branca ao redor nem logo encolhido).
+        { src: "/icon-maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+        { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
       ],
     },
     null,

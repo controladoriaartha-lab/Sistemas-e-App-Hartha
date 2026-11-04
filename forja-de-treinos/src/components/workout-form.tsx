@@ -51,7 +51,7 @@ function escapeRegExp(text: string) {
 /**
  * Itens individuais de uma nota (aparelhos, exercicios...): separa por
  * virgula, ponto e virgula ou quebra de linha, sem repetir. "Aparelhos:" vira
- * um item so (o que vem depois dele e outro item) e o nome dos atletas, solto
+ * um item so (o que vem depois dele e outro item); tudo em minusculas e o nome dos atletas, solto
  * ou entre parenteses/colchetes, sai de cada item.
  */
 function noteLines(text: string, athleteNames: string[] = []): string[] {
@@ -80,15 +80,15 @@ function noteLines(text: string, athleteNames: string[] = []): string[] {
   const seen = new Set<string>();
   const items: string[] = [];
   const push = (item: string) => {
-    const key = item.toLowerCase();
-    if (!item || seen.has(key)) return;
-    seen.add(key);
-    items.push(item);
+    const lower = item.toLocaleLowerCase("pt-BR");
+    if (!lower || seen.has(lower)) return;
+    seen.add(lower);
+    items.push(lower);
   };
   for (const raw of text.split(/[\n,;]+/)) {
     const labelled = NOTE_LABEL_RE.exec(raw.trim());
     if (labelled) {
-      push("Aparelhos:");
+      push("aparelhos:");
       push(clean(raw.trim().slice(labelled[0].length)));
     } else {
       push(clean(raw));
@@ -281,7 +281,7 @@ export function WorkoutForm({
 
   const noteOptions = useMemo(() => {
     const counts = new Map<string, { label: string; count: number }>();
-    counts.set("aparelhos:", { label: "Aparelhos:", count: 0 });
+    counts.set("aparelhos:", { label: "aparelhos:", count: 0 });
     for (const w of allWorkouts) {
       for (const line of noteLines(w.notes, noteAthletes)) {
         const cur = counts.get(line.toLowerCase());

@@ -42,12 +42,21 @@ const DEFAULT_MUSCLE_GROUPS = [
   "abdômen",
 ];
 
-/** Uma nota por linha (ignora linhas vazias), para o historico de notas. */
+/**
+ * Itens individuais de uma nota (aparelhos, exercicios...): separa por
+ * virgula, ponto e virgula ou quebra de linha, sem repetir.
+ */
 function noteLines(text: string): string[] {
-  return text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
+  const seen = new Set<string>();
+  const items: string[] = [];
+  for (const raw of text.split(/[\n,;]+/)) {
+    const item = raw.trim().replace(/\.+$/, "").trim();
+    const key = item.toLowerCase();
+    if (!item || seen.has(key)) continue;
+    seen.add(key);
+    items.push(item);
+  }
+  return items;
 }
 
 const FOCUS_ORDER: Focus[] = ["pernas", "bracos", "outro"];
@@ -220,14 +229,17 @@ export function WorkoutForm({
   }, [allWorkouts]);
 
   const noteOptions = useMemo(() => {
-    const counts = new Map<string, number>();
+    const counts = new Map<string, { label: string; count: number }>();
     for (const w of allWorkouts) {
-      for (const line of noteLines(w.notes)) counts.set(line, (counts.get(line) ?? 0) + 1);
+      for (const line of noteLines(w.notes)) {
+        const cur = counts.get(line.toLowerCase());
+        if (cur) cur.count += 1;
+        else counts.set(line.toLowerCase(), { label: line, count: 1 });
+      }
     }
-    return [...counts.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-BR"))
-      .slice(0, 80)
-      .map(([label, count]) => ({ label, count }));
+    return [...counts.values()]
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"))
+      .slice(0, 150);
   }, [allWorkouts]);
 
   const athleteOptions = useMemo(
@@ -350,10 +362,14 @@ export function WorkoutForm({
   }
 
   function toggleNote(label: string) {
+    const key = label.toLowerCase();
     const lines = noteLines(draft.notes);
-    patch({
-      notes: (lines.includes(label) ? lines.filter((l) => l !== label) : [...lines, label]).join("\n"),
-    });
+    if (lines.some((l) => l.toLowerCase() === key)) {
+      patch({ notes: lines.filter((l) => l.toLowerCase() !== key).join(", ") });
+    } else {
+      const base = draft.notes.trim().replace(/[,;]+$/, "");
+      patch({ notes: base ? `${base}, ${label}` : label });
+    }
   }
 
   function setFoci(list: Focus[]) {
@@ -673,6 +689,86 @@ export function WorkoutForm({
               <Play className="size-8 translate-x-0.5" fill="currentColor" />
             )}
           </button>
+        </div>
+      </Field>
+
+      <Field label="Timer de descanso">
+        <div className="rounded-2xl bg-muted px-5 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-display text-4xl tabular-nums tracking-tight text-foreground">
+                {formatStopwatch(restRemainingMs)}
+              </p>
+              <p className="mt-0.5 text-[21px] text-faint">
+                {restRunning
+                  ? "Contando o descanso… vai avisar sozinho"
+                  : "Toque para iniciar o descanso entre séries"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleRestToggle}
+              aria-label={restRunning ? "Parar timer de descanso" : "Iniciar timer de descanso"}
+              className={cn(
+                "flex size-16 shrink-0 items-center justify-center rounded-full transition-colors duration-150",
+                restRunning ? "bg-danger text-background" : "bg-ok text-background",
+              )}
+            >
+              {restRunning ? (
+                <Square className="size-7" fill="currentColor" />
+              ) : (
+                <Play className="size-8 translate-x-0.5" fill="currentColor" />
+              )}
+            </button>
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              type="button"
+              aria-label="Diminuir tempo de descanso"
+              onClick={() => adjustRest(-REST_STEP_SECONDS)}
+              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-danger text-background active:brightness-90"
+            >
+              <ChevronDown className="size-6" strokeWidth={3} />
+            </button>
+            <button
+              type="button"
+              aria-label="Aumentar tempo de descanso"
+              onClick={() => adjustRest(REST_STEP_SECONDS)}
+              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-ok text-background active:brightness-90"
+            >
+              <ChevronUp className="size-6" strokeWidth={3} />
+            </button>
+            <p className="flex-1 text-center text-[21px] tabular-nums text-faint">
+              {restRunning ? "ajustar o tempo que falta" : `ajustar: ${formatStopwatch(restSeconds * 1000)}`}
+            </p>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label="Excluir / reiniciar timer de descanso"
+              onClick={handleRestReset}
+            >
+              <Trash2 />
+            </Button>
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <Volume2 className="size-5 shrink-0 text-faint" />
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={10}
+              value={Math.round(restVolume * 100)}
+              onChange={(e) => handleRestVolumeChange(Number(e.target.value) / 100)}
+              aria-label="Volume do aviso sonoro do timer de descanso"
+              className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-border accent-ok [&::-moz-range-thumb]:size-7 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-ok [&::-webkit-slider-thumb]:size-7 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-ok"
+            />
+            <span className="w-14 shrink-0 text-right text-[21px] tabular-nums text-faint">
+              {Math.round(restVolume * 100)}%
+            </span>
+          </div>
         </div>
       </Field>
 
@@ -1035,92 +1131,12 @@ export function WorkoutForm({
         open={notesSheet}
         onClose={() => setNotesSheet(false)}
         title="Histórico de notas"
-        hint="Toque para acrescentar à nota deste treino"
+        hint="Toque num item para acrescentar ou tirar da nota"
         options={noteOptions}
-        isSelected={(n) => noteLines(draft.notes).includes(n)}
+        isSelected={(n) => noteLines(draft.notes).some((l) => l.toLowerCase() === n.toLowerCase())}
         onToggle={toggleNote}
         emptyText="Nenhuma nota anterior."
       />
-
-      <Field label="Timer de descanso">
-        <div className="rounded-2xl bg-muted px-5 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-display text-4xl tabular-nums tracking-tight text-foreground">
-                {formatStopwatch(restRemainingMs)}
-              </p>
-              <p className="mt-0.5 text-[21px] text-faint">
-                {restRunning
-                  ? "Contando o descanso… vai avisar sozinho"
-                  : "Toque para iniciar o descanso entre séries"}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleRestToggle}
-              aria-label={restRunning ? "Parar timer de descanso" : "Iniciar timer de descanso"}
-              className={cn(
-                "flex size-16 shrink-0 items-center justify-center rounded-full transition-colors duration-150",
-                restRunning ? "bg-danger text-background" : "bg-ok text-background",
-              )}
-            >
-              {restRunning ? (
-                <Square className="size-7" fill="currentColor" />
-              ) : (
-                <Play className="size-8 translate-x-0.5" fill="currentColor" />
-              )}
-            </button>
-          </div>
-
-          <div className="mt-4 flex items-center gap-3">
-            <button
-              type="button"
-              aria-label="Diminuir tempo de descanso"
-              onClick={() => adjustRest(-REST_STEP_SECONDS)}
-              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-danger text-background active:brightness-90"
-            >
-              <ChevronDown className="size-6" strokeWidth={3} />
-            </button>
-            <button
-              type="button"
-              aria-label="Aumentar tempo de descanso"
-              onClick={() => adjustRest(REST_STEP_SECONDS)}
-              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-ok text-background active:brightness-90"
-            >
-              <ChevronUp className="size-6" strokeWidth={3} />
-            </button>
-            <p className="flex-1 text-center text-[21px] tabular-nums text-faint">
-              {restRunning ? "ajustar o tempo que falta" : `ajustar: ${formatStopwatch(restSeconds * 1000)}`}
-            </p>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              aria-label="Excluir / reiniciar timer de descanso"
-              onClick={handleRestReset}
-            >
-              <Trash2 />
-            </Button>
-          </div>
-
-          <div className="mt-4 flex items-center gap-3">
-            <Volume2 className="size-5 shrink-0 text-faint" />
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={10}
-              value={Math.round(restVolume * 100)}
-              onChange={(e) => handleRestVolumeChange(Number(e.target.value) / 100)}
-              aria-label="Volume do aviso sonoro do timer de descanso"
-              className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-border accent-ok [&::-moz-range-thumb]:size-7 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-ok [&::-webkit-slider-thumb]:size-7 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-ok"
-            />
-            <span className="w-14 shrink-0 text-right text-[21px] tabular-nums text-faint">
-              {Math.round(restVolume * 100)}%
-            </span>
-          </div>
-        </div>
-      </Field>
 
       <div className="sticky bottom-0 -mx-5 mt-2 flex gap-2 border-t border-border bg-background/95 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
         <Button

@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Play, Plus, Square, Trash2, Volume2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, History, List, Play, Plus, Square, Trash2, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +26,29 @@ import {
 import { formatDuration } from "@/lib/format";
 import { formatExtras, parseExtras, type ExtraItem } from "@/lib/extras";
 import type { NovoSnapshot, NovoTimers } from "@/lib/novo-draft";
+import { SuggestionSheet } from "@/components/suggestion-sheet";
 import { useWorkoutStore } from "@/store/workouts";
+
+const DEFAULT_MUSCLE_GROUPS = [
+  "peito",
+  "costas",
+  "ombros",
+  "braços",
+  "coxas",
+  "posteriores",
+  "anteriores",
+  "panturrilhas",
+  "glúteos",
+  "abdômen",
+];
+
+/** Uma nota por linha (ignora linhas vazias), para o historico de notas. */
+function noteLines(text: string): string[] {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
 
 const FOCUS_ORDER: Focus[] = ["pernas", "bracos", "outro"];
 
@@ -176,6 +198,37 @@ export function WorkoutForm({
   const addAthlete = useWorkoutStore((s) => s.addAthlete);
   const customExtras = useWorkoutStore((s) => s.customExtras);
   const addExtraType = useWorkoutStore((s) => s.addExtraType);
+  const allWorkouts = useWorkoutStore((s) => s.workouts);
+  const [groupSheet, setGroupSheet] = useState(false);
+  const [notesSheet, setNotesSheet] = useState(false);
+
+  // Historico: grupos e notas ja usados em treinos anteriores (mais usados
+  // primeiro), alem dos grupos de sempre.
+  const groupOptions = useMemo(() => {
+    const counts = new Map<string, { label: string; count: number }>();
+    const add = (raw: string, n: number) => {
+      const label = raw.trim();
+      if (!label) return;
+      const key = label.toLowerCase();
+      const cur = counts.get(key);
+      if (cur) cur.count += n;
+      else counts.set(key, { label, count: n });
+    };
+    for (const g of DEFAULT_MUSCLE_GROUPS) add(g, 0);
+    for (const w of allWorkouts) for (const g of w.muscleGroups) add(g, 1);
+    return [...counts.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"));
+  }, [allWorkouts]);
+
+  const noteOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const w of allWorkouts) {
+      for (const line of noteLines(w.notes)) counts.set(line, (counts.get(line) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-BR"))
+      .slice(0, 80)
+      .map(([label, count]) => ({ label, count }));
+  }, [allWorkouts]);
 
   const athleteOptions = useMemo(
     () => Array.from(new Set([...DEFAULT_ATHLETES, ...customAthletes, ...initial.athletes])),
@@ -286,6 +339,22 @@ export function WorkoutForm({
       .filter((f): f is Focus => Boolean(f));
     return list.length > 0 && list[0] === draft.focus ? [...new Set(list)] : [draft.focus];
   })();
+
+  function toggleGroup(label: string) {
+    const key = label.toLowerCase();
+    const current = draft.muscleGroups.map((g) => g.trim()).filter(Boolean);
+    const has = current.some((g) => g.toLowerCase() === key);
+    patch({
+      muscleGroups: has ? current.filter((g) => g.toLowerCase() !== key) : [...current, label],
+    });
+  }
+
+  function toggleNote(label: string) {
+    const lines = noteLines(draft.notes);
+    patch({
+      notes: (lines.includes(label) ? lines.filter((l) => l !== label) : [...lines, label]).join("\n"),
+    });
+  }
 
   function setFoci(list: Focus[]) {
     patch({ focus: list[0], focusLabel: list.map((f) => FOCUS_LABEL[f]).join(" + ") });
@@ -575,6 +644,38 @@ export function WorkoutForm({
         </div>
       </Field>
 
+      <Field label="Timer de treino">
+        <div className="flex items-center justify-between rounded-2xl bg-muted px-5 py-4">
+          <div>
+            <p className="font-display text-4xl tabular-nums tracking-tight text-foreground">
+              {formatStopwatch(timerElapsedMs)}
+            </p>
+            <p className="mt-0.5 text-[21px] text-faint">
+              {timerRunning
+                ? "Contando… toque para finalizar"
+                : timerFinalMs !== null
+                  ? "Parado — toque para iniciar de novo"
+                  : "Toque para iniciar o treino"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleTimerToggle}
+            aria-label={timerRunning ? "Finalizar timer" : "Iniciar timer"}
+            className={cn(
+              "flex size-16 shrink-0 items-center justify-center rounded-full transition-colors duration-150",
+              timerRunning ? "bg-danger text-background" : "bg-ok text-background",
+            )}
+          >
+            {timerRunning ? (
+              <Square className="size-7" fill="currentColor" />
+            ) : (
+              <Play className="size-8 translate-x-0.5" fill="currentColor" />
+            )}
+          </button>
+        </div>
+      </Field>
+
       <div className="grid grid-cols-2 gap-x-5 gap-y-4">
         <Field label="Duração (min)">
           <NumberField
@@ -623,7 +724,18 @@ export function WorkoutForm({
         </p>
       )}
 
-      <Field label="Grupo muscular">
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-3">
+          <Label>Grupo muscular</Label>
+          <button
+            type="button"
+            onClick={() => setGroupSheet(true)}
+            className="flex min-h-9 items-center gap-1 rounded-full px-3 text-[18px] font-medium text-accent ring-1 ring-accent/50"
+          >
+            <List className="size-4" />
+            Escolher da lista
+          </button>
+        </div>
         <Input
           placeholder="coxas, posteriores, peito…"
           value={draft.muscleGroups.join(", ")}
@@ -633,7 +745,17 @@ export function WorkoutForm({
             })
           }
         />
-      </Field>
+      </div>
+      <SuggestionSheet
+        open={groupSheet}
+        onClose={() => setGroupSheet(false)}
+        title="Grupo muscular"
+        hint="Toque para marcar ou desmarcar"
+        options={groupOptions}
+        isSelected={(g) => draft.muscleGroups.some((x) => x.trim().toLowerCase() === g.toLowerCase())}
+        onToggle={toggleGroup}
+        emptyText="Nenhum grupo encontrado."
+      />
 
       <Field label="Outros treinos">
         <div className="flex flex-wrap gap-2">
@@ -890,46 +1012,35 @@ export function WorkoutForm({
         )}
       </section>
 
-      <Field label="Notas">
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-3">
+          <Label>Notas</Label>
+          <button
+            type="button"
+            onClick={() => setNotesSheet(true)}
+            className="flex min-h-9 items-center gap-1 rounded-full px-3 text-[18px] font-medium text-accent ring-1 ring-accent/50"
+          >
+            <History className="size-4" />
+            Histórico
+          </button>
+        </div>
         <Textarea
           rows={3}
           placeholder="Como foi o treino…"
           value={draft.notes}
           onChange={(e) => patch({ notes: e.target.value })}
         />
-      </Field>
-
-      <Field label="Timer de treino">
-        <div className="flex items-center justify-between rounded-2xl bg-muted px-5 py-4">
-          <div>
-            <p className="font-display text-4xl tabular-nums tracking-tight text-foreground">
-              {formatStopwatch(timerElapsedMs)}
-            </p>
-            <p className="mt-0.5 text-[21px] text-faint">
-              {timerRunning
-                ? "Contando… toque para finalizar"
-                : timerFinalMs !== null
-                  ? "Parado — toque para iniciar de novo"
-                  : "Toque para iniciar o treino"}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleTimerToggle}
-            aria-label={timerRunning ? "Finalizar timer" : "Iniciar timer"}
-            className={cn(
-              "flex size-16 shrink-0 items-center justify-center rounded-full transition-colors duration-150",
-              timerRunning ? "bg-danger text-background" : "bg-ok text-background",
-            )}
-          >
-            {timerRunning ? (
-              <Square className="size-7" fill="currentColor" />
-            ) : (
-              <Play className="size-8 translate-x-0.5" fill="currentColor" />
-            )}
-          </button>
-        </div>
-      </Field>
+      </div>
+      <SuggestionSheet
+        open={notesSheet}
+        onClose={() => setNotesSheet(false)}
+        title="Histórico de notas"
+        hint="Toque para acrescentar à nota deste treino"
+        options={noteOptions}
+        isSelected={(n) => noteLines(draft.notes).includes(n)}
+        onToggle={toggleNote}
+        emptyText="Nenhuma nota anterior."
+      />
 
       <Field label="Timer de descanso">
         <div className="rounded-2xl bg-muted px-5 py-4">

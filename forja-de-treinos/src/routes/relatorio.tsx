@@ -19,6 +19,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { displayExtras, formatDuration, formatHours, formatWeekday, parseDate } from "@/lib/format";
 import { forAthlete } from "@/lib/athlete-view";
+import { MuscleFigure } from "@/components/muscle-figure";
+import { IDLE_COLOR, levelColor, regionRatios } from "@/lib/muscle-map";
 import { buildReport } from "@/lib/report";
 import {
   filterByPeriod,
@@ -228,6 +230,11 @@ function Sheet({
   // Mesma definicao de frequencia do Painel (ate hoje), para os dois baterem.
   const perWeek = useMemo(() => computeStats(workouts).sessionsPerWeek, [workouts]);
   const list = useMemo(() => sortedWorkouts(workouts), [workouts]);
+  const muscleRegions = useMemo(() => regionRatios(workouts), [workouts]);
+  const muscleLevels = useMemo(
+    () => Object.fromEntries(muscleRegions.map((r) => [r.id, r.ratio])),
+    [muscleRegions],
+  );
   const generated = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
   const periodText =
     data.first && data.last
@@ -346,6 +353,41 @@ function Sheet({
           ))}
         </ul>
       </Card>
+
+      {muscleRegions.length > 0 && (
+        <Card
+          title="Músculos trabalhados"
+          subtitle="Do verde claro (pouco) ao vermelho escuro (mais trabalhado), no período do relatório"
+          className="mt-3"
+        >
+          <div className="mx-auto max-w-[560px]">
+            <MuscleFigure levels={muscleLevels} />
+          </div>
+          <div className="mx-auto mt-3 max-w-[560px]">
+            <div
+              className="h-2 rounded-full"
+              style={{
+                background: `linear-gradient(90deg, ${IDLE_COLOR}, ${levelColor(0).fill} 20%, ${levelColor(0.5).fill}, ${levelColor(1).fill})`,
+              }}
+            />
+            <div className="mt-1 flex justify-between text-[10px] text-[color:var(--rp-muted)]">
+              <span>não trabalhado</span>
+              <span>mais trabalhado</span>
+            </div>
+          </div>
+          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+            {muscleRegions.map((r) => (
+              <li key={r.id} className="flex items-center gap-1.5">
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ background: levelColor(r.ratio).fill }}
+                />
+                {r.label}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <SectionTitle n="2">Evolução no tempo</SectionTitle>
       <div className="space-y-3">

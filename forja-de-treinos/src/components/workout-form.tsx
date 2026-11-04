@@ -42,21 +42,67 @@ const DEFAULT_MUSCLE_GROUPS = [
   "abdômen",
 ];
 
+const NOTE_LABEL_RE = /^aparelhos?\s*:\s*/i;
+
+function escapeRegExp(text: string) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
  * Itens individuais de uma nota (aparelhos, exercicios...): separa por
- * virgula, ponto e virgula ou quebra de linha, sem repetir.
+ * virgula, ponto e virgula ou quebra de linha, sem repetir. "Aparelhos:" vira
+ * um item so (o que vem depois dele e outro item) e o nome dos atletas, solto
+ * ou entre parenteses/colchetes, sai de cada item.
  */
-function noteLines(text: string): string[] {
+function noteLines(text: string, athleteNames: string[] = []): string[] {
+  const names = athleteNames
+    .map((n) => n.trim())
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegExp);
+  const nameRe = names.length
+    ? new RegExp(`(?<![\\p{L}\\p{N}])(?:${names.join("|")})(?![\\p{L}\\p{N}])`, "giu")
+    : null;
+  const clean = (value: string) => {
+    let item = value;
+    if (nameRe) {
+      item = item.replace(new RegExp(`[(\\[]\\s*${nameRe.source}\\s*[)\\]]`, "giu"), " ");
+      item = item.replace(nameRe, " ");
+    }
+    return item
+      .replace(/\(\s*\)|\[\s*\]/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/^[\s\-–—:]+|[\s\-–—]+$/g, "")
+      .replace(/\.+$/, "")
+      .trim();
+  };
+
   const seen = new Set<string>();
   const items: string[] = [];
-  for (const raw of text.split(/[\n,;]+/)) {
-    const item = raw.trim().replace(/\.+$/, "").trim();
+  const push = (item: string) => {
     const key = item.toLowerCase();
-    if (!item || seen.has(key)) continue;
+    if (!item || seen.has(key)) return;
     seen.add(key);
     items.push(item);
+  };
+  for (const raw of text.split(/[\n,;]+/)) {
+    const labelled = NOTE_LABEL_RE.exec(raw.trim());
+    if (labelled) {
+      push("Aparelhos:");
+      push(clean(raw.trim().slice(labelled[0].length)));
+    } else {
+      push(clean(raw));
+    }
   }
   return items;
+}
+
+/** Junta os itens da nota; depois de "Aparelhos:" segue so um espaco. */
+function joinNotes(items: string[]): string {
+  return items.reduce((acc, item, i) => {
+    if (i === 0) return item;
+    return acc.endsWith(":") ? `${acc} ${item}` : `${acc}, ${item}`;
+  }, "");
 }
 
 const FOCUS_ORDER: Focus[] = ["pernas", "bracos", "outro"];
@@ -228,10 +274,16 @@ export function WorkoutForm({
     return [...counts.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"));
   }, [allWorkouts]);
 
+  const noteAthletes = useMemo(
+    () => Array.from(new Set([...DEFAULT_ATHLETES, ...customAthletes, ...allWorkouts.flatMap((w) => w.athletes)])),
+    [customAthletes, allWorkouts],
+  );
+
   const noteOptions = useMemo(() => {
     const counts = new Map<string, { label: string; count: number }>();
+    counts.set("aparelhos:", { label: "Aparelhos:", count: 0 });
     for (const w of allWorkouts) {
-      for (const line of noteLines(w.notes)) {
+      for (const line of noteLines(w.notes, noteAthletes)) {
         const cur = counts.get(line.toLowerCase());
         if (cur) cur.count += 1;
         else counts.set(line.toLowerCase(), { label: line, count: 1 });
@@ -240,7 +292,7 @@ export function WorkoutForm({
     return [...counts.values()]
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"))
       .slice(0, 150);
-  }, [allWorkouts]);
+  }, [allWorkouts, noteAthletes]);
 
   const athleteOptions = useMemo(
     () => Array.from(new Set([...DEFAULT_ATHLETES, ...customAthletes, ...initial.athletes])),
@@ -363,12 +415,11 @@ export function WorkoutForm({
 
   function toggleNote(label: string) {
     const key = label.toLowerCase();
-    const lines = noteLines(draft.notes);
+    const lines = noteLines(draft.notes, noteAthletes);
     if (lines.some((l) => l.toLowerCase() === key)) {
-      patch({ notes: lines.filter((l) => l.toLowerCase() !== key).join(", ") });
+      patch({ notes: joinNotes(lines.filter((l) => l.toLowerCase() !== key)) });
     } else {
-      const base = draft.notes.trim().replace(/[,;]+$/, "");
-      patch({ notes: base ? `${base}, ${label}` : label });
+      patch({ notes: joinNotes([...lines, label]) });
     }
   }
 
@@ -1133,7 +1184,7 @@ export function WorkoutForm({
         title="Histórico de notas"
         hint="Toque num item para acrescentar ou tirar da nota"
         options={noteOptions}
-        isSelected={(n) => noteLines(draft.notes).some((l) => l.toLowerCase() === n.toLowerCase())}
+        isSelected={(n) => noteLines(draft.notes, noteAthletes).some((l) => l.toLowerCase() === n.toLowerCase())}
         onToggle={toggleNote}
         emptyText="Nenhuma nota anterior."
       />

@@ -83,12 +83,13 @@ function noteLines(text: string, athleteNames: string[] = []): string[] {
     const lower = item.toLocaleLowerCase("pt-BR");
     if (!lower || seen.has(lower)) return;
     seen.add(lower);
-    items.push(lower);
+    // so "Aparelhos:" leva maiuscula; todo o resto fica em minusculas
+    items.push(lower === "aparelhos:" ? "Aparelhos:" : lower);
   };
   for (const raw of text.split(/[\n,;]+/)) {
     const labelled = NOTE_LABEL_RE.exec(raw.trim());
     if (labelled) {
-      push("aparelhos:");
+      push("Aparelhos:");
       push(clean(raw.trim().slice(labelled[0].length)));
     } else {
       push(clean(raw));
@@ -262,7 +263,7 @@ export function WorkoutForm({
   const groupOptions = useMemo(() => {
     const counts = new Map<string, { label: string; count: number }>();
     const add = (raw: string, n: number) => {
-      const label = raw.trim();
+      const label = raw.trim().toLocaleLowerCase("pt-BR");
       if (!label) return;
       const key = label.toLowerCase();
       const cur = counts.get(key);
@@ -281,7 +282,7 @@ export function WorkoutForm({
 
   const noteOptions = useMemo(() => {
     const counts = new Map<string, { label: string; count: number }>();
-    counts.set("aparelhos:", { label: "aparelhos:", count: 0 });
+    counts.set("aparelhos:", { label: "Aparelhos:", count: 0 });
     for (const w of allWorkouts) {
       for (const line of noteLines(w.notes, noteAthletes)) {
         const cur = counts.get(line.toLowerCase());

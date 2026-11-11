@@ -219,11 +219,19 @@ export function regionWeekly(workouts: Workout[], ref: Date, weeksCount = 8): We
     const end = format(addDays(parseISO(start), 6), "yyyy-MM-dd");
     return regionTotals(workouts.filter((w) => w.date >= start && w.date <= end));
   });
-  const max = Math.max(0, ...perWeek.flatMap((m) => [...m.values()]));
+  // Escala do menor ao maior valor que aparece (o menor ja fica visivel, o maior e o mais escuro).
+  const positives = perWeek.flatMap((m) => [...m.values()]).filter((v) => v > 0);
+  const max = Math.max(0, ...positives);
+  const min = positives.length ? Math.min(...positives) : 0;
+  const scale = (v: number) => {
+    if (v <= 0) return 0;
+    if (max === min) return 1;
+    return 0.04 + 0.96 * ((v - min) / (max - min));
+  };
   const rows = HEATMAP_REGIONS.map((id) => ({
     id,
     label: REGION_LABEL[id],
-    cells: perWeek.map((m) => (max > 0 ? (m.get(id) ?? 0) / max : 0)),
+    cells: perWeek.map((m) => scale(m.get(id) ?? 0)),
   })).filter((row) => row.cells.some((v) => v > 0));
   return { weeks, rows };
 }
@@ -242,6 +250,32 @@ export function levelColor(ratio: number): { fill: string } {
   const [r, g, b] = PALE.map((p, i) => Math.round(p + (RED[i] - p) * a));
   return { fill: `rgb(${r} ${g} ${b})` };
 }
+
+// Escala do mapa de calor semanal: parte de um rosa bem clarinho (pouco) e vai
+// ate um vermelho escuro (muito), em degraus bem distintos para ler no celular.
+const HEAT_STOPS: [number, [number, number, number]][] = [
+  [0, [252, 232, 226]],
+  [0.25, [247, 190, 178]],
+  [0.5, [235, 130, 118]],
+  [0.75, [202, 64, 60]],
+  [1, [138, 26, 30]],
+];
+
+export function heatColor(ratio: number): string {
+  const t = Math.min(1, Math.max(0, ratio));
+  let i = 1;
+  while (i < HEAT_STOPS.length - 1 && t > HEAT_STOPS[i][0]) i += 1;
+  const [t0, c0] = HEAT_STOPS[i - 1];
+  const [t1, c1] = HEAT_STOPS[i];
+  const k = (t - t0) / (t1 - t0);
+  const [r, g, b] = c0.map((v, n) => Math.round(v + (c1[n] - v) * k));
+  return `rgb(${r} ${g} ${b})`;
+}
+
+/** Degrade da legenda do mapa de calor (do menos ao mais). */
+export const HEAT_GRADIENT = `linear-gradient(90deg, ${HEAT_STOPS.map(
+  ([t, c]) => `rgb(${c.join(" ")}) ${t * 100}%`,
+).join(", ")})`;
 
 /** Tom claro dos músculos que não foram trabalhados. */
 export const IDLE_COLOR = `rgb(${PALE.join(" ")})`;

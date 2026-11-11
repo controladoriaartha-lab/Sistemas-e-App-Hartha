@@ -17,7 +17,14 @@ import {
 } from "recharts";
 import { MuscleFigure } from "@/components/muscle-figure";
 import { cn } from "@/lib/utils";
-import { IDLE_COLOR, levelColor, regionRatios, regionWeekly } from "@/lib/muscle-map";
+import {
+  HEAT_GRADIENT,
+  IDLE_COLOR,
+  heatColor,
+  levelColor,
+  regionRatios,
+  regionWeekly,
+} from "@/lib/muscle-map";
 import { computeStats, deltaPct } from "@/lib/stats";
 import {
   athleteMonthly,
@@ -336,7 +343,7 @@ export function DashboardPanel({
                       key={weeklyHeat.weeks[i].start}
                       title={`${row.label} · semana de ${weeklyHeat.weeks[i].label}`}
                       className="h-6 rounded-md shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_2px_0_rgba(0,0,0,0.35)]"
-                      style={{ background: value > 0 ? levelColor(value).fill : "var(--color-muted)" }}
+                      style={{ background: value > 0 ? heatColor(value) : "var(--color-muted)" }}
                     />
                   ))}
                 </div>
@@ -347,9 +354,7 @@ export function DashboardPanel({
             <span>menos</span>
             <span
               className="h-2.5 flex-1 rounded-full"
-              style={{
-                background: `linear-gradient(90deg, ${IDLE_COLOR}, ${levelColor(0).fill} 20%, ${levelColor(0.5).fill}, ${levelColor(1).fill})`,
-              }}
+              style={{ background: HEAT_GRADIENT }}
             />
             <span>mais</span>
           </div>

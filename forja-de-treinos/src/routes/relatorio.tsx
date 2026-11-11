@@ -27,7 +27,14 @@ import {
   monthVsPrevious,
   referenceDate,
 } from "@/lib/compare";
-import { IDLE_COLOR, levelColor, regionRatios, regionWeekly } from "@/lib/muscle-map";
+import {
+  HEAT_GRADIENT,
+  IDLE_COLOR,
+  heatColor,
+  levelColor,
+  regionRatios,
+  regionWeekly,
+} from "@/lib/muscle-map";
 import { buildReport } from "@/lib/report";
 import {
   filterByPeriod,
@@ -396,7 +403,7 @@ function Sheet({
           className="mt-3"
         >
           <div className="mx-auto max-w-[400px]">
-            <MuscleFigure levels={muscleLevels} />
+            <MuscleFigure levels={muscleLevels} print />
           </div>
           <div className="mx-auto mt-3 max-w-[400px]">
             <div
@@ -449,7 +456,7 @@ function Sheet({
                     <td
                       key={weeklyHeat.weeks[i].start}
                       className="h-[15px] rounded-[3px]"
-                      style={{ background: value > 0 ? levelColor(value).fill : "#ece6da" }}
+                      style={{ background: value > 0 ? heatColor(value) : "#ece6da" }}
                     />
                   ))}
                 </tr>
@@ -460,9 +467,7 @@ function Sheet({
             <span>menos</span>
             <span
               className="h-2 flex-1 rounded-full"
-              style={{
-                background: `linear-gradient(90deg, ${IDLE_COLOR}, ${levelColor(0).fill} 20%, ${levelColor(0.5).fill}, ${levelColor(1).fill})`,
-              }}
+              style={{ background: HEAT_GRADIENT }}
             />
             <span>mais</span>
           </div>

@@ -14,14 +14,21 @@ const toPoints = (pts: [number, number][]) => pts.map(([x, y]) => `${x},${y}`).j
  * mais trabalhado, mais suave nos menos). Os contornos de cada grupo estão em
  * lib/muscle-regions.ts.
  */
-export function MuscleFigure({ levels }: { levels: Levels }) {
+export function MuscleFigure({ levels, print = false }: { levels: Levels; print?: boolean }) {
   const worked = (Object.keys(REGION_SHAPES) as RegionId[]).filter(
     (id) => levels[id] !== undefined,
   );
   const { width, height } = IMAGE_SIZE;
 
   return (
-    <div className="-mx-2 overflow-hidden rounded-2xl bg-[radial-gradient(70%_55%_at_50%_45%,rgba(200,40,30,0.2),transparent_75%),linear-gradient(180deg,#0b0908,#16120f)] px-1 pb-1 pt-3 shadow-[inset_0_6px_14px_rgba(0,0,0,0.85),inset_0_-1px_0_rgba(255,255,255,0.08)]">
+    <div
+      className={
+        print
+          ? // PDF: fundo pastel (sem o preto), para gastar pouca tinta ao imprimir.
+            "-mx-2 overflow-hidden rounded-2xl border border-[#e6d9c8] bg-[#f6efe4] px-1 pb-1 pt-3"
+          : "-mx-2 overflow-hidden rounded-2xl bg-[radial-gradient(70%_55%_at_50%_45%,rgba(200,40,30,0.2),transparent_75%),linear-gradient(180deg,#0b0908,#16120f)] px-1 pb-1 pt-3 shadow-[inset_0_6px_14px_rgba(0,0,0,0.85),inset_0_-1px_0_rgba(255,255,255,0.08)]"
+      }
+    >
       <svg
         viewBox={`0 0 ${width} ${height + LABEL_ROOM}`}
         role="img"
@@ -80,6 +87,7 @@ export function MuscleFigure({ levels }: { levels: Levels }) {
           ))}
         </defs>
 
+        <g style={print ? { filter: "drop-shadow(0 0 3px rgba(90,60,40,0.55))" } : undefined}>
         <image href={IMAGE_SRC} width={width} height={height} filter="url(#mf-pale)" />
 
         {worked.map((id) => {
@@ -96,7 +104,9 @@ export function MuscleFigure({ levels }: { levels: Levels }) {
           );
         })}
 
-        <g fill="#9a9086" fontSize="50" textAnchor="middle">
+        </g>
+
+        <g fill={print ? "#7a6f62" : "#9a9086"} fontSize="50" textAnchor="middle">
           <text x="276" y="1038">
             Frente
           </text>

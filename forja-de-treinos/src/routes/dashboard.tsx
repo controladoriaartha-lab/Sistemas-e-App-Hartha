@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { forAthlete } from "@/lib/athlete-view";
 import { PanelBrandBar } from "@/components/brand-bar";
+import { CustomExercisesPanel } from "@/components/custom-exercises-panel";
 import { friendlyPasskeyError, hasBiometricUnlock } from "@/lib/biometric";
 import { DashboardPanel } from "@/components/dashboard-panel";
 import { DayPicker, FilterGroup, PeriodPicker, PillRow } from "@/components/filters";
@@ -239,6 +240,8 @@ function DashboardPage() {
       )}
 
       <div className="mt-10 space-y-6 border-t border-border pt-6">
+        <CustomExercisesPanel />
+
         <div>
           <p className="font-medium">Backup do diário</p>
           <p className="mt-1 text-base text-faint">

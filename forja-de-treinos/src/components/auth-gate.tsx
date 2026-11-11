@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { friendlyPasskeyError, hasBiometricUnlock } from "@/lib/biometric";
 import { SUPABASE_KEY, SUPABASE_URL, supabase, useAuth } from "@/lib/cloud";
+import { loadCustomExercises } from "@/lib/custom-exercises";
 import { requestSync, useSyncStatus } from "@/lib/sync";
 import { cn } from "@/lib/utils";
 
@@ -322,7 +323,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const splashActive = useSplashActive();
 
   useEffect(() => {
-    if (userId) requestSync(0);
+    if (userId) {
+      requestSync(0);
+      void loadCustomExercises();
+    }
   }, [userId]);
 
   if (splashActive) {

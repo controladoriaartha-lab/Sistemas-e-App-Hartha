@@ -61,6 +61,14 @@ export const ENTRIES: ExerciseEntry[] = [
     { core: true },
   ),
 
+  e(
+    "Oblíquos / rotação de tronco",
+    /obliquos?|rotacao de tronco|giro de tronco|woodchop|lenhador|pallof|flexao lateral/,
+    { abdomen: 1, lombar: 0.3 },
+    { core: true },
+  ),
+  e("Slam ball", /slam ball|slam/, { abdomen: 0.8, ombros: 0.5, dorsais: 0.4 }),
+
   // ───── Pernas: exercícios específicos ─────
   e(
     "Mesa/cadeira flexora",
@@ -98,9 +106,14 @@ export const ENTRIES: ExerciseEntry[] = [
   ),
   e(
     "Elevação pélvica / glúteo",
-    /hip thrust|elevacao pelvica|glute bridge|gluteos?|glutes?|\bhip\b|coice (na|no) (polia|cabo|maquina)|abdutor|abducao (de |do )?(quadril|coxa|perna)s?|cadeira abdutora/,
+    /hip thrust|elevacao pelvica|glute bridge|glutes? kickback|kickback (de )?gluteos?|gluteos?|glutes?|\bhip\b|coice (na|no) (polia|cabo|maquina)|abdutor|abducao (de |do )?(quadril|coxa|perna)s?|cadeira abdutora/,
     { gluteos: 1, posteriores: 0.5 },
   ),
+  e("Good morning / bom dia", /good morning|bom dia/, { posteriores: 1, lombar: 0.8, gluteos: 0.6 }, {
+    notes: false,
+  }),
+  e("Kettlebell swing", /kettlebell|swing/, { posteriores: 0.9, gluteos: 1, lombar: 0.6, ombros: 0.3 }),
+  e("Agachamento pêndulo", /pendulo|pendulum/, { quadriceps: 1, gluteos: 0.7, posteriores: 0.3 }),
   e("Ponte", /\bponte\b/, { gluteos: 1, posteriores: 0.5 }, { notes: false }),
   e("Adutora", /adutor|aducao/, { quadriceps: 0.5, posteriores: 0.3, gluteos: 0.3 }),
   e(
@@ -146,7 +159,7 @@ export const ENTRIES: ExerciseEntry[] = [
     peitoral: 0.6,
     ombros: 0.4,
   }),
-  e("Tríceps", /triceps|testa|frances|pushdown|extensao de cotovelo|skull crusher/, {
+  e("Tríceps", /triceps|testa|frances|pushdown|kickback|extensao de cotovelo|skull crusher/, {
     triceps: 1,
     ombros: 0.2,
   }),
@@ -171,10 +184,21 @@ export const ENTRIES: ExerciseEntry[] = [
     /elevacao (lateral|frontal)|lateral raise|front raise|abducao de ombro/,
     { ombros: 1, trapezio: 0.2 },
   ),
+  e("Corda naval", /corda naval|battle rope|ropes?\b/, { ombros: 1, abdomen: 0.4, triceps: 0.3, biceps: 0.3 }),
   e("Manguito rotador", /manguito|rotacao (externa|interna)/, { ombros: 0.8 }),
   e("Ombro / deltoide", new RegExp(SHOULDER_WORD), { ombros: 1, trapezio: 0.4 }),
 
   // ───── Peito ─────
+  e(
+    "Supino inclinado",
+    /supino inclinad\w*|incline (bench|press)|chest press inclinad\w*/,
+    { peitoral: 1, ombros: 0.6, triceps: 0.5 },
+  ),
+  e("Supino declinado", /supino declinad\w*|decline (bench|press)/, {
+    peitoral: 1,
+    triceps: 0.6,
+    ombros: 0.3,
+  }),
   e("Supino", /supino|bench press|press de peito|chest press|maquina de peito/, {
     peitoral: 1,
     triceps: 0.5,
@@ -207,7 +231,7 @@ export const ENTRIES: ExerciseEntry[] = [
     lombar: 0.3,
     ombros: 0.2,
   }),
-  e("Lombar / hiperextensão", /hiperextens|extensao lombar|banco romano|superman|lombar/, {
+  e("Lombar / hiperextensão", /hiperextens|extensao lombar|banco romano|cadeira romana|superman|lombar/, {
     lombar: 1,
     gluteos: 0.4,
     posteriores: 0.4,
@@ -229,7 +253,7 @@ export const ENTRIES: ExerciseEntry[] = [
     quadriceps: 1,
     gluteos: 0.3,
   }),
-  e("Pernas", /pernas?|membros inferiores|inferiores/, LEGS),
+  e("Pernas", /pernas?|\blegs?\b|membros inferiores|inferiores/, LEGS),
 
   // ───── Só valem se nada mais casou ─────
   e(
@@ -242,6 +266,16 @@ export const ENTRIES: ExerciseEntry[] = [
 
 /** Cardio: o que cada tipo trabalha (a primeira entrada que casar vence). */
 export const CARDIO_ENTRIES: { name: string; test: RegExp; weights: Weights }[] = [
+  {
+    name: "Air bike",
+    test: /air ?bike|assault|ventilada/,
+    weights: { quadriceps: 0.9, gluteos: 0.6, ombros: 0.4, triceps: 0.3, biceps: 0.3, dorsais: 0.3 },
+  },
+  {
+    name: "Simulador de esqui",
+    test: /ski ?erg|simulador de esqui|\bski\b/,
+    weights: { dorsais: 0.8, triceps: 0.6, abdomen: 0.5, ombros: 0.4, quadriceps: 0.3 },
+  },
   {
     name: "Bike",
     test: /bike|bicicleta|spinning|ciclis|pedal/,
@@ -321,6 +355,35 @@ export function normalizeText(text: string): string {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 }
 
+/**
+ * Aparelhos ensinados pelo usuario (tabela custom_exercises na nuvem, ver
+ * lib/custom-exercises.ts). Valem ANTES do dicionario padrao, entao o que o
+ * usuario cadastra sempre ganha.
+ */
+let customEntries: ExerciseEntry[] = [];
+
+function escapeRegExp(text: string) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function setCustomExercises(
+  list: { name: string; keywords: string[]; weights: Weights }[],
+) {
+  customEntries = list.flatMap((item) => {
+    const words = [...new Set([item.name, ...item.keywords].map(normalizeText))].filter(
+      (w) => w.length >= 3,
+    );
+    if (words.length === 0) return [];
+    const test = new RegExp(
+      `(?<![a-z0-9])(?:${words
+        .sort((a, b) => b.length - a.length)
+        .map(escapeRegExp)
+        .join("|")})(?![a-z0-9])`,
+    );
+    return [{ name: item.name, test, weights: item.weights }];
+  });
+}
+
 export type ExerciseHit = { name: string; weights: Weights; core: boolean; generic: boolean };
 
 /**
@@ -332,7 +395,7 @@ export function matchExercises(text: string, options: { forNotes?: boolean } = {
   let rest = ` ${normalizeText(text)} `;
   const hits: ExerciseHit[] = [];
   const consider = (generic: boolean) => {
-    for (const entry of ENTRIES) {
+    for (const entry of generic ? ENTRIES : [...customEntries, ...ENTRIES]) {
       if (Boolean(entry.generic) !== generic) continue;
       if (options.forNotes && entry.notes === false) continue;
       const match = entry.test.exec(rest);

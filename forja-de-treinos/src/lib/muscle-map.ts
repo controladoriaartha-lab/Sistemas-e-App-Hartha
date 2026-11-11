@@ -1,3 +1,4 @@
+import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { sameAthlete } from "./athlete-view";
 import {
   LEGS,
@@ -8,7 +9,7 @@ import {
 } from "./exercise-dictionary";
 import { parseExtras } from "./extras";
 import { groupTags } from "./stats";
-import type { Workout } from "./types";
+import { workoutFoci, type Workout } from "./types";
 
 /**
  * Liga tudo o que cada treino registra (grupos digitados, Outros treinos,
@@ -105,6 +106,7 @@ function coreLoad(w: Workout): Partial<Record<RegionId, number>> | null {
 function workoutSignals(w: Workout): Signal[] {
   const signals: Signal[] = [];
   const hasCoreLoad = coreLoad(w) !== null;
+  const foci = workoutFoci(w);
 
   // Nomes digitados em Grupo muscular e em Outros treinos, lidos pelo dicionário.
   const names = [...groupTags(w), ...parseExtras(w.extras, w.athletes).map((item) => item.name)];
@@ -114,13 +116,15 @@ function workoutSignals(w: Workout): Signal[] {
       if (hasCoreLoad && hit.core) continue;
       // "Pesos"/"halteres" soltos não dizem qual músculo: em dia de pernas não
       // viram braços (o foco do dia já cobre o que foi trabalhado).
-      if (hit.generic && w.focus === "pernas") continue;
+      if (hit.generic && foci.includes("pernas") && !foci.includes("bracos")) continue;
       signals.push({ weights: hit.weights, scale: 1 });
     }
   }
 
-  const focus = FOCUS_WEIGHTS[w.focus];
-  if (focus) signals.push({ weights: focus, scale: 1 });
+  for (const f of foci) {
+    const focus = FOCUS_WEIGHTS[f];
+    if (focus) signals.push({ weights: focus, scale: 1 });
+  }
 
   for (const row of w.cardio.filter((r) => r.kind.trim())) {
     // 30 minutos de cardio já contam como cheio, e cardio pesa menos que musculação.
@@ -143,9 +147,7 @@ function workoutSignals(w: Workout): Signal[] {
  * treinos e normaliza pelo mais trabalhado (1 = o mais ressaltado). Só devolve
  * regiões com algum trabalho, da mais para a menos trabalhada.
  */
-export function regionRatios(
-  workouts: Workout[],
-): { id: RegionId; label: string; ratio: number }[] {
+function regionTotals(workouts: Workout[]): Map<RegionId, number> {
   const totals = new Map<RegionId, number>();
   for (const w of workouts) {
     const untouched = new Map<RegionId, number>();
@@ -163,12 +165,67 @@ export function regionRatios(
       }
     }
   }
+  return totals;
+}
+
+export function regionRatios(
+  workouts: Workout[],
+): { id: RegionId; label: string; ratio: number }[] {
+  const totals = regionTotals(workouts);
   const max = Math.max(0, ...totals.values());
   if (max === 0) return [];
   return [...totals.entries()]
     .filter(([, value]) => value > 0)
     .map(([id, value]) => ({ id, label: REGION_LABEL[id], ratio: value / max }))
     .sort((a, b) => b.ratio - a.ratio);
+}
+
+/** Ordem das linhas do mapa de calor (de cima para baixo no corpo). */
+export const HEATMAP_REGIONS: RegionId[] = [
+  "ombros",
+  "peitoral",
+  "dorsais",
+  "trapezio",
+  "biceps",
+  "triceps",
+  "antebraco",
+  "abdomen",
+  "lombar",
+  "gluteos",
+  "quadriceps",
+  "posteriores",
+  "panturrilha",
+];
+
+export type WeeklyHeat = {
+  /** segunda-feira de cada semana (yyyy-MM-dd), da mais antiga para a mais nova */
+  weeks: { start: string; label: string }[];
+  /** por regiao, o quanto foi trabalhada em cada semana (0 a 1, na mesma escala de todas) */
+  rows: { id: RegionId; label: string; cells: number[] }[];
+};
+
+/**
+ * Mapa de calor semanal: quanto cada musculo foi trabalhado em cada uma das
+ * ultimas `weeksCount` semanas (ate a semana de `ref`). Todas as celulas usam a
+ * mesma escala (a maior de todas = 1), entao da para comparar semana a semana.
+ */
+export function regionWeekly(workouts: Workout[], ref: Date, weeksCount = 8): WeeklyHeat {
+  const monday = startOfWeek(ref, { weekStartsOn: 1 });
+  const weeks = Array.from({ length: weeksCount }, (_, i) => {
+    const start = addDays(monday, -7 * (weeksCount - 1 - i));
+    return { start: format(start, "yyyy-MM-dd"), label: format(start, "d/M") };
+  });
+  const perWeek = weeks.map(({ start }) => {
+    const end = format(addDays(parseISO(start), 6), "yyyy-MM-dd");
+    return regionTotals(workouts.filter((w) => w.date >= start && w.date <= end));
+  });
+  const max = Math.max(0, ...perWeek.flatMap((m) => [...m.values()]));
+  const rows = HEATMAP_REGIONS.map((id) => ({
+    id,
+    label: REGION_LABEL[id],
+    cells: perWeek.map((m) => (max > 0 ? (m.get(id) ?? 0) / max : 0)),
+  })).filter((row) => row.cells.some((v) => v > 0));
+  return { weeks, rows };
 }
 
 const PALE = [207, 214, 226];

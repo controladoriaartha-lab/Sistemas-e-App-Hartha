@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AuthGate, useSplashActive } from "@/components/auth-gate";
 import { Toaster } from "@/components/ui/sonner";
+import { ACCENTS, setAccent, useAccent } from "@/lib/accent";
 import { hasNovoDraft } from "@/lib/novo-draft";
 import { toggleTheme, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -43,7 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="relative mx-auto min-h-dvh w-full max-w-lg text-foreground">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(75%_80%_at_50%_-25%,rgba(240,151,95,0.26),transparent_72%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(75%_80%_at_50%_-25%,rgb(var(--acc-glow,240_151_95)/0.26),transparent_72%)]"
       />
       {!splashActive && <TopControls />}
       <AuthGate>
@@ -74,8 +75,73 @@ function TopControls() {
         alt="ARTHA"
         className="h-9 w-auto drop-shadow-[0_4px_10px_rgba(0,0,0,0.45)]"
       />
+      <AccentPicker />
       <ThemeToggleButton />
       <ExitAppButton />
+    </div>
+  );
+}
+
+/**
+ * Bolinha da cor de destaque: mostra a cor atual e, ao tocar, abre as 8 cores
+ * para trocar. A escolha fica salva no aparelho (lib/accent.ts).
+ */
+function AccentPicker() {
+  const accent = useAccent();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Cor de destaque"
+        aria-expanded={open}
+        title="Cor de destaque"
+        className="btn-3d flex size-9 items-center justify-center rounded-full"
+      >
+        <span
+          className="size-5 rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
+          style={{ background: `linear-gradient(160deg, ${accent.l1}, ${accent.l3})` }}
+        />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
+          <div
+            role="dialog"
+            aria-label="Escolher cor de destaque"
+            className="absolute right-0 top-full z-50 mt-3 w-[15.5rem] rounded-2xl bg-card p-3.5 shadow-[0_18px_34px_rgba(0,0,0,0.55),0_4px_0_rgba(0,0,0,0.35)] ring-1 ring-border"
+          >
+            <p className="mb-3 text-[18px] text-faint">Cor de destaque</p>
+            <ul className="grid grid-cols-4 gap-3">
+              {ACCENTS.map((a) => {
+                const on = a.id === accent.id;
+                return (
+                  <li key={a.id}>
+                    <button
+                      type="button"
+                      aria-label={a.label}
+                      aria-pressed={on}
+                      onClick={() => {
+                        setAccent(a.id);
+                        setOpen(false);
+                      }}
+                      className="flex size-11 items-center justify-center rounded-full transition-transform active:scale-95"
+                      style={{
+                        background: `linear-gradient(160deg, ${a.l1}, ${a.l2} 55%, ${a.l3})`,
+                        boxShadow: on
+                          ? `0 0 0 3px var(--color-card), 0 0 0 5px ${a.l2}, 0 4px 0 ${a.edge}`
+                          : `0 4px 0 ${a.edge}, inset 0 1px 0 rgba(255,255,255,0.5)`,
+                      }}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </>
+      )}
     </div>
   );
 }

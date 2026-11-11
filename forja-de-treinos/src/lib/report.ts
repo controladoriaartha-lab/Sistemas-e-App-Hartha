@@ -9,7 +9,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import { parseDate, formatDuration } from "./format";
 import { computeStats } from "./stats";
-import type { Workout } from "./types";
+import { workoutFoci, type Workout } from "./types";
 
 const WEEK = { weekStartsOn: 1 as const };
 const WEEKDAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
@@ -112,7 +112,7 @@ export function buildReport(workouts: Workout[], now = new Date()) {
   }));
 
   const avgByFocus = (focus: Workout["focus"]) => {
-    const list = asc.filter((w) => w.focus === focus);
+    const list = asc.filter((w) => workoutFoci(w).includes(focus));
     return list.length ? Math.round(list.reduce((s, w) => s + w.durationMin, 0) / list.length) : 0;
   };
 

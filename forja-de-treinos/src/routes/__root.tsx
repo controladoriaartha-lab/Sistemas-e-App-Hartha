@@ -2,6 +2,7 @@ import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-r
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { AppShell } from "@/components/app-shell";
+import { accentBootScript } from "@/lib/accent";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Forja de Treinos";
@@ -51,6 +52,8 @@ export const Route = createRootRoute({
               'try{if(localStorage.getItem("forja-theme-v1")==="light"){document.documentElement.dataset.theme="light";}}catch(e){}',
           }}
         />
+        {/* Cor de destaque escolhida (bolinhas), aplicada antes da primeira pintura. */}
+        <script dangerouslySetInnerHTML={{ __html: accentBootScript() }} />
       </head>
       <body>
         <PreviewHostBridge />

@@ -27,7 +27,7 @@ import {
   monthVsPrevious,
   referenceDate,
 } from "@/lib/compare";
-import { IDLE_COLOR, levelColor, regionRatios } from "@/lib/muscle-map";
+import { IDLE_COLOR, levelColor, regionRatios, regionWeekly } from "@/lib/muscle-map";
 import { buildReport } from "@/lib/report";
 import {
   filterByPeriod,
@@ -259,6 +259,7 @@ function Sheet({
     [muscleRegions],
   );
   const refDate = useMemo(() => referenceDate(workouts), [workouts]);
+  const weeklyHeat = useMemo(() => regionWeekly(workouts, refDate), [workouts, refDate]);
   const athleteCompare = useMemo(
     () => athleteMonthly(workouts, "sessoes", refDate),
     [workouts, refDate],
@@ -394,10 +395,10 @@ function Sheet({
           subtitle="Do verde claro (pouco) ao vermelho escuro (mais trabalhado), no período do relatório"
           className="mt-3"
         >
-          <div className="mx-auto max-w-[560px]">
+          <div className="mx-auto max-w-[400px]">
             <MuscleFigure levels={muscleLevels} />
           </div>
-          <div className="mx-auto mt-3 max-w-[560px]">
+          <div className="mx-auto mt-3 max-w-[400px]">
             <div
               className="h-2 rounded-full"
               style={{
@@ -420,6 +421,51 @@ function Sheet({
               </li>
             ))}
           </ul>
+        </Card>
+      )}
+
+      {weeklyHeat.rows.length > 0 && (
+        <Card
+          title="Mapa de calor semanal"
+          subtitle="Quanto cada músculo foi trabalhado em cada uma das últimas 8 semanas (cor mais escura = mais trabalhado)"
+          className="mt-3"
+        >
+          <table className="w-full border-separate text-[10.5px]" style={{ borderSpacing: "3px" }}>
+            <thead>
+              <tr className="text-[9.5px] text-[color:var(--rp-muted)]">
+                <th className="w-[112px]" />
+                {weeklyHeat.weeks.map((week) => (
+                  <th key={week.start} className="font-normal">
+                    {week.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {weeklyHeat.rows.map((row) => (
+                <tr key={row.id}>
+                  <td className="whitespace-nowrap pr-2 text-left text-[color:var(--rp-muted)]">{row.label}</td>
+                  {row.cells.map((value, i) => (
+                    <td
+                      key={weeklyHeat.weeks[i].start}
+                      className="h-[15px] rounded-[3px]"
+                      style={{ background: value > 0 ? levelColor(value).fill : "#ece6da" }}
+                    />
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-2 flex items-center gap-2 text-[10px] text-[color:var(--rp-muted)]">
+            <span>menos</span>
+            <span
+              className="h-2 flex-1 rounded-full"
+              style={{
+                background: `linear-gradient(90deg, ${IDLE_COLOR}, ${levelColor(0).fill} 20%, ${levelColor(0.5).fill}, ${levelColor(1).fill})`,
+              }}
+            />
+            <span>mais</span>
+          </div>
         </Card>
       )}
 

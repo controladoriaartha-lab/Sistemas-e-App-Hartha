@@ -10,12 +10,12 @@
   --color-card-foreground: #f4efe8;
   --color-muted: #1c1916;
   --color-muted-foreground: #9a9086;
-  --color-accent: #c45c26;
+  --color-accent: var(--acc-dark, #c45c26);
   --color-accent-foreground: #fff7f0;
   --color-border: #2c2722;
   --color-paper: #f4efe8;
   --color-ink: #0c0b0a;
-  --color-ring: #c45c26;
+  --color-ring: var(--acc-dark, #c45c26);
   --color-danger: #d67a6a;
   --color-warn: #c4a574;
   --color-ok: #7d9478;
@@ -52,7 +52,7 @@
   --block-shadow: 0 8px 14px rgba(0, 0, 0, 0.5), 0 4px 0 #050404, inset 0 1px 0 rgba(255, 255, 255, 0.14);
   --nav-bg: linear-gradient(180deg, rgba(40, 33, 28, 0.96) 0%, rgba(17, 14, 12, 0.98) 100%);
   --nav-shadow: 0 18px 34px rgba(0, 0, 0, 0.65), 0 5px 0 #050404, inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  --halo: rgba(240, 151, 95, 0.55);
+  --halo: rgb(var(--acc-glow, 240 151 95) / 0.55);
 }
 
 /*
@@ -70,10 +70,10 @@
   --color-card-foreground: #241f1a;
   --color-muted: #e9e2d5;
   --color-muted-foreground: #746b5e;
-  --color-accent: #b8511e;
+  --color-accent: var(--acc-light, #b8511e);
   --color-accent-foreground: #fff7f0;
   --color-border: #ddd3c2;
-  --color-ring: #b8511e;
+  --color-ring: var(--acc-light, #b8511e);
   --color-danger: #b8402f;
   --color-warn: #93672c;
   --color-ok: #4f6a49;
@@ -97,7 +97,7 @@
   --block-shadow: 0 8px 12px rgba(80, 56, 28, 0.22), 0 4px 0 #cbbfa9, inset 0 1px 0 #fff;
   --nav-bg: linear-gradient(180deg, #ffffff 0%, #efe8da 100%);
   --nav-shadow: 0 16px 28px rgba(80, 56, 28, 0.28), 0 5px 0 #cbbfa9, inset 0 1px 0 #fff;
-  --halo: rgba(184, 81, 30, 0.35);
+  --halo: rgb(var(--acc-glow, 184 81 30) / 0.35);
 }
 
 @layer base {
@@ -230,8 +230,16 @@
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   }
   .badge-3d[data-tone="forte"] {
-    background: linear-gradient(180deg, #f0975f 0%, #d36a2c 55%, #a9481a 100%);
-    box-shadow: 0 4px 0 #6d2c0c, 0 8px 14px rgba(211, 106, 44, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    background: linear-gradient(
+      180deg,
+      var(--acc-1, #f0975f) 0%,
+      var(--acc-2, #d36a2c) 55%,
+      var(--acc-3, #a9481a) 100%
+    );
+    box-shadow:
+      0 4px 0 var(--acc-edge, #6d2c0c),
+      0 8px 14px rgb(var(--acc-glow, 211 106 44) / 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
   .badge-3d[data-tone="medio"] {
     background: linear-gradient(180deg, #f3d37a 0%, #d9a63a 55%, #a87618 100%);

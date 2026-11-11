@@ -17,7 +17,7 @@ import {
 } from "recharts";
 import { MuscleFigure } from "@/components/muscle-figure";
 import { cn } from "@/lib/utils";
-import { IDLE_COLOR, levelColor, regionRatios } from "@/lib/muscle-map";
+import { IDLE_COLOR, levelColor, regionRatios, regionWeekly } from "@/lib/muscle-map";
 import { computeStats, deltaPct } from "@/lib/stats";
 import {
   athleteMonthly,
@@ -27,6 +27,7 @@ import {
   referenceDate,
   type CompareMetric,
 } from "@/lib/compare";
+import { useAccent, type Accent } from "@/lib/accent";
 import { formatDuration, formatHours } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
 import type { Workout } from "@/lib/types";
@@ -125,7 +126,8 @@ export function DashboardPanel({
   const theme = useTheme();
   const [muscleView, setMuscleView] = useState<"periodo" | "semana" | "ultimo">("periodo");
   const [compareMetric, setCompareMetric] = useState<CompareMetric>("sessoes");
-  const c = CHART_COLORS[theme];
+  const accent = useAccent();
+  const c = { ...CHART_COLORS[theme], accent: theme === "dark" ? accent.dark : accent.light };
   // `contentStyle` alone does not color the label / item text (Recharts sets
   // those per-entry), so on a dark background the numbers rendered near-black
   // and unreadable — force them here, per theme.
@@ -199,6 +201,7 @@ export function DashboardPanel({
   const athleteCompare = athleteMonthly(workouts, compareMetric, refDate);
   const loadData = loadProgress(workouts);
   const monthCompare = monthVsPrevious(workouts, refDate);
+  const weeklyHeat = regionWeekly(workouts, refDate);
   const lineColors = ATHLETE_LINE[theme];
   const metricUnit = COMPARE_METRICS.find((m) => m.value === compareMetric)?.unit ?? "";
 
@@ -303,6 +306,56 @@ export function DashboardPanel({
               </ul>
             </>
           )}
+        </ChartBlock>
+      )}
+
+      {weeklyHeat.rows.length > 0 && (
+        <ChartBlock
+          title="Mapa de calor semanal"
+          subtitle="esforço de cada músculo por semana"
+        >
+          <div className="space-y-1.5">
+            <div className="flex items-end gap-2">
+              <span className="w-[6.25rem] shrink-0" />
+              <div className="grid flex-1 grid-cols-8 gap-1.5 text-[16px] text-faint">
+                {weeklyHeat.weeks.map((week, i) => (
+                  <span key={week.start} className="col-span-2 truncate first:col-start-1 even:hidden">
+                    {i % 2 === 0 ? week.label : ""}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {weeklyHeat.rows.map((row) => (
+              <div key={row.id} className="flex items-center gap-2">
+                <span className="w-[6.25rem] shrink-0 truncate text-[19px] text-muted-foreground">
+                  {row.id === "posteriores" ? "Posteriores" : row.label}
+                </span>
+                <div className="grid flex-1 grid-cols-8 gap-1.5">
+                  {row.cells.map((value, i) => (
+                    <span
+                      key={weeklyHeat.weeks[i].start}
+                      title={`${row.label} · semana de ${weeklyHeat.weeks[i].label}`}
+                      className="h-6 rounded-md shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_2px_0_rgba(0,0,0,0.35)]"
+                      style={{ background: value > 0 ? levelColor(value).fill : "var(--color-muted)" }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-2 text-[18px] text-faint">
+            <span>menos</span>
+            <span
+              className="h-2.5 flex-1 rounded-full"
+              style={{
+                background: `linear-gradient(90deg, ${IDLE_COLOR}, ${levelColor(0).fill} 20%, ${levelColor(0.5).fill}, ${levelColor(1).fill})`,
+              }}
+            />
+            <span>mais</span>
+          </div>
+          <p className="mt-1 text-[18px] text-faint">
+            A última coluna é a semana de {weeklyHeat.weeks[weeklyHeat.weeks.length - 1].label}.
+          </p>
         </ChartBlock>
       )}
 
@@ -1044,19 +1097,37 @@ const BAR_TONES: Record<
   green: { top: "#b3d99b", mid: "#6fa352", bottom: "#47753a", face: "#dcf0cf", side: "#2f5226" },
 };
 
+/** Mistura dois #rrggbb (t = 0 fica em `a`, t = 1 em `b`). */
+function mixHex(a: string, b: string, t: number) {
+  const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+  const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+  return `#${pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function accentBarTone(a: Accent) {
+  return {
+    top: a.l1,
+    mid: a.l2,
+    bottom: a.l3,
+    face: mixHex(a.l1, "#ffffff", 0.55),
+    side: mixHex(a.l3, "#000000", 0.28),
+  };
+}
+
 function Bar3D(props: {
   x?: number;
   y?: number;
   width?: number;
   height?: number;
-  tone?: Tone;
+  tone?: Tone | "accent";
 }) {
-  const { x = 0, y = 0, width = 0, height = 0, tone = "orange" } = props;
+  const { x = 0, y = 0, width = 0, height = 0, tone = "accent" } = props;
+  const accent = useAccent();
   if (!(width > 0) || !(height > 0)) return null;
-  const t = BAR_TONES[tone];
+  const t = tone === "accent" ? accentBarTone(accent) : BAR_TONES[tone];
   const d = Math.min(7, width * 0.28, height);
   const fw = width - d;
-  const id = `bar3d-front-${tone}`;
+  const id = `bar3d-front-${tone === "accent" ? accent.id : tone}`;
   return (
     <g>
       <defs>

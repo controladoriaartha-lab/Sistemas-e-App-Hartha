@@ -9,7 +9,7 @@ import {
   startOfWeek,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { Focus, Intensity, Workout } from "./types";
+import { workoutFoci, type Focus, type Intensity, type Workout } from "./types";
 import { parseDate } from "./format";
 import { sameAthlete } from "./athlete-view";
 import { parseExtras } from "./extras";
@@ -136,10 +136,27 @@ export function computeStats(workouts: Workout[], now = new Date(), extraAthlete
   const lastMonth = sum(sorted.filter((w) => inRange(w.date, lastMonthStart, lastMonthEnd)));
   const all = sum(sorted);
 
+  // Treino com mais de um foco ("Pernas + Braços") conta uma sessao em cada foco;
+  // o tempo (e o resto) se divide entre eles, para a soma dos focos bater com o total.
+  const sumFocus = (focus: Focus) => {
+    const list = sorted.filter((w) => workoutFoci(w).includes(focus));
+    const share = (w: Workout) => 1 / workoutFoci(w).length;
+    return {
+      count: list.length,
+      minutes: Math.round(list.reduce((s, w) => s + w.durationMin * share(w), 0)),
+      machines: Math.round(list.reduce((s, w) => s + w.machines * share(w), 0)),
+      cardio: Math.round(
+        list.reduce((s, w) => s + w.cardio.reduce((c, x) => c + x.minutes, 0) * share(w), 0),
+      ),
+      coreReps: Math.round(
+        list.reduce((s, w) => s + w.core.reduce((c, x) => c + x.sets * x.reps, 0) * share(w), 0),
+      ),
+    };
+  };
   const byFocus: Record<Focus, ReturnType<typeof sum>> = {
-    pernas: sum(sorted.filter((w) => w.focus === "pernas")),
-    bracos: sum(sorted.filter((w) => w.focus === "bracos")),
-    outro: sum(sorted.filter((w) => w.focus === "outro")),
+    pernas: sumFocus("pernas"),
+    bracos: sumFocus("bracos"),
+    outro: sumFocus("outro"),
   };
 
   const byIntensity: Record<Intensity, number> = {

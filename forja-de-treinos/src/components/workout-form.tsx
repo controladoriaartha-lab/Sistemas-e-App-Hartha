@@ -18,10 +18,12 @@ import {
   DEFAULT_ATHLETES,
   EXTRA_BASE_OPTIONS,
   FOCUS_LABEL,
+  FOCUS_ORDER,
   INTENSITY_LABEL,
   type Focus,
   type Intensity,
   type Workout,
+  workoutFoci,
 } from "@/lib/types";
 import { formatDuration } from "@/lib/format";
 import { formatExtras, parseExtras, type ExtraItem } from "@/lib/extras";
@@ -105,8 +107,6 @@ function joinNotes(items: string[]): string {
     return acc.endsWith(":") ? `${acc} ${item}` : `${acc}, ${item}`;
   }, "");
 }
-
-const FOCUS_ORDER: Focus[] = ["pernas", "bracos", "outro"];
 
 /** Timer de treino esquecido ligado para sozinho depois disso. */
 const TIMER_MAX_MS = 3 * 60 * 60 * 1000;
@@ -397,13 +397,7 @@ export function WorkoutForm({
 
   // Mais de um foco no mesmo treino: o primeiro segue em `focus` (estatisticas
   // e filtros) e todos ficam no rotulo "Pernas + Braços", que ja e salvo.
-  const foci: Focus[] = (() => {
-    const list = draft.focusLabel
-      .split(" + ")
-      .map((label) => FOCUS_ORDER.find((f) => FOCUS_LABEL[f] === label))
-      .filter((f): f is Focus => Boolean(f));
-    return list.length > 0 && list[0] === draft.focus ? [...new Set(list)] : [draft.focus];
-  })();
+  const foci: Focus[] = workoutFoci(draft);
 
   function toggleGroup(label: string) {
     const key = label.toLowerCase();

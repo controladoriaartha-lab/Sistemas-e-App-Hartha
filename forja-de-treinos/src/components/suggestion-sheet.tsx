@@ -81,7 +81,7 @@ export function SuggestionSheet({
           {shown.length === 0 ? (
             <p className="py-6 text-center text-[20px] text-faint">{emptyText}</p>
           ) : (
-            <ul className="flex flex-wrap gap-2.5 pb-1">
+            <ul className="flex flex-wrap gap-3 pb-1">
               {shown.map((o) => {
                 const on = isSelected(o.label);
                 return (
@@ -91,10 +91,10 @@ export function SuggestionSheet({
                       onClick={() => onToggle(o.label)}
                       data-on={on}
                       className={cn(
-                        "pill-3d flex min-h-11 max-w-full items-center gap-1.5 px-4 text-left text-[20px] font-medium",
+                        "pill-3d flex min-h-12 max-w-full items-center gap-1.5 px-5 text-left text-[24px] font-medium",
                       )}
                     >
-                      {on && <Check className="size-4 shrink-0" strokeWidth={3} />}
+                      {on && <Check className="size-5 shrink-0" strokeWidth={3} />}
                       <span className="min-w-0 break-words">{o.label}</span>
                     </button>
                   </li>

@@ -203,10 +203,10 @@ const NumberField = forwardRef<
         value={value || ""}
         placeholder={placeholder}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
-        className="pr-11 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="h-16 pr-[3.75rem] [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         {...rest}
       />
-      <div className="absolute inset-y-1.5 right-1.5 flex w-8 flex-col gap-0.5">
+      <div className="absolute inset-y-1 right-1 flex w-[2.6rem] flex-col gap-0.5">
         <button
           type="button"
           tabIndex={-1}
@@ -214,7 +214,7 @@ const NumberField = forwardRef<
           onClick={() => onChange(Math.min(max, value + step))}
           className="flex flex-1 items-center justify-center rounded bg-ok text-background active:brightness-90"
         >
-          <ChevronUp className="size-4" strokeWidth={3} />
+          <ChevronUp className="size-5" strokeWidth={3} />
         </button>
         <button
           type="button"
@@ -223,7 +223,7 @@ const NumberField = forwardRef<
           onClick={() => onChange(Math.max(min, value - step))}
           className="flex flex-1 items-center justify-center rounded bg-danger text-background active:brightness-90"
         >
-          <ChevronDown className="size-4" strokeWidth={3} />
+          <ChevronDown className="size-5" strokeWidth={3} />
         </button>
       </div>
     </div>

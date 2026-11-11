@@ -64,10 +64,10 @@ export const ENTRIES: ExerciseEntry[] = [
   // ───── Pernas: exercícios específicos ─────
   e(
     "Mesa/cadeira flexora",
-    /leg curl|mesa flexora|cadeira flexora|flexora|flexao de (joelho|perna)|femoral/,
+    /leg curl|mesa flexora|cadeiras? flexora|flexora|flexao (de |do |da )?(joelhos?|pernas?)|femoral/,
     { posteriores: 1, gluteos: 0.3, panturrilha: 0.2 },
   ),
-  e("Cadeira extensora", /leg extension|extensora|extensao de (joelho|perna)/, { quadriceps: 1 }),
+  e("Cadeira extensora", /leg extension|extensora|extensao (de |do |da )?(joelhos?|pernas?)/, { quadriceps: 1 }),
   e("Terra romeno / stiff", /terra romeno|romanian|\brdl\b|stiff/, {
     posteriores: 1,
     gluteos: 0.8,
@@ -98,7 +98,7 @@ export const ENTRIES: ExerciseEntry[] = [
   ),
   e(
     "Elevação pélvica / glúteo",
-    /hip thrust|elevacao pelvica|glute bridge|gluteos?|coice (na|no) (polia|cabo|maquina)|abdutor|abducao de quadril|cadeira abdutora/,
+    /hip thrust|elevacao pelvica|glute bridge|gluteos?|glutes?|\bhip\b|coice (na|no) (polia|cabo|maquina)|abdutor|abducao (de |do )?(quadril|coxa|perna)s?|cadeira abdutora/,
     { gluteos: 1, posteriores: 0.5 },
   ),
   e("Ponte", /\bponte\b/, { gluteos: 1, posteriores: 0.5 }, { notes: false }),
@@ -108,6 +108,8 @@ export const ENTRIES: ExerciseEntry[] = [
     /panturrilhas?|gemeos|soleo|\bcalf\b|elevacao de (calcanhar|panturrilha)|donkey/,
     { panturrilha: 1 },
   ),
+  e("Flexão plantar", /flexao plantar|plantar/, { panturrilha: 1 }),
+  e("Flexão de quadril", /flexao (de |do )?quadril/, { quadriceps: 0.6, abdomen: 0.4 }),
   e("Afundo / avanço", /afundo|avanco|passada|lunge|bulgaro|step[ -]?up|subida no banco/, {
     quadriceps: 1,
     gluteos: 0.9,
@@ -319,7 +321,7 @@ export function normalizeText(text: string): string {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 }
 
-export type ExerciseHit = { name: string; weights: Weights; core: boolean };
+export type ExerciseHit = { name: string; weights: Weights; core: boolean; generic: boolean };
 
 /**
  * Exercícios reconhecidos num texto livre (nome de grupo, de exercício ou as
@@ -335,7 +337,12 @@ export function matchExercises(text: string, options: { forNotes?: boolean } = {
       if (options.forNotes && entry.notes === false) continue;
       const match = entry.test.exec(rest);
       if (!match) continue;
-      hits.push({ name: entry.name, weights: entry.weights, core: Boolean(entry.core) });
+      hits.push({
+        name: entry.name,
+        weights: entry.weights,
+        core: Boolean(entry.core),
+        generic: generic,
+      });
       rest = rest.replace(match[0], " ");
     }
   };

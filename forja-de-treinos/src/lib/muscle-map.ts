@@ -112,6 +112,9 @@ function workoutSignals(w: Workout): Signal[] {
     for (const hit of matchExercises(name) as ExerciseHit[]) {
       // Abdominal digitado nos grupos: se o core tem séries e repetições, vale o que foi feito.
       if (hasCoreLoad && hit.core) continue;
+      // "Pesos"/"halteres" soltos não dizem qual músculo: em dia de pernas não
+      // viram braços (o foco do dia já cobre o que foi trabalhado).
+      if (hit.generic && w.focus === "pernas") continue;
       signals.push({ weights: hit.weights, scale: 1 });
     }
   }

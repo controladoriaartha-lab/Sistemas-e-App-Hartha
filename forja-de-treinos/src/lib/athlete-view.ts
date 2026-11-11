@@ -1,7 +1,7 @@
 import { formatExtras, parseExtras } from "./extras";
 import type { Workout } from "./types";
 
-function norm(name: string) {
+export function norm(name: string) {
   return name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 }
 

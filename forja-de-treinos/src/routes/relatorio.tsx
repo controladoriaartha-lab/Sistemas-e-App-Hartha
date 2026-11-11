@@ -20,6 +20,13 @@ import { ptBR } from "date-fns/locale";
 import { displayExtras, formatDuration, formatHours, formatWeekday, parseDate } from "@/lib/format";
 import { forAthlete } from "@/lib/athlete-view";
 import { MuscleFigure } from "@/components/muscle-figure";
+import {
+  athleteMonthly,
+  COMPARE_METRICS,
+  loadProgress,
+  monthVsPrevious,
+  referenceDate,
+} from "@/lib/compare";
 import { IDLE_COLOR, levelColor, regionRatios } from "@/lib/muscle-map";
 import { buildReport } from "@/lib/report";
 import {
@@ -67,6 +74,9 @@ const C = {
   green: "#4f6a49",
   paper: "#f4efe8",
 };
+
+// Uma cor por atleta, as mesmas do Painel (tom de papel).
+const ATHLETE_COLORS = ["#b8511e", "#2a7a8c", "#93672c", "#4f6a49"];
 
 const TICK = { fill: C.muted, fontSize: 10 };
 
@@ -119,6 +129,19 @@ function Kpi({ label, value, hint }: { label: string; value: string; hint?: stri
       </p>
       {hint && <p className="mt-1 text-[10px] text-[color:var(--rp-faint)]">{hint}</p>}
     </div>
+  );
+}
+
+function InlineLegend({ items }: { items: { color: string; label: string }[] }) {
+  return (
+    <ul className="mb-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[10.5px]">
+      {items.map((it) => (
+        <li key={it.label} className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-full" style={{ background: it.color }} />
+          <span className="text-[color:var(--rp-muted)]">{it.label}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -235,6 +258,17 @@ function Sheet({
     () => Object.fromEntries(muscleRegions.map((r) => [r.id, r.ratio])),
     [muscleRegions],
   );
+  const refDate = useMemo(() => referenceDate(workouts), [workouts]);
+  const athleteCompare = useMemo(
+    () => athleteMonthly(workouts, "sessoes", refDate),
+    [workouts, refDate],
+  );
+  const compareByMetric = useMemo(
+    () => COMPARE_METRICS.map((m) => ({ ...m, data: athleteMonthly(workouts, m.value, refDate) })),
+    [workouts, refDate],
+  );
+  const loadData = useMemo(() => loadProgress(workouts), [workouts]);
+  const monthCompare = useMemo(() => monthVsPrevious(workouts, refDate), [workouts, refDate]);
   const generated = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
   const periodText =
     data.first && data.last
@@ -450,6 +484,157 @@ function Sheet({
             </BarChart>
           </Card>
         </div>
+
+        <Card
+          title="Ritmo do mês"
+          subtitle={`${monthCompare.currentLabel} contra ${monthCompare.previousLabel}`}
+        >
+          <div className="grid grid-cols-4 gap-2.5">
+            {monthCompare.rows.map((row) => (
+              <div key={row.key} className="report-avoid rounded-md border border-[color:var(--rp-line)] px-2.5 py-2">
+                <p className="text-[9.5px] font-semibold uppercase tracking-wider text-[color:var(--rp-muted)]">
+                  {row.label}
+                </p>
+                <p className="mt-1 font-display text-[20px] leading-none tabular-nums">
+                  {row.current}
+                  {row.unit && <span className="ml-1 text-[10px] text-[color:var(--rp-muted)]">{row.unit}</span>}
+                </p>
+                <p className="mt-1 text-[10px] text-[color:var(--rp-muted)]">
+                  antes: {row.previous}
+                  {row.unit ? ` ${row.unit}` : ""} · <Delta value={deltaPct(row.current, row.previous)} />
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="mb-1 mt-3 text-[10.5px] text-[color:var(--rp-muted)]">
+            Minutos acumulados dia a dia
+          </p>
+          <InlineLegend
+            items={[
+              { color: ATHLETE_COLORS[0], label: monthCompare.currentLabel },
+              { color: ATHLETE_COLORS[1], label: monthCompare.previousLabel },
+            ]}
+          />
+          <LineChart
+            width={W - 28}
+            height={150}
+            data={monthCompare.cumulative}
+            margin={{ top: 8, right: 8, left: 8, bottom: 0 }}
+          >
+            <CartesianGrid vertical={false} stroke={C.grid} />
+            <XAxis dataKey="day" tick={TICK} axisLine={false} tickLine={false} interval={2} />
+            <YAxis hide />
+            <Line
+              type="monotone"
+              dataKey="previous"
+              stroke={ATHLETE_COLORS[1]}
+              strokeWidth={2}
+              strokeDasharray="4 3"
+              dot={false}
+              isAnimationActive={false}
+            />
+            <Line
+              type="monotone"
+              dataKey="current"
+              stroke={ATHLETE_COLORS[0]}
+              strokeWidth={2.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </Card>
+
+        {!athlete && athleteCompare.athletes.length > 1 && (
+          <Card title="Atletas lado a lado" subtitle="Evolução mês a mês, últimos 6 meses">
+            <InlineLegend
+              items={athleteCompare.athletes.map((name, i) => ({
+                color: ATHLETE_COLORS[i % ATHLETE_COLORS.length],
+                label: name,
+              }))}
+            />
+            <div className="mt-1 grid grid-cols-3 gap-2.5">
+              {compareByMetric.map((m) => (
+                <div key={m.value}>
+                  <p className="text-center text-[10.5px] font-semibold text-[color:var(--rp-ink)]">
+                    {m.label}
+                    <span className="font-normal text-[color:var(--rp-muted)]"> ({m.unit})</span>
+                  </p>
+                  <BarChart
+                    width={(W - 28 - 20) / 3}
+                    height={150}
+                    data={m.data.rows}
+                    barGap={1}
+                    margin={{ top: 14, right: 2, left: 2, bottom: 0 }}
+                  >
+                    <CartesianGrid vertical={false} stroke={C.grid} />
+                    <XAxis dataKey="label" tick={TICK} axisLine={false} tickLine={false} />
+                    <YAxis hide />
+                    {m.data.athletes.map((name, i) => (
+                      <Bar
+                        key={name}
+                        dataKey={name}
+                        fill={ATHLETE_COLORS[i % ATHLETE_COLORS.length]}
+                        radius={[2, 2, 0, 0]}
+                        isAnimationActive={false}
+                      >
+                        <LabelList dataKey={name} position="top" fontSize={7.5} fill={C.muted} />
+                      </Bar>
+                    ))}
+                  </BarChart>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        <Card title="Evolução de carga" subtitle="Quilos anotados nas notas, por atleta">
+          {loadData.rows.length < 2 ? (
+            <p className="text-[11px] leading-snug text-[color:var(--rp-muted)]">
+              Sem cargas anotadas o bastante. Escreva nas notas do treino, por exemplo “Pesos: Vânia 5kg,
+              Geovanil 12kg”, e a linha de evolução aparece aqui.
+            </p>
+          ) : (
+            <>
+              <InlineLegend
+                items={loadData.athletes.map((name, i) => ({
+                  color: ATHLETE_COLORS[i % ATHLETE_COLORS.length],
+                  label: name,
+                }))}
+              />
+              <LineChart
+                width={W - 28}
+                height={160}
+                data={loadData.rows}
+                margin={{ top: 12, right: 10, left: 8, bottom: 0 }}
+              >
+                <CartesianGrid vertical={false} stroke={C.grid} />
+                <XAxis
+                  dataKey="label"
+                  tick={TICK}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                  minTickGap={22}
+                />
+                <YAxis hide domain={[0, "dataMax + 2"]} />
+                {loadData.athletes.map((name, i) => (
+                  <Line
+                    key={name}
+                    type="monotone"
+                    dataKey={name}
+                    stroke={ATHLETE_COLORS[i % ATHLETE_COLORS.length]}
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: ATHLETE_COLORS[i % ATHLETE_COLORS.length], stroke: "#fff", strokeWidth: 1 }}
+                    connectNulls
+                    isAnimationActive={false}
+                  >
+                    <LabelList dataKey={name} position="top" fontSize={8} fill={C.muted} />
+                  </Line>
+                ))}
+              </LineChart>
+            </>
+          )}
+        </Card>
 
         <Card title="Duração por sessão" subtitle="Minutos de cada treino, do primeiro ao último">
           <LineChart

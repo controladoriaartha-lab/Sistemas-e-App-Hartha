@@ -19,6 +19,14 @@ import { MuscleFigure } from "@/components/muscle-figure";
 import { cn } from "@/lib/utils";
 import { IDLE_COLOR, levelColor, regionRatios } from "@/lib/muscle-map";
 import { computeStats, deltaPct } from "@/lib/stats";
+import {
+  athleteMonthly,
+  COMPARE_METRICS,
+  loadProgress,
+  monthVsPrevious,
+  referenceDate,
+  type CompareMetric,
+} from "@/lib/compare";
 import { formatDuration, formatHours } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
 import type { Workout } from "@/lib/types";
@@ -57,6 +65,14 @@ const CHART_COLORS = {
     tooltipLabel: "#6b645c",
   },
 } as const;
+
+/** Uma cor (e um tom de coluna 3D) por atleta, iguais nos tres graficos de comparacao. */
+const ATHLETE_TONES = ["orange", "teal", "gold", "green"] as const;
+type Tone = (typeof ATHLETE_TONES)[number];
+const ATHLETE_LINE: Record<"dark" | "light", string[]> = {
+  dark: ["#f0975f", "#6cc0d4", "#e0b954", "#9bc27f"],
+  light: ["#b8511e", "#2a7a8c", "#93672c", "#4f6a49"],
+};
 
 type StickyTooltip = {
   label?: string;
@@ -108,6 +124,7 @@ export function DashboardPanel({
 }) {
   const theme = useTheme();
   const [muscleView, setMuscleView] = useState<"periodo" | "semana" | "ultimo">("periodo");
+  const [compareMetric, setCompareMetric] = useState<CompareMetric>("sessoes");
   const c = CHART_COLORS[theme];
   // `contentStyle` alone does not color the label / item text (Recharts sets
   // those per-entry), so on a dark background the numbers rendered near-black
@@ -173,6 +190,17 @@ export function DashboardPanel({
   const intensityTip = useStickyTooltip();
   const focusTip = useStickyTooltip();
   const muscleGroupTip = useStickyTooltip();
+  const athleteTip = useStickyTooltip();
+  const loadTip = useStickyTooltip();
+  const monthCompareTip = useStickyTooltip();
+
+  // Comparacoes de evolucao (mesma regra do PDF).
+  const refDate = referenceDate(workouts);
+  const athleteCompare = athleteMonthly(workouts, compareMetric, refDate);
+  const loadData = loadProgress(workouts);
+  const monthCompare = monthVsPrevious(workouts, refDate);
+  const lineColors = ATHLETE_LINE[theme];
+  const metricUnit = COMPARE_METRICS.find((m) => m.value === compareMetric)?.unit ?? "";
 
   return (
     <div className="space-y-5">
@@ -449,6 +477,262 @@ export function DashboardPanel({
             />
           </ComposedChart>
         </ResponsiveContainer>
+      </ChartBlock>
+
+      <ChartBlock
+        title="Ritmo do mês"
+        subtitle={`${monthCompare.currentLabel} contra ${monthCompare.previousLabel}`}
+      >
+        <ul className="space-y-3">
+          {monthCompare.rows.map((row) => {
+            const delta = deltaPct(row.current, row.previous);
+            return (
+              <li key={row.key} className="flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[21px] text-faint">{row.label}</p>
+                  <p className="halo-text font-display text-[34px] leading-none tabular-nums text-foreground">
+                    {row.current}
+                    {row.unit && <span className="ml-1.5 text-[20px] text-muted-foreground">{row.unit}</span>}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-[21px] tabular-nums text-muted-foreground">
+                    antes: {row.previous}
+                    {row.unit ? ` ${row.unit}` : ""}
+                  </p>
+                  <p className="text-[24px] font-medium">
+                    <Delta value={delta} />
+                  </p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mb-1 mt-5 text-[21px] text-faint">Minutos acumulados dia a dia</p>
+        <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-[21px]">
+          <span className="flex items-center gap-2">
+            <span className="size-3 rounded-full" style={{ background: lineColors[0] }} />
+            {monthCompare.currentLabel}
+          </span>
+          <span className="flex items-center gap-2 text-muted-foreground">
+            <span className="size-3 rounded-full" style={{ background: lineColors[1] }} />
+            {monthCompare.previousLabel}
+          </span>
+        </div>
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart
+            data={monthCompare.cumulative}
+            onClick={(state) => {
+              if (state?.activePayload) {
+                monthCompareTip.show({
+                  label: `dia ${state.activeLabel}`,
+                  payload: state.activePayload,
+                  coordinate: state.activeCoordinate,
+                });
+              }
+            }}
+          >
+            <CartesianGrid vertical={false} stroke={c.grid} />
+            <XAxis
+              dataKey="day"
+              tick={{ fill: c.muted, fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              interval={4}
+            />
+            <YAxis
+              tick={{ fill: c.muted, fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={34}
+              allowDecimals={false}
+            />
+            <Tooltip
+              {...tooltipProps}
+              active={monthCompareTip.sticky ? true : false}
+              payload={monthCompareTip.sticky ? (monthCompareTip.sticky.payload as never) : undefined}
+              label={monthCompareTip.sticky ? monthCompareTip.sticky.label : undefined}
+              coordinate={monthCompareTip.sticky ? monthCompareTip.sticky.coordinate : undefined}
+              formatter={(value, name) => [
+                `${Number(value)} min`,
+                name === "current" ? monthCompare.currentLabel : monthCompare.previousLabel,
+              ]}
+            />
+            <Line
+              type="monotone"
+              dataKey="previous"
+              stroke={lineColors[1]}
+              strokeWidth={2.5}
+              strokeDasharray="5 4"
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+            />
+            <Line
+              type="monotone"
+              dataKey="current"
+              stroke={lineColors[0]}
+              strokeWidth={3.5}
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+              connectNulls={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartBlock>
+
+      {!singleAthlete && athleteCompare.athletes.length > 1 && (
+        <ChartBlock title="Atletas lado a lado" subtitle="evolução mês a mês, últimos 6 meses">
+          <div className="seg-track mb-3 grid grid-cols-3 gap-1">
+            {COMPARE_METRICS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setCompareMetric(opt.value)}
+                data-on={compareMetric === opt.value}
+                className="seg-item min-h-11 text-[21px] font-medium"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-[21px]">
+            {athleteCompare.athletes.map((name, i) => (
+              <span key={name} className="flex items-center gap-2">
+                <span
+                  className="size-3 rounded-full"
+                  style={{ background: lineColors[i % lineColors.length] }}
+                />
+                {name}
+              </span>
+            ))}
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart
+              data={athleteCompare.rows}
+              barGap={3}
+              onClick={(state) => {
+                if (state?.activePayload) {
+                  athleteTip.show({
+                    label: state.activeLabel,
+                    payload: state.activePayload,
+                    coordinate: state.activeCoordinate,
+                  });
+                }
+              }}
+            >
+              <CartesianGrid vertical={false} stroke={c.grid} />
+              <XAxis
+                dataKey="label"
+                tick={{ fill: c.muted, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: c.muted, fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                width={34}
+                allowDecimals={false}
+              />
+              <Tooltip
+                {...tooltipProps}
+                active={athleteTip.sticky ? true : false}
+                payload={athleteTip.sticky ? (athleteTip.sticky.payload as never) : undefined}
+                label={athleteTip.sticky ? athleteTip.sticky.label : undefined}
+                coordinate={athleteTip.sticky ? athleteTip.sticky.coordinate : undefined}
+                formatter={(value) => [`${Number(value)} ${metricUnit}`, ""]}
+              />
+              {athleteCompare.athletes.map((name, i) => (
+                <Bar
+                  key={name}
+                  dataKey={name}
+                  fill={lineColors[i % lineColors.length]}
+                  shape={<Bar3D tone={ATHLETE_TONES[i % ATHLETE_TONES.length]} />}
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartBlock>
+      )}
+
+      <ChartBlock title="Evolução de carga" subtitle="kg anotados nas notas, por atleta">
+        {loadData.rows.length < 2 ? (
+          <p className="py-4 text-[21px] leading-snug text-muted-foreground">
+            Anote a carga nas notas do treino, por exemplo{" "}
+            <span className="text-foreground">Pesos: Vânia 5kg, Geovanil 12kg</span>. Com dois treinos
+            anotados, a linha de evolução aparece aqui.
+          </p>
+        ) : (
+          <>
+            <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-[21px]">
+              {loadData.athletes.map((name, i) => (
+                <span key={name} className="flex items-center gap-2">
+                  <span
+                    className="size-3 rounded-full"
+                    style={{ background: lineColors[i % lineColors.length] }}
+                  />
+                  {name}
+                </span>
+              ))}
+            </div>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart
+                data={loadData.rows}
+                onClick={(state) => {
+                  if (state?.activePayload) {
+                    loadTip.show({
+                      label: state.activeLabel,
+                      payload: state.activePayload,
+                      coordinate: state.activeCoordinate,
+                    });
+                  }
+                }}
+              >
+                <CartesianGrid vertical={false} stroke={c.grid} />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: c.muted, fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                  minTickGap={24}
+                />
+                <YAxis
+                  tick={{ fill: c.muted, fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={34}
+                  allowDecimals={false}
+                  unit="kg"
+                  domain={[0, "dataMax + 2"]}
+                />
+                <Tooltip
+                  {...tooltipProps}
+                  active={loadTip.sticky ? true : false}
+                  payload={loadTip.sticky ? (loadTip.sticky.payload as never) : undefined}
+                  label={loadTip.sticky ? loadTip.sticky.label : undefined}
+                  coordinate={loadTip.sticky ? loadTip.sticky.coordinate : undefined}
+                  formatter={(value) => [`${Number(value)} kg`, ""]}
+                />
+                {loadData.athletes.map((name, i) => (
+                  <Line
+                    key={name}
+                    type="monotone"
+                    dataKey={name}
+                    stroke={lineColors[i % lineColors.length]}
+                    strokeWidth={3.5}
+                    dot={{ r: loadData.rows.length > 14 ? 3 : 5, fill: lineColors[i % lineColors.length], stroke: c.ink, strokeWidth: 1.5 }}
+                    activeDot={false}
+                    connectNulls
+                    isAnimationActive={false}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </>
+        )}
       </ChartBlock>
 
       <ChartBlock title="Duração por sessão" subtitle="últimos treinos">
@@ -750,28 +1034,46 @@ function Card({ className, ...props }: ComponentProps<"div">) {
  * Coluna 3D para os graficos de barras verticais: face frontal em degrade
  * laranja, topo mais claro e lateral escura (profundidade fixa, em pixels).
  */
-function Bar3D(props: { x?: number; y?: number; width?: number; height?: number }) {
-  const { x = 0, y = 0, width = 0, height = 0 } = props;
+const BAR_TONES: Record<
+  Tone,
+  { top: string; mid: string; bottom: string; face: string; side: string }
+> = {
+  orange: { top: "#f0975f", mid: "#d36a2c", bottom: "#a9481a", face: "#f7c9a3", side: "#8a3a14" },
+  teal: { top: "#7ccbdd", mid: "#3f9db3", bottom: "#26697a", face: "#c3ecf4", side: "#1b4c58" },
+  gold: { top: "#f3d37a", mid: "#d9a63a", bottom: "#a87618", face: "#fbe9b6", side: "#6f4f0e" },
+  green: { top: "#b3d99b", mid: "#6fa352", bottom: "#47753a", face: "#dcf0cf", side: "#2f5226" },
+};
+
+function Bar3D(props: {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  tone?: Tone;
+}) {
+  const { x = 0, y = 0, width = 0, height = 0, tone = "orange" } = props;
   if (!(width > 0) || !(height > 0)) return null;
+  const t = BAR_TONES[tone];
   const d = Math.min(7, width * 0.28, height);
   const fw = width - d;
+  const id = `bar3d-front-${tone}`;
   return (
     <g>
       <defs>
-        <linearGradient id="bar3d-front" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#f0975f" />
-          <stop offset="55%" stopColor="#d36a2c" />
-          <stop offset="100%" stopColor="#a9481a" />
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={t.top} />
+          <stop offset="55%" stopColor={t.mid} />
+          <stop offset="100%" stopColor={t.bottom} />
         </linearGradient>
       </defs>
-      <rect x={x} y={y + d} width={fw} height={height - d} fill="url(#bar3d-front)" />
+      <rect x={x} y={y + d} width={fw} height={height - d} fill={`url(#${id})`} />
       <polygon
         points={`${x},${y + d} ${x + d},${y} ${x + width},${y} ${x + fw},${y + d}`}
-        fill="#f7c9a3"
+        fill={t.face}
       />
       <polygon
         points={`${x + fw},${y + d} ${x + width},${y} ${x + width},${y + height - d} ${x + fw},${y + height}`}
-        fill="#8a3a14"
+        fill={t.side}
       />
     </g>
   );

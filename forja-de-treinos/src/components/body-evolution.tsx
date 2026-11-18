@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { HeartPulse, Moon, Plus, Save, X, Zap } from "lucide-react";
+import { HeartPulse, Moon, Pencil, Plus, Save, Trash2, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,7 @@ import {
 import {
   BODY_METRICS,
   bodyEntryId,
+  deleteBodyEntries,
   bodySeries,
   latestFields,
   metricsWithLine,
@@ -68,7 +69,7 @@ export function BodyEvolutionSection() {
   const theme = useTheme();
   const c = CHART_COLORS[theme];
   const tip = useStickyTooltip();
-  const [open, setOpen] = useState(false);
+  const [sheet, setSheet] = useState<SheetMode | null>(null);
   const [metric, setMetric] = useState<BodyMetric>("weightKg");
 
   const athletes = useMemo(() => {
@@ -95,7 +96,7 @@ export function BodyEvolutionSection() {
         </div>
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => setSheet({ kind: "new" })}
           aria-label="Registrar evolução corporal (mais um atleta ou mais um dia)"
           title="Registrar"
           className="btn-3d flex size-12 shrink-0 items-center justify-center rounded-full"
@@ -116,6 +117,7 @@ export function BodyEvolutionSection() {
               key={name}
               name={name}
               entries={entries.filter((e) => norm(e.athlete) === norm(name))}
+              onEdit={() => setSheet({ kind: "athlete", name })}
             />
           ))}
         </div>
@@ -210,7 +212,7 @@ export function BodyEvolutionSection() {
           </div>
         ))}
 
-      {open && <BodySheet onClose={() => setOpen(false)} />}
+      {sheet && <BodySheet mode={sheet} onClose={() => setSheet(null)} />}
     </section>
   );
 }
@@ -222,7 +224,15 @@ const SUMMARY_FIELDS: { key: BodyMetric | "energy" | "sleepHours"; label: string
 ];
 
 /** Ultimas medidas de um atleta (com a variacao desde o registro anterior) e o "como me sinto". */
-function AthleteSummary({ name, entries }: { name: string; entries: BodyEntry[] }) {
+function AthleteSummary({
+  name,
+  entries,
+  onEdit,
+}: {
+  name: string;
+  entries: BodyEntry[];
+  onEdit: () => void;
+}) {
   const { fields, feeling } = useMemo(() => latestFields(entries), [entries]);
   const lastDate = [...entries].sort((a, b) => b.date.localeCompare(a.date))[0]?.date;
 
@@ -263,15 +273,43 @@ function AthleteSummary({ name, entries }: { name: string; entries: BodyEntry[] 
           <span className="text-[17px] text-faint">· {brDate(feeling.date)}</span>
         </p>
       )}
+      <div className="mt-4 grid grid-cols-2 gap-2.5">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="btn-3d flex h-12 items-center justify-center gap-2 text-[20px] font-medium"
+        >
+          <Pencil className="size-5" />
+          Editar
+        </button>
+        <button
+          type="button"
+          data-danger="true"
+          onClick={async () => {
+            if (!window.confirm(`Excluir todos os registros de ${name}? Isso não pode ser desfeito.`)) return;
+            const ok = await deleteBodyEntries(entries.map((e) => e.id));
+            if (ok) toast.success(`Registros de ${name} excluídos`);
+            else toast.warning("Excluído neste aparelho; a nuvem será atualizada quando houver conexão.");
+          }}
+          className="btn-3d flex h-12 items-center justify-center gap-2 text-[20px] font-medium"
+        >
+          <Trash2 className="size-5" />
+          Excluir
+        </button>
+      </div>
     </div>
   );
 }
 
-function BodySheet({ onClose }: { onClose: () => void }) {
+type SheetMode = { kind: "new" } | { kind: "athlete"; name: string };
+
+function BodySheet({ mode, onClose }: { mode: SheetMode; onClose: () => void }) {
   const workouts = useWorkoutStore((s) => s.workouts);
   const customAthletes = useWorkoutStore((s) => s.customAthletes);
   const entries = useBodyEntries();
-  // Cartoes em branco ("Atleta"): o "+" abre mais um; ao salvar, o atleta ganha o proprio cartao.
+  const isNew = mode.kind === "new";
+
+  // Modo "novo" (+): so cartoes EM BRANCO, sem nenhum atleta ja salvo. O "+" abre mais um.
   const [blanks, setBlanks] = useState<number[]>([0]);
   const [nextBlank, setNextBlank] = useState(1);
   const addBlank = () => {
@@ -279,22 +317,22 @@ function BodySheet({ onClose }: { onClose: () => void }) {
     setNextBlank((n) => n + 1);
   };
   const savedBlank = (id: number) => {
-    setBlanks((list) => {
-      const rest = list.filter((x) => x !== id);
-      return rest.length > 0 ? rest : [nextBlank];
-    });
-    setNextBlank((n) => n + 1);
+    const rest = blanks.filter((x) => x !== id);
+    if (rest.length === 0) onClose();
+    else setBlanks(rest);
   };
 
-  // Atletas que ja tem medidas salvas (um cartao cada); o nome vem do que foi digitado.
-  const saved = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const e of [...entries].sort((a, b) => b.date.localeCompare(a.date))) {
-      const label = e.athlete.trim();
-      if (label && !seen.has(norm(label))) seen.set(norm(label), label);
-    }
-    return [...seen.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [entries]);
+  // Modo "atleta" (Editar): os registros daquele atleta, cada um com editar e excluir.
+  const athleteName = isNew ? "" : mode.name;
+  const mine = useMemo(
+    () =>
+      entries
+        .filter((e) => norm(e.athlete) === norm(athleteName))
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [entries, athleteName],
+  );
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
 
   // Sugestoes de nome (so ajuda a digitar): atletas dos treinos e cadastrados.
   const suggestions = useMemo(() => {
@@ -310,7 +348,7 @@ function BodySheet({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-[75] flex items-end justify-center bg-black/60" onClick={onClose}>
       <div
         role="dialog"
-        aria-label="Evolução corporal"
+        aria-label={isNew ? "Novo registro de evolução corporal" : `Editar ${athleteName}`}
         className="flex max-h-[94dvh] w-full max-w-lg flex-col rounded-t-3xl p-4 ring-1 ring-border"
         style={{
           background: "var(--color-background)",
@@ -320,18 +358,19 @@ function BodySheet({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-start justify-between gap-3 px-1">
           <div>
-            <p className="font-display text-2xl">Evolução corporal</p>
+            <p className="font-display text-2xl">{isNew ? "Novo registro" : `Editar ${athleteName}`}</p>
             <p className="text-[18px] text-faint">
-              Escreva o nome do atleta e as medidas. O + abre mais um atleta; cada salvamento vira um
-              registro do dia e o histórico vai acumulando.
+              {isNew
+                ? "Escreva o nome do atleta e as medidas. O + abre mais um cartão em branco."
+                : "Edite ou exclua cada registro, ou acrescente um novo."}
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
             <button
               type="button"
-              onClick={addBlank}
-              aria-label="Mais um atleta"
-              title="Mais um atleta"
+              onClick={isNew ? addBlank : () => setAdding(true)}
+              aria-label={isNew ? "Mais um atleta" : "Novo registro"}
+              title={isNew ? "Mais um atleta" : "Novo registro"}
               className="btn-3d flex size-11 items-center justify-center rounded-full"
             >
               <Plus className="size-6" />
@@ -354,83 +393,155 @@ function BodySheet({ onClose }: { onClose: () => void }) {
         </datalist>
 
         <div className="mt-4 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-2">
-          {saved.map((name) => (
-            <AthleteCard
-              key={name}
-              name={name}
-              entries={entries
-                .filter((e) => norm(e.athlete) === norm(name))
-                .sort((a, b) => b.date.localeCompare(a.date))}
-            />
-          ))}
-          {blanks.map((id) => (
-            <AthleteCard key={`novo-${id}`} entries={[]} onSaved={() => savedBlank(id)} />
-          ))}
-
-          <button
-            type="button"
-            onClick={addBlank}
-            className="btn-3d flex h-14 w-full items-center justify-center gap-2 text-[22px] font-medium"
-          >
-            <Plus className="size-6" />
-            Mais um atleta
-          </button>
+          {isNew ? (
+            <>
+              {blanks.map((id) => (
+                <RecordForm key={`novo-${id}`} onSaved={() => savedBlank(id)} />
+              ))}
+              <button
+                type="button"
+                onClick={addBlank}
+                className="btn-3d flex h-14 w-full items-center justify-center gap-2 text-[22px] font-medium"
+              >
+                <Plus className="size-6" />
+                Mais um atleta
+              </button>
+            </>
+          ) : (
+            <>
+              {adding && (
+                <RecordForm athlete={athleteName} onSaved={() => setAdding(false)} onCancel={() => setAdding(false)} />
+              )}
+              {mine.length === 0 && !adding && (
+                <p className="text-[21px] text-muted-foreground">Nenhum registro de {athleteName}.</p>
+              )}
+              {mine.map((entry, i) =>
+                editingId === entry.id ? (
+                  <RecordForm
+                    key={entry.id}
+                    entry={entry}
+                    onSaved={() => setEditingId(null)}
+                    onCancel={() => setEditingId(null)}
+                  />
+                ) : (
+                  <RecordRow
+                    key={entry.id}
+                    entry={entry}
+                    previous={mine[i + 1]}
+                    onEdit={() => setEditingId(entry.id)}
+                  />
+                ),
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-/**
- * Cartao de um atleta. Sem `name` e o cartao em branco "Atleta": o nome e digitado
- * ali e, depois de salvar, o atleta ganha o proprio cartao e este volta vazio.
- */
-function AthleteCard({
-  name,
-  entries,
-  onSaved,
+/** Um registro ja salvo: resumo do dia com os botoes Editar e Excluir. */
+function RecordRow({
+  entry,
+  previous,
+  onEdit,
 }: {
-  name?: string;
-  entries: BodyEntry[];
-  onSaved?: () => void;
+  entry: BodyEntry;
+  previous: BodyEntry | undefined;
+  onEdit: () => void;
 }) {
-  const isNew = name === undefined;
+  const parts = [
+    entry.weightKg !== null && `${toText(entry.weightKg)} kg${deltaText(entry, previous, "weightKg", "kg")}`,
+    entry.waistCm !== null && `cintura ${toText(entry.waistCm)} cm${deltaText(entry, previous, "waistCm", "cm")}`,
+    entry.armCm !== null && `braço ${toText(entry.armCm)} cm`,
+    entry.thighCm !== null && `coxa ${toText(entry.thighCm)} cm`,
+    entry.chestCm !== null && `peito ${toText(entry.chestCm)} cm`,
+    entry.calfCm !== null && `panturrilha ${toText(entry.calfCm)} cm`,
+    entry.energy !== null && `energia ${toText(entry.energy)}`,
+    entry.sleepHours !== null && `sono ${toText(entry.sleepHours)} h`,
+  ].filter(Boolean);
+
+  return (
+    <section className="glass-card p-4">
+      <p className="font-display text-[24px] leading-tight">
+        {entry.date.slice(8, 10)}/{entry.date.slice(5, 7)}/{entry.date.slice(0, 4)}
+      </p>
+      <p className="mt-1 text-[20px] leading-snug text-muted-foreground">
+        {parts.length > 0 ? parts.join(" · ") : "Só anotação"}
+      </p>
+      {entry.feeling && <p className="mt-1 text-[19px] leading-snug text-faint">“{entry.feeling}”</p>}
+      <div className="mt-3 grid grid-cols-2 gap-2.5">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="btn-3d flex h-12 items-center justify-center gap-2 text-[20px] font-medium"
+        >
+          <Pencil className="size-5" />
+          Editar
+        </button>
+        <button
+          type="button"
+          data-danger="true"
+          onClick={async () => {
+            if (!window.confirm(`Excluir o registro de ${entry.date.slice(8, 10)}/${entry.date.slice(5, 7)}?`)) return;
+            const ok = await deleteBodyEntries([entry.id]);
+            if (ok) toast.success("Registro excluído");
+            else toast.warning("Excluído neste aparelho; a nuvem será atualizada quando houver conexão.");
+          }}
+          className="btn-3d flex h-12 items-center justify-center gap-2 text-[20px] font-medium"
+        >
+          <Trash2 className="size-5" />
+          Excluir
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Formulario de um registro. Tres usos:
+ *  - sem `athlete` nem `entry`: cartao EM BRANCO ("Atleta"): o nome e digitado ali;
+ *  - com `athlete`: novo registro de um atleta ja conhecido (nome fixo, tudo em branco);
+ *  - com `entry`: edita um registro existente (preenchido; trocar a data move o registro).
+ */
+function RecordForm({
+  athlete,
+  entry,
+  onSaved,
+  onCancel,
+}: {
+  athlete?: string;
+  entry?: BodyEntry;
+  onSaved?: () => void;
+  onCancel?: () => void;
+}) {
+  const fixedName = entry?.athlete ?? athlete;
   const [typedName, setTypedName] = useState("");
-  const athleteName = isNew ? typedName.trim() : name;
-  const today = todayIso();
-  const todays = entries.find((e) => e.date === today);
-  const last = entries[0];
+  const athleteName = (fixedName ?? typedName).trim();
+  const [date, setDate] = useState(entry?.date ?? todayIso());
 
   const [values, setValues] = useState<Record<Field, string>>(() => ({
-    weightKg: toText(todays?.weightKg),
-    waistCm: toText(todays?.waistCm),
-    armCm: toText(todays?.armCm),
-    thighCm: toText(todays?.thighCm),
-    chestCm: toText(todays?.chestCm),
-    calfCm: toText(todays?.calfCm),
-    energy: toText(todays?.energy),
-    sleepHours: toText(todays?.sleepHours),
+    weightKg: toText(entry?.weightKg),
+    waistCm: toText(entry?.waistCm),
+    armCm: toText(entry?.armCm),
+    thighCm: toText(entry?.thighCm),
+    chestCm: toText(entry?.chestCm),
+    calfCm: toText(entry?.calfCm),
+    energy: toText(entry?.energy),
+    sleepHours: toText(entry?.sleepHours),
   }));
-  const [feeling, setFeeling] = useState(todays?.feeling ?? "");
+  const [feeling, setFeeling] = useState(entry?.feeling ?? "");
   const [saving, setSaving] = useState(false);
-  const emptyValues: Record<Field, string> = {
-    weightKg: "",
-    waistCm: "",
-    armCm: "",
-    thighCm: "",
-    chestCm: "",
-    calfCm: "",
-    energy: "",
-    sleepHours: "",
-  };
 
   const set = (key: Field) => (text: string) => setValues((v) => ({ ...v, [key]: text }));
-  const hint = (key: Field, example: string) =>
-    last && last[key] !== null && last[key] !== undefined ? `Última: ${toText(last[key])}` : `Ex.: ${example}`;
 
   async function onSave() {
     if (athleteName.length < 2) {
       toast.error("Escreva o nome do atleta.");
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > todayIso()) {
+      toast.error("Informe uma data válida (não pode ser no futuro).");
       return;
     }
     const parsed = {} as Record<Field, number | null>;
@@ -458,10 +569,11 @@ function AthleteCard({
       return;
     }
     setSaving(true);
+    const id = bodyEntryId(athleteName, date);
     const ok = await saveBodyEntry({
-      id: bodyEntryId(athleteName, today),
+      id,
       athlete: athleteName,
-      date: today,
+      date,
       weightKg: parsed.weightKg,
       waistCm: parsed.waistCm,
       armCm: parsed.armCm,
@@ -472,32 +584,28 @@ function AthleteCard({
       sleepHours: sleep,
       feeling: feeling.trim(),
     });
+    // Mudou a data de um registro existente: o antigo sai (o novo ja foi salvo acima).
+    if (entry && entry.id !== id) await deleteBodyEntries([entry.id]);
     setSaving(false);
-    if (ok) toast.success(`Medidas de ${athleteName} guardadas na nuvem`);
+    if (ok) toast.success(entry ? "Registro atualizado" : `Medidas de ${athleteName} guardadas na nuvem`);
     else toast.warning("Guardado neste aparelho; vai para a nuvem quando houver conexão.");
-    if (isNew) {
-      // O atleta agora tem o proprio cartao; este volta em branco para o proximo.
-      setValues(emptyValues);
-      setFeeling("");
-      setTypedName("");
-      onSaved?.();
-    }
+    onSaved?.();
   }
 
   return (
     <section className="glass-card p-4">
       <div className="flex items-center justify-between gap-3">
-        {isNew ? (
-          <h3 className="font-display text-[26px] font-medium leading-tight">Atleta</h3>
-        ) : (
-          <h3 className="font-display text-[26px] font-medium leading-tight">{name}</h3>
+        <h3 className="font-display text-[26px] font-medium leading-tight">
+          {entry ? "Editar registro" : (fixedName ?? "Atleta")}
+        </h3>
+        {!entry && (
+          <span className="badge-3d shrink-0 !px-3 !text-[14px]" data-tone="medio">
+            Novo
+          </span>
         )}
-        <span className="badge-3d shrink-0 !px-3 !text-[14px]" data-tone={last ? "leve" : "medio"}>
-          {last ? `Última ${brDate(last.date)}` : "Sem medidas salvas"}
-        </span>
       </div>
 
-      {isNew && (
+      {fixedName === undefined && (
         <div className="mt-3">
           <Labeled label="Nome do atleta">
             <Input
@@ -511,6 +619,12 @@ function AthleteCard({
         </div>
       )}
 
+      <div className="mt-3">
+        <Labeled label="Data">
+          <Input type="date" value={date} max={todayIso()} onChange={(e) => setDate(e.target.value)} />
+        </Labeled>
+      </div>
+
       <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4">
         {MEASURES.map((m) => (
           <Labeled key={m.key} label={m.label}>
@@ -518,7 +632,7 @@ function AthleteCard({
               inputMode="decimal"
               value={values[m.key]}
               onChange={(e) => set(m.key)(e.target.value)}
-              placeholder={hint(m.key, m.example)}
+              placeholder={`Ex.: ${m.example}`}
             />
           </Labeled>
         ))}
@@ -527,7 +641,7 @@ function AthleteCard({
             inputMode="decimal"
             value={values.energy}
             onChange={(e) => set("energy")(e.target.value)}
-            placeholder={hint("energy", "8")}
+            placeholder="Ex.: 8"
           />
         </Labeled>
         <Labeled label="Sono (horas)" icon={<Moon className="size-4" />}>
@@ -535,7 +649,7 @@ function AthleteCard({
             inputMode="decimal"
             value={values.sleepHours}
             onChange={(e) => set("sleepHours")(e.target.value)}
-            placeholder={hint("sleepHours", "7,5")}
+            placeholder="Ex.: 7,5"
           />
         </Labeled>
         <div className="col-span-2">
@@ -550,41 +664,28 @@ function AthleteCard({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => void onSave()}
-        disabled={saving}
-        data-on="true"
-        className="seg-item mt-5 flex min-h-14 w-full items-center justify-center gap-2 px-3 py-2 text-[20px] font-semibold leading-tight disabled:opacity-60"
-      >
-        <Save className="size-6" />
-        {saving ? "Guardando…" : `Salvar medidas de ${athleteName || "atleta"}`}
-      </button>
-
-      {entries.length > 0 && (
-        <details className="mt-4 text-[20px]">
-          <summary className="cursor-pointer text-faint">Histórico de {name}</summary>
-          <ul className="mt-2 space-y-2">
-            {entries.slice(0, 8).map((e, i) => (
-              <li key={e.id} className="leading-snug">
-                <span className="tabular-nums text-foreground">{brDate(e.date)}</span>
-                <span className="text-muted-foreground">
-                  {[
-                    e.weightKg !== null && `${toText(e.weightKg)} kg${deltaText(e, entries[i + 1], "weightKg", "kg")}`,
-                    e.waistCm !== null && `cintura ${toText(e.waistCm)} cm${deltaText(e, entries[i + 1], "waistCm", "cm")}`,
-                    e.energy !== null && `energia ${toText(e.energy)}`,
-                    e.sleepHours !== null && `sono ${toText(e.sleepHours)} h`,
-                  ]
-                    .filter(Boolean)
-                    .map((t) => ` · ${t}`)
-                    .join("")}
-                </span>
-                {e.feeling && <p className="text-[18px] text-faint">{e.feeling}</p>}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
+      <div className={onCancel ? "mt-5 grid grid-cols-2 gap-2.5" : "mt-5"}>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn-3d flex min-h-14 items-center justify-center gap-2 px-3 py-2 text-[20px] font-medium"
+          >
+            <X className="size-5" />
+            Cancelar
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => void onSave()}
+          disabled={saving}
+          data-on="true"
+          className="seg-item flex min-h-14 w-full items-center justify-center gap-2 px-3 py-2 text-[20px] font-semibold leading-tight disabled:opacity-60"
+        >
+          <Save className="size-6" />
+          {saving ? "Guardando…" : entry ? "Salvar alterações" : `Salvar medidas de ${athleteName || "atleta"}`}
+        </button>
+      </div>
     </section>
   );
 }

@@ -110,13 +110,43 @@ function commit(next: BodyEntry[]) {
   listeners.forEach((l) => l());
 }
 
+// Exclusoes que ainda nao chegaram na nuvem (sem internet): sao reenviadas no proximo
+// carregamento e o registro nao "volta" enquanto isso.
+const DEL_KEY = "forja-body-del-v1";
+
+function readPendingDeletes(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(DEL_KEY) ?? "[]");
+    return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePendingDeletes(ids: string[]) {
+  try {
+    if (ids.length === 0) localStorage.removeItem(DEL_KEY);
+    else localStorage.setItem(DEL_KEY, JSON.stringify([...new Set(ids)]));
+  } catch {
+    // sem espaco: a exclusao vale so neste aparelho ate o proximo carregamento
+  }
+}
+
 /** Le da nuvem (e envia o que so existe neste aparelho). Chamado ao entrar no app. */
 export async function loadBodyEntries(): Promise<void> {
   ensureLoaded();
   if (!currentUserId()) return;
+  let pendingDel = readPendingDeletes();
+  if (pendingDel.length > 0) {
+    const { error: delError } = await supabase.from("body_measurements").delete().in("id", pendingDel);
+    if (!delError) {
+      pendingDel = [];
+      writePendingDeletes([]);
+    }
+  }
   const { data, error } = await supabase.from("body_measurements").select("*").limit(5000);
   if (error) return;
-  const remote = (data as Row[]).map(fromRow);
+  const remote = (data as Row[]).map(fromRow).filter((r) => !pendingDel.includes(r.id));
   const remoteIds = new Set(remote.map((r) => r.id));
   const localOnly = list.filter((e) => !remoteIds.has(e.id));
   if (localOnly.length > 0) {
@@ -135,6 +165,24 @@ export async function saveBodyEntry(entry: BodyEntry): Promise<boolean> {
     .from("body_measurements")
     .upsert(toRow(entry), { onConflict: "owner_id,id" });
   return !error;
+}
+
+/** Exclui registros (um dia de um atleta cada). Devolve false se a nuvem nao confirmou (fica na fila). */
+export async function deleteBodyEntries(ids: string[]): Promise<boolean> {
+  ensureLoaded();
+  if (ids.length === 0) return true;
+  commit(list.filter((e) => !ids.includes(e.id)));
+  const queue = () => writePendingDeletes([...readPendingDeletes(), ...ids]);
+  if (!currentUserId()) {
+    queue();
+    return false;
+  }
+  const { error } = await supabase.from("body_measurements").delete().in("id", ids);
+  if (error) {
+    queue();
+    return false;
+  }
+  return true;
 }
 
 export function useBodyEntries(): BodyEntry[] {

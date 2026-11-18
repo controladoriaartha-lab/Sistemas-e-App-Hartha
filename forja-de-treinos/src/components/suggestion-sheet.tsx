@@ -18,6 +18,7 @@ export function SuggestionSheet({
   isSelected,
   onToggle,
   emptyText,
+  toggle,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +28,8 @@ export function SuggestionSheet({
   isSelected: (label: string) => boolean;
   onToggle: (label: string) => void;
   emptyText: string;
+  /** Botao opcional acima da lista (ex.: "Ver todos"). */
+  toggle?: { label: string; onToggle: () => void };
 }) {
   const [query, setQuery] = useState("");
 
@@ -67,13 +70,23 @@ export function SuggestionSheet({
           </button>
         </div>
 
+        {toggle && (
+          <button
+            type="button"
+            onClick={toggle.onToggle}
+            className="mt-3 shrink-0 self-start rounded-full px-4 py-1.5 text-[20px] font-medium text-accent ring-1 ring-accent/50"
+          >
+            {toggle.label}
+          </button>
+        )}
+
         {options.length > 6 && (
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar…"
-            className="mt-3 h-12 w-full rounded-xl bg-muted px-4 text-[20px] text-foreground outline-none placeholder:text-faint"
+            className="mt-3 h-12 w-full shrink-0 rounded-xl bg-muted px-4 text-[20px] text-foreground outline-none placeholder:text-faint"
           />
         )}
 
@@ -81,7 +94,7 @@ export function SuggestionSheet({
           {shown.length === 0 ? (
             <p className="py-6 text-center text-[20px] text-faint">{emptyText}</p>
           ) : (
-            <ul className="flex flex-wrap gap-3 pb-1">
+            <ul className="flex flex-wrap gap-3.5 pb-1">
               {shown.map((o) => {
                 const on = isSelected(o.label);
                 return (
@@ -91,10 +104,10 @@ export function SuggestionSheet({
                       onClick={() => onToggle(o.label)}
                       data-on={on}
                       className={cn(
-                        "pill-3d flex min-h-12 max-w-full items-center gap-1.5 px-5 text-left text-[24px] font-medium",
+                        "pill-3d flex min-h-16 max-w-full items-center gap-2 px-6 py-1 text-left text-[32px] font-medium leading-tight",
                       )}
                     >
-                      {on && <Check className="size-5 shrink-0" strokeWidth={3} />}
+                      {on && <Check className="size-6 shrink-0" strokeWidth={3} />}
                       <span className="min-w-0 break-words">{o.label}</span>
                     </button>
                   </li>

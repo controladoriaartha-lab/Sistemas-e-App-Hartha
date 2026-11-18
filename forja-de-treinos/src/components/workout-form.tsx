@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, History, List, Play, Plus, Square, Trash2, Volume2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, History, Play, Plus, Square, Trash2, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,20 +29,8 @@ import { formatDuration } from "@/lib/format";
 import { formatExtras, parseExtras, type ExtraItem } from "@/lib/extras";
 import type { NovoSnapshot, NovoTimers } from "@/lib/novo-draft";
 import { SuggestionSheet } from "@/components/suggestion-sheet";
+import { readRememberedNotes, rememberNotes } from "@/lib/note-history";
 import { useWorkoutStore } from "@/store/workouts";
-
-const DEFAULT_MUSCLE_GROUPS = [
-  "peito",
-  "costas",
-  "ombros",
-  "braços",
-  "coxas",
-  "posteriores",
-  "anteriores",
-  "panturrilhas",
-  "glúteos",
-  "abdômen",
-];
 
 const NOTE_LABEL_RE = /^aparelhos?\s*:\s*/i;
 
@@ -248,6 +236,7 @@ export function WorkoutForm({
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState<Workout>(initial);
+  const foci: Focus[] = workoutFoci(draft);
   const [durationError, setDurationError] = useState("");
   const durationRef = useRef<HTMLInputElement>(null);
   const customAthletes = useWorkoutStore((s) => s.customAthletes);
@@ -255,45 +244,39 @@ export function WorkoutForm({
   const customExtras = useWorkoutStore((s) => s.customExtras);
   const addExtraType = useWorkoutStore((s) => s.addExtraType);
   const allWorkouts = useWorkoutStore((s) => s.workouts);
-  const [groupSheet, setGroupSheet] = useState(false);
+  const [notesAll, setNotesAll] = useState(false);
   const [notesSheet, setNotesSheet] = useState(false);
-
-  // Historico: grupos e notas ja usados em treinos anteriores (mais usados
-  // primeiro), alem dos grupos de sempre.
-  const groupOptions = useMemo(() => {
-    const counts = new Map<string, { label: string; count: number }>();
-    const add = (raw: string, n: number) => {
-      const label = raw.trim().toLocaleLowerCase("pt-BR");
-      if (!label) return;
-      const key = label.toLowerCase();
-      const cur = counts.get(key);
-      if (cur) cur.count += n;
-      else counts.set(key, { label, count: n });
-    };
-    for (const g of DEFAULT_MUSCLE_GROUPS) add(g, 0);
-    for (const w of allWorkouts) for (const g of w.muscleGroups) add(g, 1);
-    return [...counts.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"));
-  }, [allWorkouts]);
 
   const noteAthletes = useMemo(
     () => Array.from(new Set([...DEFAULT_ATHLETES, ...customAthletes, ...allWorkouts.flatMap((w) => w.athletes)])),
     [customAthletes, allWorkouts],
   );
 
+  // Historico de "Aparelhos e notas": tudo o que ja foi escrito (treinos salvos e
+  // memoria gravada ao salvar), em ordem alfabetica; por padrao so o dos focos
+  // do treino atual (ex.: pernas), com "Ver todos" para o resto.
+  const [remembered] = useState(readRememberedNotes);
+  const focusKey = foci.join("+");
   const noteOptions = useMemo(() => {
-    const counts = new Map<string, { label: string; count: number }>();
-    counts.set("aparelhos:", { label: "Aparelhos:", count: 0 });
+    const items = new Map<string, { label: string; foci: Set<Focus> }>();
+    const add = (label: string, itemFoci: Focus[]) => {
+      const key = label.toLowerCase();
+      const cur = items.get(key) ?? { label, foci: new Set<Focus>() };
+      for (const f of itemFoci) cur.foci.add(f);
+      items.set(key, cur);
+    };
     for (const w of allWorkouts) {
-      for (const line of noteLines(w.notes, noteAthletes)) {
-        const cur = counts.get(line.toLowerCase());
-        if (cur) cur.count += 1;
-        else counts.set(line.toLowerCase(), { label: line, count: 1 });
-      }
+      const wf = workoutFoci(w);
+      for (const line of noteLines(w.notes, noteAthletes)) add(line, wf);
     }
-    return [...counts.values()]
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"))
-      .slice(0, 150);
-  }, [allWorkouts, noteAthletes]);
+    for (const r of Object.values(remembered)) add(r.label, r.foci);
+    const wanted = focusKey.split("+") as Focus[];
+    const matching = [...items.values()].filter((i) => wanted.some((f) => i.foci.has(f)));
+    const chosen = notesAll || matching.length === 0 ? [...items.values()] : matching;
+    const labels = chosen.map((i) => i.label).filter((l) => l !== "Aparelhos:");
+    labels.sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return [{ label: "Aparelhos:" }, ...labels.map((label) => ({ label }))];
+  }, [allWorkouts, noteAthletes, remembered, focusKey, notesAll]);
 
   const athleteOptions = useMemo(
     () => Array.from(new Set([...DEFAULT_ATHLETES, ...customAthletes, ...initial.athletes])),
@@ -397,17 +380,6 @@ export function WorkoutForm({
 
   // Mais de um foco no mesmo treino: o primeiro segue em `focus` (estatisticas
   // e filtros) e todos ficam no rotulo "Pernas + Braços", que ja e salvo.
-  const foci: Focus[] = workoutFoci(draft);
-
-  function toggleGroup(label: string) {
-    const key = label.toLowerCase();
-    const current = draft.muscleGroups.map((g) => g.trim()).filter(Boolean);
-    const has = current.some((g) => g.toLowerCase() === key);
-    patch({
-      muscleGroups: has ? current.filter((g) => g.toLowerCase() !== key) : [...current, label],
-    });
-  }
-
   function toggleNote(label: string) {
     const key = label.toLowerCase();
     const lines = noteLines(draft.notes, noteAthletes);
@@ -606,6 +578,7 @@ export function WorkoutForm({
       }
     }
     setDurationError("");
+    rememberNotes(noteLines(draft.notes, noteAthletes), foci);
     onSubmit({
       ...draft,
       durationMin,
@@ -868,35 +841,40 @@ export function WorkoutForm({
 
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-3">
-          <Label>Grupo muscular</Label>
+          <Label>Aparelhos e notas</Label>
           <button
             type="button"
-            onClick={() => setGroupSheet(true)}
+            onClick={() => setNotesSheet(true)}
             className="flex min-h-9 items-center gap-1 rounded-full px-3 text-[18px] font-medium text-accent ring-1 ring-accent/50"
           >
-            <List className="size-4" />
-            Escolher da lista
+            <History className="size-4" />
+            Histórico
           </button>
         </div>
-        <Input
-          placeholder="coxas, posteriores, peito…"
-          value={draft.muscleGroups.join(", ")}
-          onChange={(e) =>
-            patch({
-              muscleGroups: e.target.value.split(",").map((s) => s.trimStart()),
-            })
-          }
+        <Textarea
+          rows={3}
+          placeholder="Aparelhos, cargas, como foi o treino…"
+          value={draft.notes}
+          onChange={(e) => patch({ notes: e.target.value })}
         />
       </div>
       <SuggestionSheet
-        open={groupSheet}
-        onClose={() => setGroupSheet(false)}
-        title="Grupo muscular"
-        hint="Toque para marcar ou desmarcar"
-        options={groupOptions}
-        isSelected={(g) => draft.muscleGroups.some((x) => x.trim().toLowerCase() === g.toLowerCase())}
-        onToggle={toggleGroup}
-        emptyText="Nenhum grupo encontrado."
+        open={notesSheet}
+        onClose={() => setNotesSheet(false)}
+        title="Aparelhos e notas"
+        hint={
+          notesAll
+            ? "Todos os seus aparelhos e notas, em ordem alfabética"
+            : `Os que você já usou em ${foci.map((f) => FOCUS_LABEL[f]).join(" + ").toLowerCase()}, em ordem alfabética`
+        }
+        toggle={{
+          label: notesAll ? `Só de ${foci.map((f) => FOCUS_LABEL[f]).join(" + ")}` : "Ver todos",
+          onToggle: () => setNotesAll((v) => !v),
+        }}
+        options={noteOptions}
+        isSelected={(n) => noteLines(draft.notes, noteAthletes).some((l) => l.toLowerCase() === n.toLowerCase())}
+        onToggle={toggleNote}
+        emptyText="Nada guardado ainda. O que você escrever e salvar aparece aqui da próxima vez."
       />
 
       <Field label="Outros treinos">
@@ -1153,36 +1131,6 @@ export function WorkoutForm({
           </div>
         )}
       </section>
-
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between gap-3">
-          <Label>Notas</Label>
-          <button
-            type="button"
-            onClick={() => setNotesSheet(true)}
-            className="flex min-h-9 items-center gap-1 rounded-full px-3 text-[18px] font-medium text-accent ring-1 ring-accent/50"
-          >
-            <History className="size-4" />
-            Histórico
-          </button>
-        </div>
-        <Textarea
-          rows={3}
-          placeholder="Como foi o treino…"
-          value={draft.notes}
-          onChange={(e) => patch({ notes: e.target.value })}
-        />
-      </div>
-      <SuggestionSheet
-        open={notesSheet}
-        onClose={() => setNotesSheet(false)}
-        title="Histórico de notas"
-        hint="Toque num item para acrescentar ou tirar da nota"
-        options={noteOptions}
-        isSelected={(n) => noteLines(draft.notes, noteAthletes).some((l) => l.toLowerCase() === n.toLowerCase())}
-        onToggle={toggleNote}
-        emptyText="Nenhuma nota anterior."
-      />
 
       <div className="sticky bottom-0 -mx-5 mt-2 flex gap-2 border-t border-border bg-background/95 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
         <Button

@@ -333,7 +333,8 @@
 /* Relatorio em PDF: folha A4 retrato, sempre em cores claras de papel. */
 @page {
   size: A4 portrait;
-  margin: 12mm;
+  /* 12mm + 3mm: o conteudo nao fica colado na borda da folha */
+  margin: 15mm;
 }
 
 @media print {

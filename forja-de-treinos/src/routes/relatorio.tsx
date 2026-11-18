@@ -20,7 +20,15 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { displayExtras, formatDuration, formatHours, formatWeekday, parseDate } from "@/lib/format";
-import { forAthlete } from "@/lib/athlete-view";
+import { forAthlete, norm } from "@/lib/athlete-view";
+import {
+  BODY_METRICS,
+  bodySeries,
+  latestFields,
+  metricsWithLine,
+  useBodyEntries,
+  type BodyMetric,
+} from "@/lib/body";
 import { MuscleFigure } from "@/components/muscle-figure";
 import {
   athleteMonthly,
@@ -66,11 +74,11 @@ export const Route = createFileRoute("/relatorio")({
   }),
 });
 
-// A4 retrato: 794px de folha, 45px de margem => 704px de area util (= 186mm
-// na impressao com margem de 12mm). Os graficos usam essa largura fixa, entao
+// A4 retrato: 794px de folha, 57px de margem => 680px de area util (= 180mm
+// na impressao com margem de 15mm). Os graficos usam essa largura fixa, entao
 // a previa na tela e o PDF saem identicos.
 const SHEET = 794;
-const PAD = 45;
+const PAD = 57;
 const W = SHEET - PAD * 2;
 const HALF = (W - 14) / 2;
 
@@ -140,6 +148,151 @@ function Kpi({ label, value, hint }: { label: string; value: string; hint?: stri
       </p>
       {hint && <p className="mt-1 text-[10px] text-[color:var(--rp-faint)]">{hint}</p>}
     </div>
+  );
+}
+
+/** Evolucao corporal no PDF: ultimas medidas de cada atleta, "como me sinto" e a linha de cada medida. */
+function BodyReportCard({ athlete }: { athlete?: string }) {
+  const all = useBodyEntries();
+  const entries = useMemo(
+    () => (athlete ? all.filter((e) => norm(e.athlete) === norm(athlete)) : all),
+    [all, athlete],
+  );
+  const athletes = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const e of [...entries].sort((a, b) => b.date.localeCompare(a.date))) {
+      const label = e.athlete.trim();
+      if (label && !seen.has(norm(label))) seen.set(norm(label), label);
+    }
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [entries]);
+  const metrics = useMemo(() => metricsWithLine(entries), [entries]);
+  if (athletes.length === 0) return null;
+
+  const text = (n: number) => String(n).replace(".", ",");
+  const fields: { key: BodyMetric | "energy" | "sleepHours"; label: string; unit: string }[] = [
+    ...BODY_METRICS.map((m) => ({ key: m.key, label: m.label, unit: m.unit })),
+    { key: "energy", label: "Energia", unit: "/10" },
+    { key: "sleepHours", label: "Sono", unit: "h" },
+  ];
+
+  return (
+    <Card
+      title="Evolução corporal"
+      subtitle="Últimas medidas de cada atleta, como o corpo está respondendo e a evolução de cada medida"
+      className="mt-3"
+    >
+      <div className="space-y-3">
+        {athletes.map((name) => {
+          const mine = entries.filter((e) => norm(e.athlete) === norm(name));
+          const { fields: latest, feeling } = latestFields(mine);
+          const lastDate = [...mine].sort((a, b) => b.date.localeCompare(a.date))[0]?.date;
+          return (
+            <div key={name} className="report-avoid rounded-lg bg-[#fdeee6] p-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="font-display text-[15px] font-medium">{name}</p>
+                {lastDate && (
+                  <p className="text-[9.5px] text-[color:var(--rp-muted)]">
+                    Última: {lastDate.slice(8, 10)}/{lastDate.slice(5, 7)}/{lastDate.slice(0, 4)}
+                  </p>
+                )}
+              </div>
+              <div className="mt-2 grid grid-cols-4 gap-2">
+                {fields.map((f) => {
+                  const v = latest[f.key];
+                  if (!v) return null;
+                  const d = v.previous === null ? 0 : Math.round((v.value - v.previous) * 10) / 10;
+                  return (
+                    <div key={f.key} className="rounded-md bg-white px-2 py-1.5 text-center">
+                      <p className="text-[8.5px] uppercase tracking-wider text-[color:var(--rp-muted)]">
+                        {f.label}
+                      </p>
+                      <p className="font-display text-[14px] leading-tight tabular-nums">
+                        {text(v.value)}
+                        <span className="ml-0.5 text-[8.5px] text-[color:var(--rp-muted)]">{f.unit}</span>
+                      </p>
+                      {d !== 0 && (
+                        <p className="text-[8.5px] tabular-nums text-[color:var(--rp-muted)]">
+                          {d > 0 ? "▲" : "▼"} {text(Math.abs(d))}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {feeling && (
+                <p className="mt-2 text-[10px] leading-snug text-[color:var(--rp-muted)]">
+                  “{feeling.text}” · {feeling.date.slice(8, 10)}/{feeling.date.slice(5, 7)}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {metrics.length > 0 && (
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {BODY_METRICS.filter((m) => metrics.includes(m.key)).map((m) => {
+            const series = bodySeries(entries, m.key);
+            return (
+              <div key={m.key} className="report-avoid">
+                <p className="text-center text-[10.5px] font-semibold">
+                  {m.label} <span className="font-normal text-[color:var(--rp-muted)]">({m.unit})</span>
+                </p>
+                <InlineLegend
+                  items={series.athletes.map((name, i) => ({
+                    color: ATHLETE_COLORS[i % ATHLETE_COLORS.length],
+                    label: name,
+                  }))}
+                />
+                <LineChart
+                  width={HALF - 28}
+                  height={120}
+                  data={series.rows}
+                  margin={{ top: 12, right: 12, left: 8, bottom: 0 }}
+                >
+                  <CartesianGrid vertical={false} stroke={C.grid} />
+                  <XAxis
+                    dataKey="label"
+                    tick={TICK}
+                    axisLine={false}
+                    tickLine={false}
+                    interval="preserveStartEnd"
+                    minTickGap={22}
+                  />
+                  <YAxis hide domain={["dataMin - 1", "dataMax + 1"]} />
+                  {series.athletes.map((name, i) => (
+                    <Line
+                      key={name}
+                      type="monotone"
+                      dataKey={name}
+                      stroke={ATHLETE_COLORS[i % ATHLETE_COLORS.length]}
+                      strokeWidth={2}
+                      dot={{
+                        r: 3,
+                        fill: ATHLETE_COLORS[i % ATHLETE_COLORS.length],
+                        stroke: "#fff",
+                        strokeWidth: 1,
+                      }}
+                      connectNulls
+                      isAnimationActive={false}
+                    >
+                      <LabelList
+                        dataKey={name}
+                        position="top"
+                        fontSize={8}
+                        fill={C.muted}
+                        formatter={(v: number) => (v === null || v === undefined ? "" : text(v))}
+                      />
+                    </Line>
+                  ))}
+                </LineChart>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -479,6 +632,8 @@ function Sheet({
           </div>
         </Card>
       )}
+
+      <BodyReportCard athlete={athlete} />
 
       <SectionTitle n="2">Evolução no tempo</SectionTitle>
       <div className="space-y-3">
@@ -955,24 +1110,36 @@ function Sheet({
             title="Ranking de grupos musculares"
             subtitle="Contagem de aparições nos registros do período"
           >
-            <ol className="grid grid-cols-4 gap-2.5">
-              {stats.byMuscleGroup.slice(0, 8).map((row, i) => (
-                <li
-                  key={row.name}
-                  className="report-avoid flex items-center gap-2 rounded-lg bg-[#fdeee6] px-2.5 py-2"
-                >
-                  <span className="font-display text-[15px] leading-none tabular-nums text-[color:var(--rp-accent)]">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[11px] font-medium leading-tight">{row.name}</p>
-                    <p className="text-[9px] leading-tight text-[color:var(--rp-muted)]">
-                      {row.sessions} {row.sessions === 1 ? "registro" : "registros"}
+            <ol className="grid grid-cols-2 gap-2.5">
+              {stats.byMuscleGroup.slice(0, 8).map((row, i) => {
+                const days = [...new Set(row.dates.filter(Boolean))];
+                const shown = days.slice(0, 10).map((iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`);
+                return (
+                  <li
+                    key={row.name}
+                    className="report-avoid rounded-lg bg-[#fdeee6] px-2.5 py-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-display text-[15px] leading-none tabular-nums text-[color:var(--rp-accent)]">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[11px] font-medium leading-tight">{row.name}</p>
+                        <p className="text-[9px] leading-tight text-[color:var(--rp-muted)]">
+                          {row.sessions} {row.sessions === 1 ? "registro" : "registros"}
+                        </p>
+                      </div>
+                      <span className="font-display text-[16px] leading-none tabular-nums">
+                        {row.sessions}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[8.5px] leading-snug text-[color:var(--rp-muted)]">
+                      Dias: {shown.join(" · ")}
+                      {days.length > shown.length ? ` · +${days.length - shown.length}` : ""}
                     </p>
-                  </div>
-                  <span className="font-display text-[16px] leading-none tabular-nums">{row.sessions}</span>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ol>
             {coreEx.length > 0 && (
               <p className="mt-2.5 text-[10px] leading-snug text-[color:var(--rp-muted)]">

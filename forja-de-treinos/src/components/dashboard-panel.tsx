@@ -26,6 +26,7 @@ import {
   type Tone,
 } from "@/components/chart-kit";
 import { MuscleFigure } from "@/components/muscle-figure";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   HEAT_GRADIENT,
@@ -47,7 +48,7 @@ import {
   type CompareMetric,
 } from "@/lib/compare";
 import { useAccent, type Accent } from "@/lib/accent";
-import { formatDuration, formatHours } from "@/lib/format";
+import { formatDuration, formatHours, formatWeekday } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
 import type { Workout } from "@/lib/types";
 import { INTENSITY_LABEL } from "@/lib/types";
@@ -71,6 +72,7 @@ export function DashboardPanel({
   const theme = useTheme();
   const [muscleView, setMuscleView] = useState<"periodo" | "semana" | "ultimo">("periodo");
   const [compareMetric, setCompareMetric] = useState<CompareMetric>("sessoes");
+  const [openRank, setOpenRank] = useState<string | null>(null);
   const accent = useAccent();
   const c = { ...CHART_COLORS[theme], accent: theme === "dark" ? accent.dark : accent.light };
   // `contentStyle` alone does not color the label / item text (Recharts sets
@@ -387,25 +389,62 @@ export function DashboardPanel({
       {stats.byMuscleGroup.length > 0 && (
         <ChartBlock
           title="Ranking de grupos musculares"
-          subtitle="contagem de aparições nos registros do período"
+          subtitle="toque num grupo para ver os dias"
         >
           <ol className="space-y-2.5">
-            {stats.byMuscleGroup.slice(0, 8).map((row, i) => (
-              <li key={row.name} className="stat-tile flex items-center gap-3 px-3.5 py-3">
-                <span className="w-9 shrink-0 font-display text-[28px] leading-none tabular-nums text-accent">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[24px] leading-tight text-foreground">{row.name}</p>
-                  <p className="text-[18px] leading-tight text-faint">
-                    {row.sessions} {row.sessions === 1 ? "registro" : "registros"}
-                  </p>
-                </div>
-                <span className="halo-text font-display text-[32px] leading-none tabular-nums text-foreground">
-                  {row.sessions}
-                </span>
-              </li>
-            ))}
+            {stats.byMuscleGroup.slice(0, 8).map((row, i) => {
+              const isOpen = openRank === row.name;
+              const days = [...new Set(row.dates.filter(Boolean))];
+              return (
+                <li key={row.name}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenRank(isOpen ? null : row.name)}
+                    aria-expanded={isOpen}
+                    className="stat-tile flex w-full items-center gap-3 px-3.5 py-3 text-left"
+                  >
+                    <span className="w-9 shrink-0 font-display text-[28px] leading-none tabular-nums text-accent">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[24px] leading-tight text-foreground">{row.name}</p>
+                      <p className="text-[18px] leading-tight text-faint">
+                        {row.sessions} {row.sessions === 1 ? "registro" : "registros"}
+                      </p>
+                    </div>
+                    <span className="halo-text font-display text-[32px] leading-none tabular-nums text-foreground">
+                      {row.sessions}
+                    </span>
+                    <ChevronDown
+                      className={cn("size-6 shrink-0 text-faint transition-transform", isOpen && "rotate-180")}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="mx-1 mt-2 rounded-2xl bg-muted/60 p-3.5">
+                      <p className="text-[19px] text-muted-foreground">
+                        {days.length} {days.length === 1 ? "dia registrado" : "dias registrados"} em{" "}
+                        <span className="text-foreground">{row.name}</span>
+                      </p>
+                      <ul className="mt-2.5 flex flex-wrap gap-2">
+                        {days.map((iso) => (
+                          <li key={iso} className="chip-3d !text-[19px]">
+                            <span className="tabular-nums text-foreground">
+                              {iso.slice(8, 10)}/{iso.slice(5, 7)}
+                            </span>
+                            <span className="ml-1.5 text-faint">{formatWeekday(iso).slice(0, 3)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {row.details.length > 0 && (
+                        <p className="mt-2.5 text-[18px] leading-snug text-faint">
+                          Inclui: {row.details.join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ol>
           {coreEx.length > 0 && (
             <p className="mt-3 text-[19px] leading-snug text-faint">
@@ -1182,7 +1221,7 @@ function FocusBars3D({
 }) {
   const max = Math.max(1, ...rows.map((r) => r.minutes));
   return (
-    <div className="space-y-8 pb-2">
+    <div className="space-y-6 pb-2">
       {rows.map((row) => {
         const t = FOCUS_TONES[row.name as keyof typeof FOCUS_TONES] ?? FOCUS_TONES.Pernas;
         const pct = row.minutes > 0 ? Math.max(8, (row.minutes / max) * 100) : 0;
@@ -1190,34 +1229,34 @@ function FocusBars3D({
           <div key={row.name}>
             <div className="flex items-end justify-between gap-3">
               <span
-                className="min-w-0 truncate font-display text-[40px] font-semibold leading-none"
+                className="min-w-0 truncate font-display text-[27px] font-semibold leading-none"
                 style={{ color: dark ? t.textDark : t.textLight }}
               >
                 {row.name}
               </span>
-              <span className="shrink-0 text-right text-[20px] leading-tight text-muted-foreground">
-                <span className="block whitespace-nowrap text-[26px] font-medium tabular-nums text-foreground">
+              <span className="shrink-0 text-right text-[18px] leading-tight text-muted-foreground">
+                <span className="block whitespace-nowrap text-[22px] font-medium tabular-nums text-foreground">
                   {formatDuration(row.minutes)}
                 </span>
                 {row.count} {row.count === 1 ? "sessão" : "sessões"}
               </span>
             </div>
             <div
-              className="relative mt-3 h-16 rounded-2xl"
+              className="relative mt-2.5 h-12 rounded-2xl"
               style={{ background: "var(--track-bg)", boxShadow: "var(--track-shadow)" }}
             >
               <div
-                className="absolute inset-y-1.5 left-1.5 rounded-xl transition-[width] duration-700 ease-out"
+                className="absolute inset-y-1 left-1.5 rounded-xl transition-[width] duration-700 ease-out"
                 style={{
                   width: `calc(${pct}% - 12px)`,
                   minWidth: row.minutes > 0 ? "2.75rem" : 0,
                   background: `linear-gradient(180deg, ${t.top} 0%, ${t.mid} 55%, ${t.bottom} 100%)`,
-                  boxShadow: `0 7px 0 ${t.edge}, 0 16px 24px ${t.glow}, inset 0 2px 0 rgba(255,255,255,0.6), inset 0 -4px 8px rgba(0,0,0,0.25)`,
+                  boxShadow: `0 5px 0 ${t.edge}, 0 12px 18px ${t.glow}, inset 0 2px 0 rgba(255,255,255,0.6), inset 0 -3px 6px rgba(0,0,0,0.25)`,
                 }}
               >
                 <span
                   aria-hidden
-                  className="absolute inset-x-2 top-1 h-4 rounded-full"
+                  className="absolute inset-x-2 top-0.5 h-3 rounded-full"
                   style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0))" }}
                 />
               </div>

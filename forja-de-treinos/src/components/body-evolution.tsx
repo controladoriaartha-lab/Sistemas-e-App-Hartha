@@ -1,10 +1,28 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Activity, HeartPulse, Moon, Plus, Save, X, Zap } from "lucide-react";
+import { HeartPulse, Moon, Plus, Save, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { norm } from "@/lib/athlete-view";
-import { bodyEntryId, saveBodyEntry, useBodyEntries, type BodyEntry } from "@/lib/body";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  ATHLETE_LINE,
+  CHART_COLORS,
+  chartTooltipProps,
+  useStickyTooltip,
+} from "@/components/chart-kit";
+import {
+  BODY_METRICS,
+  bodyEntryId,
+  bodySeries,
+  latestFields,
+  metricsWithLine,
+  saveBodyEntry,
+  useBodyEntries,
+  type BodyEntry,
+  type BodyMetric,
+} from "@/lib/body";
+import { useTheme } from "@/lib/theme";
 import { todayIso } from "@/lib/format";
 import { useWorkoutStore } from "@/store/workouts";
 
@@ -40,26 +58,212 @@ function parse(text: string): number | null {
 const brDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 /**
- * "Evolucao corporal": botao no Painel (logo abaixo do mapa de calor semanal)
- * que abre um painel com um cartao por atleta (medidas, energia, sono e como se
- * sente). O botao "+" abre mais um cartao em branco, para cadastrar outro atleta.
- * Cada salvamento vale para o dia de hoje e vai para a nuvem (body_measurements).
+ * "Evolucao corporal" no Painel (logo abaixo do mapa de calor semanal): mostra o
+ * que ja foi registrado de cada atleta (ultimas medidas e "como me sinto"), um
+ * grafico da evolucao e o "+" que abre o painel para registrar mais um atleta
+ * ou mais um dia. Tudo vai para a nuvem (tabela body_measurements).
  */
-export function BodyEvolutionButton() {
+export function BodyEvolutionSection() {
+  const entries = useBodyEntries();
+  const theme = useTheme();
+  const c = CHART_COLORS[theme];
+  const tip = useStickyTooltip();
   const [open, setOpen] = useState(false);
+  const [metric, setMetric] = useState<BodyMetric>("weightKg");
+
+  const athletes = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const e of [...entries].sort((a, b) => b.date.localeCompare(a.date))) {
+      const label = e.athlete.trim();
+      if (label && !seen.has(norm(label))) seen.set(norm(label), label);
+    }
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [entries]);
+
+  const available = useMemo(() => metricsWithLine(entries), [entries]);
+  const activeMetric = available.includes(metric) ? metric : (available[0] ?? "weightKg");
+  const series = useMemo(() => bodySeries(entries, activeMetric), [entries, activeMetric]);
+  const meta = BODY_METRICS.find((m) => m.key === activeMetric)!;
+  const lineColors = ATHLETE_LINE[theme];
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="btn-3d flex h-14 w-full items-center justify-center gap-2 text-[22px] font-medium"
-      >
-        <Activity className="size-6" />
-        Evolução corporal
-      </button>
+    <section className="glass-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[24px] font-medium text-foreground">Evolução corporal</p>
+          <p className="text-[24px] font-normal text-faint">peso, medidas e sono</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Registrar evolução corporal (mais um atleta ou mais um dia)"
+          title="Registrar"
+          className="btn-3d flex size-12 shrink-0 items-center justify-center rounded-full"
+        >
+          <Plus className="size-7" />
+        </button>
+      </div>
+
+      {athletes.length === 0 ? (
+        <p className="mt-3 text-[21px] leading-snug text-muted-foreground">
+          Nada registrado ainda. Toque no <span className="text-foreground">+</span> para anotar peso,
+          medidas, energia, sono e como o corpo está respondendo.
+        </p>
+      ) : (
+        <div className="mt-4 space-y-4">
+          {athletes.map((name) => (
+            <AthleteSummary
+              key={name}
+              name={name}
+              entries={entries.filter((e) => norm(e.athlete) === norm(name))}
+            />
+          ))}
+        </div>
+      )}
+
+      {athletes.length > 0 &&
+        (available.length === 0 ? (
+          <p className="mt-4 text-[19px] leading-snug text-faint">
+            Com dois registros da mesma medida, a linha de evolução aparece aqui.
+          </p>
+        ) : (
+          <div className="mt-5">
+            <div className="flex flex-wrap gap-2">
+              {BODY_METRICS.filter((m) => available.includes(m.key)).map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={() => setMetric(m.key)}
+                  data-on={activeMetric === m.key}
+                  className="pill-3d min-h-11 px-4 text-[21px] font-medium"
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <div className="mb-2 mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[21px]">
+              {series.athletes.map((name, i) => (
+                <span key={name} className="flex items-center gap-2">
+                  <span
+                    className="size-3 rounded-full"
+                    style={{ background: lineColors[i % lineColors.length] }}
+                  />
+                  {name}
+                </span>
+              ))}
+            </div>
+            <ResponsiveContainer width="100%" height={210}>
+              <LineChart
+                data={series.rows}
+                margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                onClick={(state) => {
+                  if (state?.activePayload) {
+                    tip.show({
+                      label: state.activeLabel,
+                      payload: state.activePayload,
+                      coordinate: state.activeCoordinate,
+                    });
+                  }
+                }}
+              >
+                <CartesianGrid vertical={false} stroke={c.grid} />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: c.muted, fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                  minTickGap={24}
+                />
+                <YAxis
+                  tick={{ fill: c.muted, fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={40}
+                  domain={[(min: number) => Math.floor(min - 1), (max: number) => Math.ceil(max + 1)]}
+                  allowDecimals={false}
+                  tickFormatter={(v: number) => toText(v)}
+                />
+                <Tooltip
+                  {...chartTooltipProps(c)}
+                  active={tip.sticky ? true : false}
+                  payload={tip.sticky ? (tip.sticky.payload as never) : undefined}
+                  label={tip.sticky ? tip.sticky.label : undefined}
+                  coordinate={tip.sticky ? tip.sticky.coordinate : undefined}
+                  formatter={(value) => [`${toText(Number(value))} ${meta.unit}`, ""]}
+                />
+                {series.athletes.map((name, i) => (
+                  <Line
+                    key={name}
+                    type="monotone"
+                    dataKey={name}
+                    stroke={lineColors[i % lineColors.length]}
+                    strokeWidth={3.5}
+                    dot={{ r: 5, fill: lineColors[i % lineColors.length], stroke: c.ink, strokeWidth: 1.5 }}
+                    activeDot={false}
+                    connectNulls
+                    isAnimationActive={false}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ))}
+
       {open && <BodySheet onClose={() => setOpen(false)} />}
-    </>
+    </section>
+  );
+}
+
+const SUMMARY_FIELDS: { key: BodyMetric | "energy" | "sleepHours"; label: string; unit: string }[] = [
+  ...BODY_METRICS.map((m) => ({ key: m.key, label: m.label, unit: m.unit })),
+  { key: "energy", label: "Energia", unit: "/10" },
+  { key: "sleepHours", label: "Sono", unit: "h" },
+];
+
+/** Ultimas medidas de um atleta (com a variacao desde o registro anterior) e o "como me sinto". */
+function AthleteSummary({ name, entries }: { name: string; entries: BodyEntry[] }) {
+  const { fields, feeling } = useMemo(() => latestFields(entries), [entries]);
+  const lastDate = [...entries].sort((a, b) => b.date.localeCompare(a.date))[0]?.date;
+
+  return (
+    <div className="stat-tile p-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-display text-[26px] font-medium leading-tight">{name}</h3>
+        {lastDate && (
+          <span className="badge-3d shrink-0 !px-3 !text-[14px]" data-tone="leve">
+            Última {brDate(lastDate)}
+          </span>
+        )}
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {SUMMARY_FIELDS.map((f) => {
+          const v = fields[f.key];
+          if (!v) return null;
+          const d = v.previous === null ? 0 : Math.round((v.value - v.previous) * 10) / 10;
+          return (
+            <div key={f.key} className="rounded-xl bg-muted/60 px-2 py-2 text-center">
+              <p className="text-[16px] leading-tight text-faint">{f.label}</p>
+              <p className="font-display text-[24px] leading-tight tabular-nums text-foreground">
+                {toText(v.value)}
+                <span className="ml-0.5 text-[15px] text-muted-foreground">{f.unit}</span>
+              </p>
+              {d !== 0 && (
+                <p className="text-[15px] leading-tight tabular-nums text-muted-foreground">
+                  {d > 0 ? "▲" : "▼"} {toText(Math.abs(d))}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {feeling && (
+        <p className="mt-3 text-[20px] leading-snug text-muted-foreground">
+          <span className="text-foreground">“{feeling.text}”</span>{" "}
+          <span className="text-[17px] text-faint">· {brDate(feeling.date)}</span>
+        </p>
+      )}
+    </div>
   );
 }
 

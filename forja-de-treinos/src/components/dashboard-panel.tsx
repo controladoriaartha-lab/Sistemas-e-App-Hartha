@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { format, subDays } from "date-fns";
 import {
   Area,
@@ -17,7 +17,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BodyEvolutionButton } from "@/components/body-evolution";
+import { BodyEvolutionSection } from "@/components/body-evolution";
+import {
+  ATHLETE_LINE,
+  ATHLETE_TONES,
+  CHART_COLORS,
+  useStickyTooltip,
+  type Tone,
+} from "@/components/chart-kit";
 import { MuscleFigure } from "@/components/muscle-figure";
 import { cn } from "@/lib/utils";
 import {
@@ -44,80 +51,6 @@ import { formatDuration, formatHours } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
 import type { Workout } from "@/lib/types";
 import { INTENSITY_LABEL } from "@/lib/types";
-
-// Recharts needs literal colors (SVG fill/stroke), not CSS variables, so
-// chart colors can't just ride the theme's CSS custom properties like the
-// rest of the app does. Same "paper/ink" duality as everywhere else: a
-// paper-colored bar pops on the dark background, an ink-colored one pops on
-// the light one.
-const CHART_COLORS = {
-  dark: {
-    ink: "#0c0b0a",
-    barPrimary: "#f4efe8",
-    muted: "#9a9086",
-    grid: "rgba(244,239,232,0.08)",
-    accent: "#c45c26",
-    warn: "#c4a574",
-    ok: "#7d9478",
-    tooltipBg: "#211c18",
-    tooltipBorder: "rgba(244,239,232,0.16)",
-    tooltipItem: "#f4efe8",
-    tooltipLabel: "#9a9086",
-  },
-  light: {
-    ink: "#0c0b0a",
-    barPrimary: "#0c0b0a",
-    muted: "#6b645c",
-    grid: "rgba(12,11,10,0.1)",
-    accent: "#b8511e",
-    warn: "#93672c",
-    ok: "#4f6a49",
-    tooltipBg: "#ffffff",
-    tooltipBorder: "rgba(12,11,10,0.12)",
-    tooltipItem: "#241f1a",
-    tooltipLabel: "#6b645c",
-  },
-} as const;
-
-/** Uma cor (e um tom de coluna 3D) por atleta, iguais nos tres graficos de comparacao. */
-const ATHLETE_TONES = ["orange", "teal", "gold", "green"] as const;
-type Tone = (typeof ATHLETE_TONES)[number];
-const ATHLETE_LINE: Record<"dark" | "light", string[]> = {
-  dark: ["#f0975f", "#6cc0d4", "#e0b954", "#9bc27f"],
-  light: ["#b8511e", "#2a7a8c", "#93672c", "#4f6a49"],
-};
-
-type StickyTooltip = {
-  label?: string;
-  payload: unknown[];
-  coordinate?: { x: number; y: number };
-};
-
-/**
- * Recharts tooltips are hover-driven: on a phone there is no hover, so a tap
- * shows the value only while the finger is down and it vanishes the instant
- * you lift it — often before it's been read. This freezes whatever was
- * tapped for `ms`, then lets the chart fall back to its normal behavior.
- */
-function useStickyTooltip(ms = 4000) {
-  const [sticky, setSticky] = useState<StickyTooltip | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
-
-  function show(entry: StickyTooltip) {
-    setSticky(entry);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setSticky(null), ms);
-  }
-
-  return { sticky, show };
-}
 
 export function DashboardPanel({
   workouts,
@@ -202,7 +135,6 @@ export function DashboardPanel({
   const durationTip = useStickyTooltip();
   const coreEvolutionTip = useStickyTooltip();
   const intensityTip = useStickyTooltip();
-  const focusTip = useStickyTooltip();
   const muscleGroupTip = useStickyTooltip();
   const athleteTip = useStickyTooltip();
   const loadTip = useStickyTooltip();
@@ -372,12 +304,7 @@ export function DashboardPanel({
         </ChartBlock>
       )}
 
-      <ChartBlock
-        title="Evolução corporal"
-        subtitle="peso, medidas, energia e sono, por atleta"
-      >
-        <BodyEvolutionButton />
-      </ChartBlock>
+      <BodyEvolutionSection />
 
       {stats.byMuscleGroup.length === 0 ? null : (
         <ChartBlock
@@ -1053,56 +980,7 @@ export function DashboardPanel({
       </ChartBlock>
 
       <ChartBlock title="Pernas vs braços" subtitle="minutos acumulados">
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart
-            data={focusData}
-            layout="vertical"
-            barSize={22}
-            onClick={(state) => {
-              if (state?.activePayload) {
-                focusTip.show({
-                  label: state.activeLabel,
-                  payload: state.activePayload,
-                  coordinate: state.activeCoordinate,
-                });
-              }
-            }}
-          >
-            <CartesianGrid horizontal={false} stroke={c.grid} />
-            <XAxis
-              type="number"
-              tick={{ fill: c.muted, fontSize: 10 }}
-              axisLine={false}
-              tickLine={false}
-              allowDecimals={false}
-            />
-            <YAxis
-              type="category"
-              dataKey="name"
-              tick={{ fill: c.muted, fontSize: 12 }}
-              axisLine={false}
-              tickLine={false}
-              width={64}
-            />
-            <Tooltip
-              {...tooltipProps}
-              active={focusTip.sticky ? true : false}
-              payload={focusTip.sticky ? (focusTip.sticky.payload as never) : undefined}
-              label={focusTip.sticky ? focusTip.sticky.label : undefined}
-              coordinate={focusTip.sticky ? focusTip.sticky.coordinate : undefined}
-              formatter={(value) => [`${Number(value)} min`, "Volume"]}
-            />
-            <Bar dataKey="minutes" fill={c.barPrimary} radius={[0, 8, 8, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-[21px]">
-          {focusData.map((row) => (
-            <p key={row.name} className="text-muted-foreground">
-              <span className="text-foreground tabular-nums">{row.count}</span>{" "}
-              {row.count === 1 ? "sessão" : "sessões"} · {row.name.toLowerCase()}
-            </p>
-          ))}
-        </div>
+        <FocusBars3D rows={focusData} dark={theme === "dark"} />
       </ChartBlock>
 
       {!periodActive && (
@@ -1270,6 +1148,84 @@ function Bar3D(props: {
         fill={t.side}
       />
     </g>
+  );
+}
+
+/** Pernas em verde e braços em azul, com barras 3D (relevo, brilho no topo e sombra de espessura). */
+const FOCUS_TONES = {
+  Pernas: {
+    top: "#9fe07f",
+    mid: "#5fb34a",
+    bottom: "#2f7d2a",
+    edge: "#1c4a18",
+    glow: "rgba(95, 179, 74, 0.45)",
+    textDark: "#8fd873",
+    textLight: "#2f7d2a",
+  },
+  Braços: {
+    top: "#8db8ff",
+    mid: "#4a86e8",
+    bottom: "#2455b3",
+    edge: "#13307a",
+    glow: "rgba(74, 134, 232, 0.45)",
+    textDark: "#7fb0ff",
+    textLight: "#2455b3",
+  },
+} as const;
+
+function FocusBars3D({
+  rows,
+  dark,
+}: {
+  rows: { name: string; minutes: number; count: number }[];
+  dark: boolean;
+}) {
+  const max = Math.max(1, ...rows.map((r) => r.minutes));
+  return (
+    <div className="space-y-8 pb-2">
+      {rows.map((row) => {
+        const t = FOCUS_TONES[row.name as keyof typeof FOCUS_TONES] ?? FOCUS_TONES.Pernas;
+        const pct = row.minutes > 0 ? Math.max(8, (row.minutes / max) * 100) : 0;
+        return (
+          <div key={row.name}>
+            <div className="flex items-end justify-between gap-3">
+              <span
+                className="min-w-0 truncate font-display text-[40px] font-semibold leading-none"
+                style={{ color: dark ? t.textDark : t.textLight }}
+              >
+                {row.name}
+              </span>
+              <span className="shrink-0 text-right text-[20px] leading-tight text-muted-foreground">
+                <span className="block whitespace-nowrap text-[26px] font-medium tabular-nums text-foreground">
+                  {formatDuration(row.minutes)}
+                </span>
+                {row.count} {row.count === 1 ? "sessão" : "sessões"}
+              </span>
+            </div>
+            <div
+              className="relative mt-3 h-16 rounded-2xl"
+              style={{ background: "var(--track-bg)", boxShadow: "var(--track-shadow)" }}
+            >
+              <div
+                className="absolute inset-y-1.5 left-1.5 rounded-xl transition-[width] duration-700 ease-out"
+                style={{
+                  width: `calc(${pct}% - 12px)`,
+                  minWidth: row.minutes > 0 ? "2.75rem" : 0,
+                  background: `linear-gradient(180deg, ${t.top} 0%, ${t.mid} 55%, ${t.bottom} 100%)`,
+                  boxShadow: `0 7px 0 ${t.edge}, 0 16px 24px ${t.glow}, inset 0 2px 0 rgba(255,255,255,0.6), inset 0 -4px 8px rgba(0,0,0,0.25)`,
+                }}
+              >
+                <span
+                  aria-hidden
+                  className="absolute inset-x-2 top-1 h-4 rounded-full"
+                  style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0))" }}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

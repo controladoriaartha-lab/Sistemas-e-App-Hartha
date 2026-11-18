@@ -67,8 +67,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 function TopControls() {
   return (
     <div
-      className="fixed right-3 z-50 flex items-center gap-2"
-      style={{ top: "max(0.75rem, calc(env(safe-area-inset-top) + 0.375rem))" }}
+      className="fixed z-50 flex items-center gap-2"
+      style={{
+        top: "max(0.75rem, calc(env(safe-area-inset-top) + 0.375rem))",
+        // no computador, os botoes ficam na borda da coluna do app (nao no canto da tela)
+        right: "max(0.75rem, calc((100% - 32rem) / 2 + 0.75rem))",
+      }}
     >
       <img
         src="/artha-logo.png"

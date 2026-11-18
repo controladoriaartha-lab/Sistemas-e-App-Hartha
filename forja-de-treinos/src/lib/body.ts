@@ -151,3 +151,72 @@ export function useBodyEntries(): BodyEntry[] {
     () => [],
   );
 }
+
+// ───────────────────────── series para o grafico ─────────────────────────
+
+export type BodyMetric = "weightKg" | "waistCm" | "armCm" | "thighCm" | "chestCm" | "calfCm";
+
+export const BODY_METRICS: { key: BodyMetric; label: string; unit: string }[] = [
+  { key: "weightKg", label: "Peso", unit: "kg" },
+  { key: "waistCm", label: "Cintura", unit: "cm" },
+  { key: "armCm", label: "Braço", unit: "cm" },
+  { key: "thighCm", label: "Coxa", unit: "cm" },
+  { key: "chestCm", label: "Peito", unit: "cm" },
+  { key: "calfCm", label: "Panturrilha", unit: "cm" },
+];
+
+/** Quantos registros cada medida tem (para mostrar so as que ja formam uma linha). */
+export function metricsWithLine(entries: BodyEntry[]): BodyMetric[] {
+  return BODY_METRICS.filter(({ key }) => {
+    const perAthlete = new Map<string, number>();
+    for (const e of entries) {
+      if (e[key] === null || e[key] === undefined) continue;
+      const k = norm(e.athlete);
+      perAthlete.set(k, (perAthlete.get(k) ?? 0) + 1);
+    }
+    return [...perAthlete.values()].some((n) => n >= 2);
+  }).map((m) => m.key);
+}
+
+export type BodyRow = { date: string; label: string } & Record<string, number | string | null>;
+
+/** Uma linha por data, uma coluna por atleta, para a medida escolhida. */
+export function bodySeries(entries: BodyEntry[], metric: BodyMetric): { rows: BodyRow[]; athletes: string[] } {
+  const names = new Map<string, string>();
+  const byDate = new Map<string, Map<string, number>>();
+  for (const e of [...entries].sort((a, b) => a.date.localeCompare(b.date))) {
+    const value = e[metric];
+    if (value === null || value === undefined) continue;
+    const key = norm(e.athlete);
+    if (!names.has(key)) names.set(key, e.athlete.trim());
+    const day = byDate.get(e.date) ?? new Map<string, number>();
+    day.set(key, value);
+    byDate.set(e.date, day);
+  }
+  const athletes = [...names.values()];
+  const rows: BodyRow[] = [...byDate.entries()].map(([date, day]) => {
+    const row: BodyRow = { date, label: `${date.slice(8, 10)}/${date.slice(5, 7)}` };
+    for (const [key, name] of names) row[name] = day.get(key) ?? null;
+    return row;
+  });
+  return { rows, athletes };
+}
+
+/** Ultimo valor de cada campo e o anterior a ele (a evolucao), considerando todos os registros do atleta. */
+export function latestFields(entries: BodyEntry[]) {
+  const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date));
+  const fields = [...BODY_METRICS.map((m) => m.key), "energy", "sleepHours"] as const;
+  const out = {} as Record<(typeof fields)[number], { value: number; previous: number | null; date: string } | null>;
+  for (const key of fields) {
+    const withValue = sorted.filter((e) => e[key] !== null && e[key] !== undefined);
+    out[key] = withValue.length
+      ? {
+          value: withValue[0][key] as number,
+          previous: withValue[1] ? (withValue[1][key] as number) : null,
+          date: withValue[0].date,
+        }
+      : null;
+  }
+  const feeling = sorted.find((e) => e.feeling.trim());
+  return { fields: out, feeling: feeling ? { text: feeling.feeling.trim(), date: feeling.date } : null };
+}

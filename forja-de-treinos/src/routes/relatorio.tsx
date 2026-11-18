@@ -787,7 +787,7 @@ function Sheet({
           <Card title="Pernas vs braços" subtitle="Sessões e tempo por foco">
             <BarChart
               width={HALF - 28}
-              height={110}
+              height={124}
               data={focusData}
               layout="vertical"
               margin={{ top: 4, right: 40, left: 0, bottom: 0 }}
@@ -796,22 +796,25 @@ function Sheet({
               <YAxis
                 type="category"
                 dataKey="name"
-                tick={{ ...TICK, fontSize: 11 }}
+                tick={{ ...TICK, fontSize: 15, fontWeight: 700, fill: C.ink }}
                 axisLine={false}
                 tickLine={false}
-                width={52}
+                width={70}
               />
               <Bar
                 dataKey="minutes"
-                fill={C.ink}
+                fill={C.green}
                 radius={[0, 4, 4, 0]}
-                barSize={18}
+                barSize={22}
                 isAnimationActive={false}
               >
+                {focusData.map((f) => (
+                  <Cell key={f.name} fill={f.name === "Pernas" ? "#4f9a3f" : "#3b74d6"} />
+                ))}
                 <LabelList
                   dataKey="minutes"
                   position="right"
-                  fontSize={10}
+                  fontSize={12}
                   fill={C.muted}
                   formatter={(v: number) => formatDuration(v)}
                 />

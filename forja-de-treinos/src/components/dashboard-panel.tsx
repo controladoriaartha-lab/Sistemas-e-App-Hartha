@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   Cell,
   ComposedChart,
+  LabelList,
   Line,
   LineChart,
   Pie,
@@ -315,12 +316,13 @@ export function DashboardPanel({
         >
           <ResponsiveContainer
             width="100%"
-            height={Math.max(160, stats.byMuscleGroup.length * 36 + 24)}
+            height={Math.max(190, stats.byMuscleGroup.length * 54 + 30)}
           >
             <BarChart
               data={stats.byMuscleGroup}
               layout="vertical"
-              barSize={18}
+              barSize={30}
+              margin={{ top: 6, right: 34, left: 0, bottom: 0 }}
               onClick={(state) => {
                 if (state?.activePayload) {
                   muscleGroupTip.show({
@@ -334,7 +336,7 @@ export function DashboardPanel({
               <CartesianGrid horizontal={false} stroke={c.grid} />
               <XAxis
                 type="number"
-                tick={{ fill: c.muted, fontSize: 10 }}
+                tick={{ fill: c.muted, fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
                 allowDecimals={false}
@@ -342,10 +344,11 @@ export function DashboardPanel({
               <YAxis
                 type="category"
                 dataKey="name"
-                tick={{ fill: c.muted, fontSize: 11 }}
+                tick={{ fill: c.tooltipItem, fontSize: 17 }}
                 axisLine={false}
                 tickLine={false}
-                width={92}
+                width={110}
+                interval={0}
               />
               <Tooltip
                 {...tooltipProps}
@@ -360,29 +363,17 @@ export function DashboardPanel({
                   "Grupo",
                 ]}
               />
-              <Bar dataKey="sessions" fill={c.warn} radius={[0, 8, 8, 0]} />
+              <Bar dataKey="sessions" fill={c.accent} shape={<Bar3DH />}>
+                <LabelList
+                  dataKey="sessions"
+                  position="right"
+                  fontSize={17}
+                  fontWeight={600}
+                  fill={c.tooltipItem}
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
-          <ul className="mt-3 space-y-1.5 text-[24px]">
-            {stats.byMuscleGroup.map((row) => (
-              <li key={row.name}>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{row.name}</span>
-                  <span className="tabular-nums text-foreground">
-                    {row.sessions} {row.sessions === 1 ? "sessão" : "sessões"}
-                  </span>
-                </div>
-                {row.details.length > 0 && (
-                  <p className="text-[18px] text-faint">{row.details.join(", ")}</p>
-                )}
-                {row.sessions <= 3 && (
-                  <p className="text-[16px] tabular-nums text-faint">
-                    {row.dates.map((d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`).join(" · ")}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
         </ChartBlock>
       )}
 
@@ -1127,6 +1118,37 @@ function Card({ className, ...props }: ComponentProps<"div">) {
  * Coluna 3D para os graficos de barras verticais: face frontal em degrade
  * laranja, topo mais claro e lateral escura (profundidade fixa, em pixels).
  */
+/** Coluna 3D deitada (grafico de barras horizontal): frente em degrade, topo claro e ponta escura. */
+function Bar3DH(props: { x?: number; y?: number; width?: number; height?: number }) {
+  const { x = 0, y = 0, width = 0, height = 0 } = props;
+  const accent = useAccent();
+  if (!(width > 0) || !(height > 0)) return null;
+  const t = accentBarTone(accent);
+  const d = Math.min(9, height * 0.32, width);
+  const fh = height - d;
+  const id = `bar3dh-${accent.id}`;
+  return (
+    <g>
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={t.top} />
+          <stop offset="55%" stopColor={t.mid} />
+          <stop offset="100%" stopColor={t.bottom} />
+        </linearGradient>
+      </defs>
+      <rect x={x} y={y + d} width={width - d} height={fh} fill={`url(#${id})`} />
+      <polygon
+        points={`${x},${y + d} ${x + d},${y} ${x + width},${y} ${x + width - d},${y + d}`}
+        fill={t.face}
+      />
+      <polygon
+        points={`${x + width - d},${y + d} ${x + width},${y} ${x + width},${y + fh} ${x + width - d},${y + height}`}
+        fill={t.side}
+      />
+    </g>
+  );
+}
+
 const BAR_TONES: Record<
   Tone,
   { top: string; mid: string; bottom: string; face: string; side: string }

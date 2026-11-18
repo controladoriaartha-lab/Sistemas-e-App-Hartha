@@ -945,7 +945,7 @@ function Sheet({
               height={124}
               data={focusData}
               layout="vertical"
-              margin={{ top: 4, right: 40, left: 0, bottom: 0 }}
+              margin={{ top: 4, right: 64, left: 0, bottom: 0 }}
             >
               <XAxis type="number" hide />
               <YAxis
@@ -986,43 +986,31 @@ function Sheet({
           >
             <BarChart
               width={HALF - 28}
-              height={Math.max(110, stats.byMuscleGroup.length * 24 + 10)}
+              height={Math.max(130, stats.byMuscleGroup.length * 30 + 10)}
               data={stats.byMuscleGroup}
               layout="vertical"
-              margin={{ top: 2, right: 26, left: 0, bottom: 0 }}
+              margin={{ top: 2, right: 30, left: 0, bottom: 0 }}
             >
               <XAxis type="number" hide />
               <YAxis
                 type="category"
                 dataKey="name"
-                tick={{ ...TICK, fontSize: 10 }}
+                tick={{ ...TICK, fontSize: 15, fill: C.ink }}
                 axisLine={false}
                 tickLine={false}
-                width={84}
+                width={96}
                 interval={0}
               />
               <Bar
                 dataKey="sessions"
                 fill={C.gold}
                 radius={[0, 4, 4, 0]}
-                barSize={13}
+                barSize={16}
                 isAnimationActive={false}
               >
-                <LabelList dataKey="sessions" position="right" fontSize={9.5} fill={C.muted} />
+                <LabelList dataKey="sessions" position="right" fontSize={13} fill={C.ink} />
               </Bar>
             </BarChart>
-            {stats.byMuscleGroup.some((g) => g.details.length > 0) && (
-              <ul className="mt-2 space-y-0.5 text-[10.5px] leading-snug text-[color:var(--rp-muted)]">
-                {stats.byMuscleGroup
-                  .filter((g) => g.details.length > 0)
-                  .map((g) => (
-                    <li key={g.name}>
-                      <b className="font-semibold text-[color:var(--rp-ink)]">{g.name}:</b>{" "}
-                      {g.details.join(", ").toLowerCase()}
-                    </li>
-                  ))}
-              </ul>
-            )}
           </Card>
         </div>
 

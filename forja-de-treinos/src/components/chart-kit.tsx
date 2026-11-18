@@ -91,3 +91,40 @@ export function chartTooltipProps(c: (typeof CHART_COLORS)["dark" | "light"]) {
     wrapperStyle: { outline: "none", zIndex: 20 },
   } as const;
 }
+
+/**
+ * Rotulo do eixo que quebra em ate 2 linhas (ex.: "Pesos Geovanil kg" vira
+ * "Pesos" / "Geovanil kg"), em vez de ser cortado. Alinhado a direita, ao lado da barra.
+ */
+export function WrapTick(props: {
+  x?: number;
+  y?: number;
+  payload?: { value?: string | number };
+  fontSize?: number;
+  fill?: string;
+  maxChars?: number;
+  maxLines?: number;
+}) {
+  const { x = 0, y = 0, payload, fontSize = 14, fill = "currentColor", maxChars = 10, maxLines = 2 } = props;
+  const words = String(payload?.value ?? "").split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  for (const word of words) {
+    const last = lines[lines.length - 1];
+    if (last !== undefined && `${last} ${word}`.length <= maxChars) lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+  }
+  let shown = lines.slice(0, maxLines);
+  if (lines.length > maxLines) shown[maxLines - 1] = `${shown[maxLines - 1].slice(0, Math.max(1, maxChars - 1))}…`;
+  if (shown.length === 0) shown = [""];
+  const lineHeight = fontSize * 1.12;
+  const first = -((shown.length - 1) * lineHeight) / 2;
+  return (
+    <text x={x} y={y} textAnchor="end" fill={fill} fontSize={fontSize}>
+      {shown.map((line, i) => (
+        <tspan key={i} x={x} dy={i === 0 ? first + fontSize * 0.35 : lineHeight}>
+          {line}
+        </tspan>
+      ))}
+    </text>
+  );
+}

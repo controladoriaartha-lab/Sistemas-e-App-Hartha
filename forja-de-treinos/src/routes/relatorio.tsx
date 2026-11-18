@@ -12,8 +12,6 @@ import {
   LabelList,
   Line,
   LineChart,
-  Pie,
-  PieChart,
   XAxis,
   YAxis,
 } from "recharts";
@@ -29,7 +27,9 @@ import {
   useBodyEntries,
   type BodyMetric,
 } from "@/lib/body";
+import { WrapTick } from "@/components/chart-kit";
 import { MuscleFigure } from "@/components/muscle-figure";
+import { Pie3D } from "@/components/pie3d";
 import {
   athleteMonthly,
   COMPARE_METRICS,
@@ -167,7 +167,19 @@ function BodyReportCard({ athlete }: { athlete?: string }) {
     return [...seen.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [entries]);
   const metrics = useMemo(() => metricsWithLine(entries), [entries]);
-  if (athletes.length === 0) return null;
+  if (athletes.length === 0) {
+    return (
+      <Card
+        title="Evolução corporal"
+        subtitle="Últimas medidas de cada atleta, como o corpo está respondendo e a evolução de cada medida"
+      >
+        <p className="text-[11px] leading-snug text-[color:var(--rp-muted)]">
+          Nenhuma medida registrada ainda. No Painel, toque no + de “Evolução corporal” para anotar peso,
+          medidas, energia, sono e como o corpo está respondendo; elas passam a aparecer aqui.
+        </p>
+      </Card>
+    );
+  }
 
   const text = (n: number) => String(n).replace(".", ",");
   const fields: { key: BodyMetric | "energy" | "sleepHours"; label: string; unit: string }[] = [
@@ -544,6 +556,30 @@ function Sheet({
         />
       </div>
 
+      {!periodo && (
+        <Card title="Esta semana" subtitle="Semana atual contra a anterior" className="mt-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="font-display text-[22px] leading-none tabular-nums">{stats.week.count}</p>
+              <p className="mt-1 text-[10.5px] text-[color:var(--rp-muted)]">sessões</p>
+            </div>
+            <div>
+              <p className="font-display text-[22px] leading-none tabular-nums">
+                {formatDuration(stats.week.minutes)}
+              </p>
+              <p className="mt-1 text-[10.5px] text-[color:var(--rp-muted)]">em treino</p>
+            </div>
+          </div>
+          <p className="mt-2 text-[11px] text-[color:var(--rp-muted)]">
+            Volume semanal <Delta value={weekDelta} /> em relação à semana passada
+            {stats.lastWeek.count
+              ? ` (${stats.lastWeek.count} treinos, ${formatDuration(stats.lastWeek.minutes)})`
+              : " (sem treinos na semana anterior)"}
+            .
+          </p>
+        </Card>
+      )}
+
       <Card title="Leitura rápida" subtitle="Resumo automático dos seus números" className="mt-3">
         <ul className="space-y-1.5 text-[12px] leading-snug">
           {data.insights.map((t) => (
@@ -555,11 +591,13 @@ function Sheet({
         </ul>
       </Card>
 
+
+      <SectionTitle n="2">Músculos e evolução corporal</SectionTitle>
+      <div className="space-y-3">
       {muscleRegions.length > 0 && (
         <Card
           title="Músculos trabalhados"
           subtitle="Do verde claro (pouco) ao vermelho escuro (mais trabalhado), no período do relatório"
-          className="mt-3"
         >
           <div className="mx-auto max-w-[400px]">
             <MuscleFigure levels={muscleLevels} print />
@@ -594,7 +632,6 @@ function Sheet({
         <Card
           title="Mapa de calor semanal"
           subtitle="Quanto cada músculo foi trabalhado em cada uma das últimas 8 semanas (cor mais escura = mais trabalhado)"
-          className="mt-3"
         >
           <table className="w-full border-separate text-[10.5px]" style={{ borderSpacing: "3px" }}>
             <thead>
@@ -635,7 +672,85 @@ function Sheet({
 
       <BodyReportCard athlete={athlete} />
 
-      <SectionTitle n="2">Evolução no tempo</SectionTitle>
+        <Card
+          title="Grupo muscular"
+          subtitle="Sessões por grupo (inclui o que foi marcado em Outros treinos)"
+        >
+          <BarChart
+            width={W - 28}
+            height={Math.max(130, stats.byMuscleGroup.length * 38 + 10)}
+            data={stats.byMuscleGroup}
+            layout="vertical"
+            margin={{ top: 2, right: 36, left: 0, bottom: 0 }}
+          >
+            <XAxis type="number" hide />
+            <YAxis
+              type="category"
+              dataKey="name"
+              tick={<WrapTick fontSize={15} fill={C.ink} maxChars={16} />}
+              axisLine={false}
+              tickLine={false}
+              width={130}
+              interval={0}
+            />
+            <Bar
+              dataKey="sessions"
+              fill={C.gold}
+              radius={[0, 4, 4, 0]}
+              barSize={18}
+              isAnimationActive={false}
+            >
+              <LabelList dataKey="sessions" position="right" fontSize={13} fill={C.ink} />
+            </Bar>
+          </BarChart>
+        </Card>
+        {stats.byMuscleGroup.length > 0 && (
+          <Card
+            title="Ranking de grupos musculares"
+            subtitle="Contagem de aparições nos registros do período"
+          >
+            <ol className="grid grid-cols-2 gap-2.5">
+              {stats.byMuscleGroup.slice(0, 8).map((row, i) => {
+                const days = [...new Set(row.dates.filter(Boolean))];
+                const shown = days.slice(0, 10).map((iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`);
+                return (
+                  <li
+                    key={row.name}
+                    className="report-avoid rounded-lg bg-[#fdeee6] px-2.5 py-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-display text-[15px] leading-none tabular-nums text-[color:var(--rp-accent)]">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[11px] font-medium leading-tight">{row.name}</p>
+                        <p className="text-[9px] leading-tight text-[color:var(--rp-muted)]">
+                          {row.sessions} {row.sessions === 1 ? "registro" : "registros"}
+                        </p>
+                      </div>
+                      <span className="font-display text-[16px] leading-none tabular-nums">
+                        {row.sessions}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[8.5px] leading-snug text-[color:var(--rp-muted)]">
+                      Dias: {shown.join(" · ")}
+                      {days.length > shown.length ? ` · +${days.length - shown.length}` : ""}
+                    </p>
+                  </li>
+                );
+              })}
+            </ol>
+            {coreEx.length > 0 && (
+              <p className="mt-2.5 text-[10px] leading-snug text-[color:var(--rp-muted)]">
+                Core por exercício:{" "}
+                {coreEx.map((e) => `${e.exercise} ${e.reps.toLocaleString("pt-BR")}`).join(" · ")}
+              </p>
+            )}
+          </Card>
+        )}
+      </div>
+
+      <SectionTitle n="3">Evolução no tempo</SectionTitle>
       <div className="space-y-3">
         <Card title="Volume semanal" subtitle="Minutos treinados por semana (últimas 20)">
           <BarChart
@@ -877,144 +992,6 @@ function Sheet({
         </Card>
 
         <Card
-          title="Calendário de treinos"
-          subtitle="Cada quadrado é um dia — quanto mais escuro, mais minutos treinados (últimas 26 semanas)"
-        >
-          <Heatmap data={data} />
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-[color:var(--rp-muted)]">
-            <span>menos</span>
-            {["#ece6da", "#efc09c", "#d98a58", C.accent, "#8f3f14"].map((c) => (
-              <span key={c} className="size-3 rounded-[3px]" style={{ background: c }} />
-            ))}
-            <span>mais</span>
-          </div>
-        </Card>
-      </div>
-
-      <SectionTitle n="3">Perfil do treino</SectionTitle>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3.5">
-          <Card title="Dia da semana" subtitle="Em que dias você mais treina">
-            <BarChart
-              width={HALF - 28}
-              height={160}
-              data={data.weekday}
-              margin={{ top: 16, right: 4, left: 4, bottom: 0 }}
-            >
-              <CartesianGrid vertical={false} stroke={C.grid} />
-              <XAxis dataKey="label" tick={TICK} axisLine={false} tickLine={false} />
-              <YAxis hide />
-              <Bar dataKey="count" fill={C.ink} radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                <LabelList dataKey="count" position="top" fontSize={9} fill={C.muted} />
-              </Bar>
-            </BarChart>
-          </Card>
-          <Card title="Intensidade" subtitle="Distribuição das sessões">
-            <div className="flex items-center gap-3">
-              <PieChart width={130} height={130}>
-                <Pie
-                  data={intensityData}
-                  dataKey="value"
-                  innerRadius={36}
-                  outerRadius={60}
-                  stroke="none"
-                  isAnimationActive={false}
-                >
-                  {intensityData.map((e) => (
-                    <Cell key={e.name} fill={e.color} />
-                  ))}
-                </Pie>
-              </PieChart>
-              <div className="flex-1">
-                <Legend
-                  items={intensityData.map((e) => ({
-                    color: e.color,
-                    label: e.name,
-                    value: `${e.value} (${share(e.value)}%)`,
-                  }))}
-                />
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3.5">
-          <Card title="Pernas vs braços" subtitle="Sessões e tempo por foco">
-            <BarChart
-              width={HALF - 28}
-              height={124}
-              data={focusData}
-              layout="vertical"
-              margin={{ top: 4, right: 64, left: 0, bottom: 0 }}
-            >
-              <XAxis type="number" hide />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={{ ...TICK, fontSize: 15, fontWeight: 700, fill: C.ink }}
-                axisLine={false}
-                tickLine={false}
-                width={70}
-              />
-              <Bar
-                dataKey="minutes"
-                fill={C.green}
-                radius={[0, 4, 4, 0]}
-                barSize={22}
-                isAnimationActive={false}
-              >
-                {focusData.map((f) => (
-                  <Cell key={f.name} fill={f.name === "Pernas" ? "#4f9a3f" : "#3b74d6"} />
-                ))}
-                <LabelList
-                  dataKey="minutes"
-                  position="right"
-                  fontSize={12}
-                  fill={C.muted}
-                  formatter={(v: number) => formatDuration(v)}
-                />
-              </Bar>
-            </BarChart>
-            <p className="mt-1 text-[11px] text-[color:var(--rp-muted)]">
-              {focusData[0].count} sessões de pernas · {focusData[1].count} de braços · média{" "}
-              {data.avgByFocus.pernas} / {data.avgByFocus.bracos} min
-            </p>
-          </Card>
-          <Card
-            title="Grupo muscular"
-            subtitle="Sessões por grupo (inclui o que foi marcado em Outros treinos)"
-          >
-            <BarChart
-              width={HALF - 28}
-              height={Math.max(130, stats.byMuscleGroup.length * 30 + 10)}
-              data={stats.byMuscleGroup}
-              layout="vertical"
-              margin={{ top: 2, right: 30, left: 0, bottom: 0 }}
-            >
-              <XAxis type="number" hide />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={{ ...TICK, fontSize: 15, fill: C.ink }}
-                axisLine={false}
-                tickLine={false}
-                width={96}
-                interval={0}
-              />
-              <Bar
-                dataKey="sessions"
-                fill={C.gold}
-                radius={[0, 4, 4, 0]}
-                barSize={16}
-                isAnimationActive={false}
-              >
-                <LabelList dataKey="sessions" position="right" fontSize={13} fill={C.ink} />
-              </Bar>
-            </BarChart>
-          </Card>
-        </div>
-
-        <Card
           title="Core — repetições por semana"
           subtitle="Séries × repetições somadas em cada semana (últimas 20)"
         >
@@ -1093,53 +1070,102 @@ function Sheet({
           </Card>
         )}
 
-        {stats.byMuscleGroup.length > 0 && (
-          <Card
-            title="Ranking de grupos musculares"
-            subtitle="Contagem de aparições nos registros do período"
-          >
-            <ol className="grid grid-cols-2 gap-2.5">
-              {stats.byMuscleGroup.slice(0, 8).map((row, i) => {
-                const days = [...new Set(row.dates.filter(Boolean))];
-                const shown = days.slice(0, 10).map((iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`);
-                return (
-                  <li
-                    key={row.name}
-                    className="report-avoid rounded-lg bg-[#fdeee6] px-2.5 py-2"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="font-display text-[15px] leading-none tabular-nums text-[color:var(--rp-accent)]">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[11px] font-medium leading-tight">{row.name}</p>
-                        <p className="text-[9px] leading-tight text-[color:var(--rp-muted)]">
-                          {row.sessions} {row.sessions === 1 ? "registro" : "registros"}
-                        </p>
-                      </div>
-                      <span className="font-display text-[16px] leading-none tabular-nums">
-                        {row.sessions}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[8.5px] leading-snug text-[color:var(--rp-muted)]">
-                      Dias: {shown.join(" · ")}
-                      {days.length > shown.length ? ` · +${days.length - shown.length}` : ""}
-                    </p>
-                  </li>
-                );
-              })}
-            </ol>
-            {coreEx.length > 0 && (
-              <p className="mt-2.5 text-[10px] leading-snug text-[color:var(--rp-muted)]">
-                Core por exercício:{" "}
-                {coreEx.map((e) => `${e.exercise} ${e.reps.toLocaleString("pt-BR")}`).join(" · ")}
-              </p>
-            )}
-          </Card>
-        )}
       </div>
 
-      <SectionTitle n="4">Comparativos</SectionTitle>
+      <SectionTitle n="4">Perfil do treino</SectionTitle>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3.5">
+          <Card title="Intensidade" subtitle="Distribuição das sessões">
+            <div className="flex items-center gap-3">
+              <Pie3D data={intensityData} className="w-[150px] shrink-0" />
+              <div className="flex-1">
+                <Legend
+                  items={intensityData.map((e) => ({
+                    color: e.color,
+                    label: e.name,
+                    value: `${e.value} (${share(e.value)}%)`,
+                  }))}
+                />
+              </div>
+            </div>
+          </Card>
+          <Card title="Pernas vs braços" subtitle="Sessões e tempo por foco">
+            <BarChart
+              width={HALF - 28}
+              height={124}
+              data={focusData}
+              layout="vertical"
+              margin={{ top: 4, right: 64, left: 0, bottom: 0 }}
+            >
+              <XAxis type="number" hide />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ ...TICK, fontSize: 15, fontWeight: 700, fill: C.ink }}
+                axisLine={false}
+                tickLine={false}
+                width={70}
+              />
+              <Bar
+                dataKey="minutes"
+                fill={C.green}
+                radius={[0, 4, 4, 0]}
+                barSize={22}
+                isAnimationActive={false}
+              >
+                {focusData.map((f) => (
+                  <Cell key={f.name} fill={f.name === "Pernas" ? "#4f9a3f" : "#3b74d6"} />
+                ))}
+                <LabelList
+                  dataKey="minutes"
+                  position="right"
+                  fontSize={12}
+                  fill={C.muted}
+                  formatter={(v: number) => formatDuration(v)}
+                />
+              </Bar>
+            </BarChart>
+            <p className="mt-1 text-[11px] text-[color:var(--rp-muted)]">
+              {focusData[0].count} sessões de pernas · {focusData[1].count} de braços · média{" "}
+              {data.avgByFocus.pernas} / {data.avgByFocus.bracos} min
+            </p>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3.5">
+          <Card title="Dia da semana" subtitle="Em que dias você mais treina">
+            <BarChart
+              width={W - 28}
+              height={160}
+              data={data.weekday}
+              margin={{ top: 16, right: 4, left: 4, bottom: 0 }}
+            >
+              <CartesianGrid vertical={false} stroke={C.grid} />
+              <XAxis dataKey="label" tick={TICK} axisLine={false} tickLine={false} />
+              <YAxis hide />
+              <Bar dataKey="count" fill={C.ink} radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                <LabelList dataKey="count" position="top" fontSize={9} fill={C.muted} />
+              </Bar>
+            </BarChart>
+          </Card>
+        </div>
+
+        <Card
+          title="Calendário de treinos"
+          subtitle="Cada quadrado é um dia — quanto mais escuro, mais minutos treinados (últimas 26 semanas)"
+        >
+          <Heatmap data={data} />
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-[color:var(--rp-muted)]">
+            <span>menos</span>
+            {["#ece6da", "#efc09c", "#d98a58", C.accent, "#8f3f14"].map((c) => (
+              <span key={c} className="size-3 rounded-[3px]" style={{ background: c }} />
+            ))}
+            <span>mais</span>
+          </div>
+        </Card>
+      </div>
+
+      <SectionTitle n="5">Comparativos</SectionTitle>
       <div className="space-y-3">
         {!athlete && (
           <Card title="Comparação entre atletas" subtitle="Desempenho de cada um">
@@ -1171,7 +1197,7 @@ function Sheet({
         )}
 
         {!periodo && (
-          <div className="grid grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-3 gap-3.5">
             <Card title="Semana atual vs anterior">
               <p className="text-[12px]">
                 Agora: <b>{stats.week.count}</b> {stats.week.count === 1 ? "treino" : "treinos"} ·{" "}
@@ -1198,6 +1224,17 @@ function Sheet({
               </p>
               <p className="mt-1 text-[12px]">
                 Treinos: <Delta value={monthDelta} />
+              </p>
+            </Card>
+            <Card title="Pernas vs braços">
+              <p className="text-[12px]">
+                Pernas: <b>{focusData[0].count}</b> · {formatDuration(focusData[0].minutes)}
+              </p>
+              <p className="text-[12px]">
+                Braços: <b>{focusData[1].count}</b> · {formatDuration(focusData[1].minutes)}
+              </p>
+              <p className="mt-1 text-[12px]">
+                <Delta value={deltaPct(focusData[0].minutes, focusData[1].minutes)} /> de pernas sobre braços
               </p>
             </Card>
           </div>
@@ -1235,7 +1272,7 @@ function Sheet({
         </div>
       </div>
 
-      <SectionTitle n="5">Registro completo dos treinos</SectionTitle>
+      <SectionTitle n="6">Registro completo dos treinos</SectionTitle>
       <table className="w-full border-collapse text-[10.5px] leading-snug">
         <thead>
           <tr className="border-b-2 border-[color:var(--rp-ink)] text-left text-[9.5px] uppercase tracking-wider text-[color:var(--rp-muted)]">

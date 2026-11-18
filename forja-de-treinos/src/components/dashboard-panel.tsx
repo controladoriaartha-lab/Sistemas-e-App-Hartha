@@ -6,13 +6,10 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   ComposedChart,
   LabelList,
   Line,
   LineChart,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -24,8 +21,10 @@ import {
   ATHLETE_TONES,
   CHART_COLORS,
   useStickyTooltip,
+  WrapTick,
   type Tone,
 } from "@/components/chart-kit";
+import { Pie3D } from "@/components/pie3d";
 import { MuscleFigure } from "@/components/muscle-figure";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -137,7 +136,6 @@ export function DashboardPanel({
   const monthsTip = useStickyTooltip();
   const durationTip = useStickyTooltip();
   const coreEvolutionTip = useStickyTooltip();
-  const intensityTip = useStickyTooltip();
   const muscleGroupTip = useStickyTooltip();
   const athleteTip = useStickyTooltip();
   const loadTip = useStickyTooltip();
@@ -316,7 +314,7 @@ export function DashboardPanel({
         >
           <ResponsiveContainer
             width="100%"
-            height={Math.max(190, stats.byMuscleGroup.length * 54 + 30)}
+            height={Math.max(200, stats.byMuscleGroup.length * 60 + 30)}
           >
             <BarChart
               data={stats.byMuscleGroup}
@@ -344,10 +342,10 @@ export function DashboardPanel({
               <YAxis
                 type="category"
                 dataKey="name"
-                tick={{ fill: c.tooltipItem, fontSize: 17 }}
+                tick={<WrapTick fontSize={17} fill={c.tooltipItem} maxChars={13} />}
                 axisLine={false}
                 tickLine={false}
-                width={110}
+                width={112}
                 interval={0}
               />
               <Tooltip
@@ -961,48 +959,16 @@ export function DashboardPanel({
       )}
 
       <ChartBlock title="Intensidade" subtitle="distribuição das sessões">
-        <div className="flex items-center gap-4">
-          <div className="h-40 w-40 shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={intensityData}
-                  dataKey="value"
-                  innerRadius={38}
-                  outerRadius={62}
-                  stroke="none"
-                  onClick={(entry) => {
-                    intensityTip.show({
-                      label: entry.name,
-                      payload: [{ name: entry.name, value: entry.value }],
-                      coordinate: { x: 80, y: 80 },
-                    });
-                  }}
-                >
-                  {intensityData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  {...tooltipProps}
-                  active={intensityTip.sticky ? true : false}
-                  payload={intensityTip.sticky ? (intensityTip.sticky.payload as never) : undefined}
-                  label={intensityTip.sticky ? intensityTip.sticky.label : undefined}
-                  coordinate={intensityTip.sticky ? intensityTip.sticky.coordinate : undefined}
-                  formatter={(value, name) => [
-                    `${Number(value)} ${Number(value) === 1 ? "sessão" : "sessões"}`,
-                    name,
-                  ]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <ul className="space-y-2 text-[21px]">
+        <div className="flex flex-col items-center gap-3">
+          <Pie3D data={intensityData} className="w-full max-w-[17rem]" />
+          <ul className="w-full space-y-2 text-[22px]">
             {intensityData.map((row) => (
-              <li key={row.name} className="flex items-center gap-2">
-                <span className="size-2 rounded-full" style={{ background: row.color }} />
+              <li key={row.name} className="flex items-center gap-2.5">
+                <span className="size-3.5 rounded-full" style={{ background: row.color }} />
                 <span className="text-muted-foreground">{row.name}</span>
-                <span className="ml-auto tabular-nums">{row.value}</span>
+                <span className="ml-auto tabular-nums text-foreground">
+                  {row.value} {row.value === 1 ? "sessão" : "sessões"}
+                </span>
               </li>
             ))}
           </ul>

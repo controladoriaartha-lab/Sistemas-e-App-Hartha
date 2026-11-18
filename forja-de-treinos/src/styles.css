@@ -217,6 +217,12 @@
     padding: 0.5rem 0.5rem 0.55rem;
   }
 
+  .stat-tile {
+    border-radius: 1rem;
+    background: var(--block-bg);
+    box-shadow: var(--block-shadow);
+  }
+
   .badge-3d {
     display: inline-flex;
     align-items: center;

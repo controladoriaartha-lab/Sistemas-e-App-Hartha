@@ -1,12 +1,11 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Activity, HeartPulse, Moon, Save, X, Zap } from "lucide-react";
+import { Activity, HeartPulse, Moon, Plus, Save, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { norm } from "@/lib/athlete-view";
 import { bodyEntryId, saveBodyEntry, useBodyEntries, type BodyEntry } from "@/lib/body";
 import { todayIso } from "@/lib/format";
-import { DEFAULT_ATHLETES } from "@/lib/types";
 import { useWorkoutStore } from "@/store/workouts";
 
 type Field =
@@ -41,30 +40,26 @@ function parse(text: string): number | null {
 const brDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 /**
- * "Evolucao corporal": botao no Painel que abre um painel com um cartao por
- * atleta (medidas, energia, sono e como se sente). Cada salvamento vale para o
- * dia de hoje e vai para a nuvem (tabela body_measurements).
+ * "Evolucao corporal": botao no Painel (logo abaixo do mapa de calor semanal)
+ * que abre um painel com um cartao por atleta (medidas, energia, sono e como se
+ * sente). O botao "+" abre mais um cartao em branco, para cadastrar outro atleta.
+ * Cada salvamento vale para o dia de hoje e vai para a nuvem (body_measurements).
  */
-export function BodyEvolutionPanel() {
+export function BodyEvolutionButton() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div>
-      <p className="font-medium">Evolução corporal</p>
-      <p className="mt-1 text-base text-faint">
-        Anote peso, medidas, energia, sono e como o corpo está respondendo, por atleta, para
-        acompanhar a evolução ao longo do tempo.
-      </p>
+    <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="btn-3d mt-3 flex h-14 w-full items-center justify-center gap-2 text-[22px] font-medium"
+        className="btn-3d flex h-14 w-full items-center justify-center gap-2 text-[22px] font-medium"
       >
         <Activity className="size-6" />
         Evolução corporal
       </button>
       {open && <BodySheet onClose={() => setOpen(false)} />}
-    </div>
+    </>
   );
 }
 
@@ -72,14 +67,35 @@ function BodySheet({ onClose }: { onClose: () => void }) {
   const workouts = useWorkoutStore((s) => s.workouts);
   const customAthletes = useWorkoutStore((s) => s.customAthletes);
   const entries = useBodyEntries();
+  // Cartoes em branco ("Atleta"): o "+" abre mais um; ao salvar, o atleta ganha o proprio cartao.
+  const [blanks, setBlanks] = useState<number[]>([0]);
+  const [nextBlank, setNextBlank] = useState(1);
+  const addBlank = () => {
+    setBlanks((list) => [...list, nextBlank]);
+    setNextBlank((n) => n + 1);
+  };
+  const savedBlank = (id: number) => {
+    setBlanks((list) => {
+      const rest = list.filter((x) => x !== id);
+      return rest.length > 0 ? rest : [nextBlank];
+    });
+    setNextBlank((n) => n + 1);
+  };
 
-  const athletes = useMemo(() => {
+  // Atletas que ja tem medidas salvas (um cartao cada); o nome vem do que foi digitado.
+  const saved = useMemo(() => {
     const seen = new Map<string, string>();
-    for (const name of [
-      ...DEFAULT_ATHLETES,
-      ...customAthletes,
-      ...workouts.flatMap((w) => w.athletes),
-    ]) {
+    for (const e of [...entries].sort((a, b) => b.date.localeCompare(a.date))) {
+      const label = e.athlete.trim();
+      if (label && !seen.has(norm(label))) seen.set(norm(label), label);
+    }
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [entries]);
+
+  // Sugestoes de nome (so ajuda a digitar): atletas dos treinos e cadastrados.
+  const suggestions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const name of [...customAthletes, ...workouts.flatMap((w) => w.athletes)]) {
       const label = name.trim();
       if (label && !seen.has(norm(label))) seen.set(norm(label), label);
     }
@@ -102,21 +118,39 @@ function BodySheet({ onClose }: { onClose: () => void }) {
           <div>
             <p className="font-display text-2xl">Evolução corporal</p>
             <p className="text-[18px] text-faint">
-              Um cartão por atleta. Salvar de novo no mesmo dia atualiza o registro de hoje.
+              Escreva o nome do atleta e as medidas. O + abre mais um atleta; cada salvamento vira um
+              registro do dia e o histórico vai acumulando.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fechar"
-            className="btn-3d flex size-11 shrink-0 items-center justify-center rounded-full"
-          >
-            <X className="size-5" />
-          </button>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={addBlank}
+              aria-label="Mais um atleta"
+              title="Mais um atleta"
+              className="btn-3d flex size-11 items-center justify-center rounded-full"
+            >
+              <Plus className="size-6" />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fechar"
+              className="btn-3d flex size-11 items-center justify-center rounded-full"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
         </div>
 
+        <datalist id="body-athlete-names">
+          {suggestions.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+
         <div className="mt-4 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-2">
-          {athletes.map((name) => (
+          {saved.map((name) => (
             <AthleteCard
               key={name}
               name={name}
@@ -125,13 +159,40 @@ function BodySheet({ onClose }: { onClose: () => void }) {
                 .sort((a, b) => b.date.localeCompare(a.date))}
             />
           ))}
+          {blanks.map((id) => (
+            <AthleteCard key={`novo-${id}`} entries={[]} onSaved={() => savedBlank(id)} />
+          ))}
+
+          <button
+            type="button"
+            onClick={addBlank}
+            className="btn-3d flex h-14 w-full items-center justify-center gap-2 text-[22px] font-medium"
+          >
+            <Plus className="size-6" />
+            Mais um atleta
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function AthleteCard({ name, entries }: { name: string; entries: BodyEntry[] }) {
+/**
+ * Cartao de um atleta. Sem `name` e o cartao em branco "Atleta": o nome e digitado
+ * ali e, depois de salvar, o atleta ganha o proprio cartao e este volta vazio.
+ */
+function AthleteCard({
+  name,
+  entries,
+  onSaved,
+}: {
+  name?: string;
+  entries: BodyEntry[];
+  onSaved?: () => void;
+}) {
+  const isNew = name === undefined;
+  const [typedName, setTypedName] = useState("");
+  const athleteName = isNew ? typedName.trim() : name;
   const today = todayIso();
   const todays = entries.find((e) => e.date === today);
   const last = entries[0];
@@ -148,12 +209,26 @@ function AthleteCard({ name, entries }: { name: string; entries: BodyEntry[] }) 
   }));
   const [feeling, setFeeling] = useState(todays?.feeling ?? "");
   const [saving, setSaving] = useState(false);
+  const emptyValues: Record<Field, string> = {
+    weightKg: "",
+    waistCm: "",
+    armCm: "",
+    thighCm: "",
+    chestCm: "",
+    calfCm: "",
+    energy: "",
+    sleepHours: "",
+  };
 
   const set = (key: Field) => (text: string) => setValues((v) => ({ ...v, [key]: text }));
   const hint = (key: Field, example: string) =>
     last && last[key] !== null && last[key] !== undefined ? `Última: ${toText(last[key])}` : `Ex.: ${example}`;
 
   async function onSave() {
+    if (athleteName.length < 2) {
+      toast.error("Escreva o nome do atleta.");
+      return;
+    }
     const parsed = {} as Record<Field, number | null>;
     for (const m of MEASURES) {
       const n = parse(values[m.key]);
@@ -175,13 +250,13 @@ function AthleteCard({ name, entries }: { name: string; entries: BodyEntry[] }) 
     }
     const filled = [...Object.values(parsed), energy, sleep].some((v) => v !== null);
     if (!filled && !feeling.trim()) {
-      toast.error(`Preencha pelo menos um campo de ${name}.`);
+      toast.error(`Preencha pelo menos um campo de ${athleteName}.`);
       return;
     }
     setSaving(true);
     const ok = await saveBodyEntry({
-      id: bodyEntryId(name, today),
-      athlete: name,
+      id: bodyEntryId(athleteName, today),
+      athlete: athleteName,
       date: today,
       weightKg: parsed.weightKg,
       waistCm: parsed.waistCm,
@@ -194,18 +269,43 @@ function AthleteCard({ name, entries }: { name: string; entries: BodyEntry[] }) 
       feeling: feeling.trim(),
     });
     setSaving(false);
-    if (ok) toast.success(`Medidas de ${name} guardadas na nuvem`);
+    if (ok) toast.success(`Medidas de ${athleteName} guardadas na nuvem`);
     else toast.warning("Guardado neste aparelho; vai para a nuvem quando houver conexão.");
+    if (isNew) {
+      // O atleta agora tem o proprio cartao; este volta em branco para o proximo.
+      setValues(emptyValues);
+      setFeeling("");
+      setTypedName("");
+      onSaved?.();
+    }
   }
 
   return (
     <section className="glass-card p-4">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-display text-[26px] font-medium leading-tight">{name}</h3>
+        {isNew ? (
+          <h3 className="font-display text-[26px] font-medium leading-tight">Atleta</h3>
+        ) : (
+          <h3 className="font-display text-[26px] font-medium leading-tight">{name}</h3>
+        )}
         <span className="badge-3d shrink-0 !px-3 !text-[14px]" data-tone={last ? "leve" : "medio"}>
           {last ? `Última ${brDate(last.date)}` : "Sem medidas salvas"}
         </span>
       </div>
+
+      {isNew && (
+        <div className="mt-3">
+          <Labeled label="Nome do atleta">
+            <Input
+              list="body-athlete-names"
+              value={typedName}
+              onChange={(e) => setTypedName(e.target.value)}
+              placeholder="Ex.: Maria"
+              autoComplete="off"
+            />
+          </Labeled>
+        </div>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4">
         {MEASURES.map((m) => (
@@ -254,7 +354,7 @@ function AthleteCard({ name, entries }: { name: string; entries: BodyEntry[] }) 
         className="seg-item mt-5 flex min-h-14 w-full items-center justify-center gap-2 px-3 py-2 text-[20px] font-semibold leading-tight disabled:opacity-60"
       >
         <Save className="size-6" />
-        {saving ? "Guardando…" : `Salvar medidas de ${name}`}
+        {saving ? "Guardando…" : `Salvar medidas de ${athleteName || "atleta"}`}
       </button>
 
       {entries.length > 0 && (

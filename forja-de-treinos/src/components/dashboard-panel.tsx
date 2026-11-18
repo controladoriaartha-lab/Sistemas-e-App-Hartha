@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { format, subDays } from "date-fns";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -15,6 +17,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { BodyEvolutionButton } from "@/components/body-evolution";
 import { MuscleFigure } from "@/components/muscle-figure";
 import { cn } from "@/lib/utils";
 import {
@@ -29,6 +32,8 @@ import { computeStats, deltaPct } from "@/lib/stats";
 import {
   athleteMonthly,
   COMPARE_METRICS,
+  coreByExercise,
+  coreWeekly,
   loadProgress,
   monthVsPrevious,
   referenceDate,
@@ -202,6 +207,7 @@ export function DashboardPanel({
   const athleteTip = useStickyTooltip();
   const loadTip = useStickyTooltip();
   const monthCompareTip = useStickyTooltip();
+  const coreWeekTip = useStickyTooltip();
 
   // Comparacoes de evolucao (mesma regra do PDF).
   const refDate = referenceDate(workouts);
@@ -209,6 +215,8 @@ export function DashboardPanel({
   const loadData = loadProgress(workouts);
   const monthCompare = monthVsPrevious(workouts, refDate);
   const weeklyHeat = regionWeekly(workouts, refDate);
+  const coreWeek = coreWeekly(workouts);
+  const coreEx = coreByExercise(workouts);
   const lineColors = ATHLETE_LINE[theme];
   const metricUnit = COMPARE_METRICS.find((m) => m.value === compareMetric)?.unit ?? "";
 
@@ -364,6 +372,13 @@ export function DashboardPanel({
         </ChartBlock>
       )}
 
+      <ChartBlock
+        title="Evolução corporal"
+        subtitle="peso, medidas, energia e sono, por atleta"
+      >
+        <BodyEvolutionButton />
+      </ChartBlock>
+
       {stats.byMuscleGroup.length === 0 ? null : (
         <ChartBlock
           title="Grupo muscular"
@@ -439,6 +454,38 @@ export function DashboardPanel({
               </li>
             ))}
           </ul>
+        </ChartBlock>
+      )}
+
+      {stats.byMuscleGroup.length > 0 && (
+        <ChartBlock
+          title="Ranking de grupos musculares"
+          subtitle="contagem de aparições nos registros do período"
+        >
+          <ol className="space-y-2.5">
+            {stats.byMuscleGroup.slice(0, 8).map((row, i) => (
+              <li key={row.name} className="stat-tile flex items-center gap-3 px-3.5 py-3">
+                <span className="w-9 shrink-0 font-display text-[28px] leading-none tabular-nums text-accent">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[24px] leading-tight text-foreground">{row.name}</p>
+                  <p className="text-[18px] leading-tight text-faint">
+                    {row.sessions} {row.sessions === 1 ? "registro" : "registros"}
+                  </p>
+                </div>
+                <span className="halo-text font-display text-[32px] leading-none tabular-nums text-foreground">
+                  {row.sessions}
+                </span>
+              </li>
+            ))}
+          </ol>
+          {coreEx.length > 0 && (
+            <p className="mt-3 text-[19px] leading-snug text-faint">
+              Core por exercício:{" "}
+              {coreEx.map((e) => `${e.exercise} ${e.reps.toLocaleString("pt-BR")}`).join(" · ")}
+            </p>
+          )}
         </ChartBlock>
       )}
 
@@ -884,6 +931,77 @@ export function DashboardPanel({
           </BarChart>
         </ResponsiveContainer>
       </ChartBlock>
+
+      {coreWeek && (
+        <ChartBlock
+          title="Core por semana — repetições"
+          subtitle={`de ${coreWeek.first} na primeira semana a ${coreWeek.peak} no pico`}
+        >
+          <ResponsiveContainer width="100%" height={170}>
+            <AreaChart
+              data={coreWeek.rows}
+              margin={{ top: 8, right: 4, left: 4, bottom: 0 }}
+              onClick={(state) => {
+                if (state?.activePayload) {
+                  coreWeekTip.show({
+                    label: `semana de ${state.activeLabel}`,
+                    payload: state.activePayload,
+                    coordinate: state.activeCoordinate,
+                  });
+                }
+              }}
+            >
+              <defs>
+                <linearGradient id="core-area" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={c.accent} stopOpacity={0.55} />
+                  <stop offset="100%" stopColor={c.accent} stopOpacity={0.04} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="label" hide />
+              <YAxis hide domain={[0, "dataMax"]} />
+              <Tooltip
+                {...tooltipProps}
+                active={coreWeekTip.sticky ? true : false}
+                payload={coreWeekTip.sticky ? (coreWeekTip.sticky.payload as never) : undefined}
+                label={coreWeekTip.sticky ? coreWeekTip.sticky.label : undefined}
+                coordinate={coreWeekTip.sticky ? coreWeekTip.sticky.coordinate : undefined}
+                formatter={(value) => [`${Number(value)} reps`, "Core"]}
+              />
+              <Area
+                type="monotone"
+                dataKey="reps"
+                stroke={c.accent}
+                strokeWidth={3.5}
+                fill="url(#core-area)"
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+          <div className="mt-1 flex items-center justify-between gap-2 text-[19px] text-faint">
+            <span>Semana 1 · {coreWeek.first}</span>
+            <span className="font-semibold" style={{ color: c.accent }}>
+              Pico · {coreWeek.peak}
+            </span>
+            <span>Última · {coreWeek.last}</span>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2.5">
+            {[
+              { value: coreWeek.total, label: "reps totais" },
+              { value: coreWeek.peak, label: "maior semana" },
+              { value: coreWeek.onlyAbdominal, label: "só abdominal" },
+            ].map((tile) => (
+              <div key={tile.label} className="stat-tile px-2 py-3 text-center">
+                <p className="halo-text font-display text-[28px] leading-none tabular-nums text-foreground">
+                  {tile.value.toLocaleString("pt-BR")}
+                </p>
+                <p className="mt-1.5 text-[17px] leading-tight text-faint">{tile.label}</p>
+              </div>
+            ))}
+          </div>
+        </ChartBlock>
+      )}
 
       <ChartBlock title="Intensidade" subtitle="distribuição das sessões">
         <div className="flex items-center gap-4">

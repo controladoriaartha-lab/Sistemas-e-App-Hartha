@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Printer } from "lucide-react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -23,6 +25,8 @@ import { MuscleFigure } from "@/components/muscle-figure";
 import {
   athleteMonthly,
   COMPARE_METRICS,
+  coreByExercise,
+  coreWeekly,
   loadProgress,
   monthVsPrevious,
   referenceDate,
@@ -267,6 +271,8 @@ function Sheet({
   );
   const refDate = useMemo(() => referenceDate(workouts), [workouts]);
   const weeklyHeat = useMemo(() => regionWeekly(workouts, refDate), [workouts, refDate]);
+  const coreWeek = useMemo(() => coreWeekly(workouts), [workouts]);
+  const coreEx = useMemo(() => coreByExercise(workouts), [workouts]);
   const athleteCompare = useMemo(
     () => athleteMonthly(workouts, "sessoes", refDate),
     [workouts, refDate],
@@ -886,6 +892,93 @@ function Sheet({
             </Bar>
           </BarChart>
         </Card>
+
+        {coreWeek && (
+          <Card
+            title="Core por semana — repetições"
+            subtitle={`De ${coreWeek.first} na primeira semana a ${coreWeek.peak} no pico`}
+          >
+            <AreaChart
+              width={W - 28}
+              height={140}
+              data={coreWeek.rows}
+              margin={{ top: 8, right: 4, left: 4, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="rp-core-area" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={C.accent} stopOpacity={0.4} />
+                  <stop offset="100%" stopColor={C.accent} stopOpacity={0.04} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="label" hide />
+              <YAxis hide domain={[0, "dataMax"]} />
+              <Area
+                type="monotone"
+                dataKey="reps"
+                stroke={C.accent}
+                strokeWidth={2.2}
+                fill="url(#rp-core-area)"
+                dot={false}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+            <div className="mt-1 flex items-center justify-between text-[10.5px] text-[color:var(--rp-muted)]">
+              <span>Semana 1 · {coreWeek.first}</span>
+              <span className="font-semibold text-[color:var(--rp-accent)]">Pico · {coreWeek.peak}</span>
+              <span>Última · {coreWeek.last}</span>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2.5">
+              {[
+                { value: coreWeek.total, label: "reps totais" },
+                { value: coreWeek.peak, label: "maior semana" },
+                { value: coreWeek.onlyAbdominal, label: "só abdominal" },
+              ].map((tile) => (
+                <div
+                  key={tile.label}
+                  className="report-avoid rounded-lg bg-[#fdeee6] px-2 py-2 text-center"
+                >
+                  <p className="font-display text-[18px] leading-none tabular-nums">
+                    {tile.value.toLocaleString("pt-BR")}
+                  </p>
+                  <p className="mt-1 text-[10px] text-[color:var(--rp-muted)]">{tile.label}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {stats.byMuscleGroup.length > 0 && (
+          <Card
+            title="Ranking de grupos musculares"
+            subtitle="Contagem de aparições nos registros do período"
+          >
+            <ol className="grid grid-cols-4 gap-2.5">
+              {stats.byMuscleGroup.slice(0, 8).map((row, i) => (
+                <li
+                  key={row.name}
+                  className="report-avoid flex items-center gap-2 rounded-lg bg-[#fdeee6] px-2.5 py-2"
+                >
+                  <span className="font-display text-[15px] leading-none tabular-nums text-[color:var(--rp-accent)]">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[11px] font-medium leading-tight">{row.name}</p>
+                    <p className="text-[9px] leading-tight text-[color:var(--rp-muted)]">
+                      {row.sessions} {row.sessions === 1 ? "registro" : "registros"}
+                    </p>
+                  </div>
+                  <span className="font-display text-[16px] leading-none tabular-nums">{row.sessions}</span>
+                </li>
+              ))}
+            </ol>
+            {coreEx.length > 0 && (
+              <p className="mt-2.5 text-[10px] leading-snug text-[color:var(--rp-muted)]">
+                Core por exercício:{" "}
+                {coreEx.map((e) => `${e.exercise} ${e.reps.toLocaleString("pt-BR")}`).join(" · ")}
+              </p>
+            )}
+          </Card>
+        )}
       </div>
 
       <SectionTitle n="4">Comparativos</SectionTitle>

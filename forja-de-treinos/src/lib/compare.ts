@@ -1,4 +1,4 @@
-import { addMonths, endOfMonth, format, getDaysInMonth, startOfMonth } from "date-fns";
+import { addDays, addMonths, endOfMonth, format, getDaysInMonth, startOfMonth, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { norm, sameAthlete } from "./athlete-view";
 import { parseDate } from "./format";
@@ -217,5 +217,84 @@ export function monthVsPrevious(workouts: Workout[], ref: Date) {
     rows,
     cumulative,
     endOfCurrent: format(endOfMonth(curStart), "d"),
+  };
+}
+
+// ───────────────────────── core por semana e por exercicio ─────────────────────────
+
+/** Nome do exercicio de core sem series/repeticoes soltas ("Abdominal  (3x20" -> "Abdominal"). */
+export function coreExerciseLabel(raw: string): string {
+  const cleaned = raw
+    .replace(/\(.*?\)/g, " ")
+    .replace(/\(.*$/, " ")
+    .replace(/\[.*?\]/g, " ")
+    .replace(/\d+\s*[x×]\s*\d+/gi, " ")
+    .replace(/\d+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return "Core";
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
+}
+
+/** Repeticoes de core (series x repeticoes) por exercicio, do que mais teve para o que menos teve. */
+export function coreByExercise(workouts: Workout[]): { exercise: string; reps: number }[] {
+  const map = new Map<string, number>();
+  for (const w of workouts) {
+    for (const row of w.core) {
+      if (!row.exercise.trim() || row.sets * row.reps <= 0) continue;
+      const key = coreExerciseLabel(row.exercise);
+      map.set(key, (map.get(key) ?? 0) + row.sets * row.reps);
+    }
+  }
+  return [...map.entries()]
+    .map(([exercise, reps]) => ({ exercise, reps }))
+    .sort((a, b) => b.reps - a.reps || a.exercise.localeCompare(b.exercise, "pt-BR"));
+}
+
+export type CoreWeekly = {
+  rows: { start: string; label: string; reps: number }[];
+  total: number;
+  first: number;
+  last: number;
+  peak: number;
+  peakLabel: string;
+  onlyAbdominal: number;
+};
+
+/**
+ * Repeticoes de core semana a semana (segunda a domingo), da primeira semana com
+ * core ate a ultima, com as semanas sem core valendo 0. Devolve null com menos de
+ * duas semanas, quando ainda nao ha evolucao para mostrar.
+ */
+export function coreWeekly(workouts: Workout[], maxWeeks = 26): CoreWeekly | null {
+  const perWeek = new Map<string, number>();
+  for (const w of workouts) {
+    const reps = w.core.reduce((s, r) => s + (r.exercise.trim() ? r.sets * r.reps : 0), 0);
+    if (reps <= 0) continue;
+    const key = format(startOfWeek(parseDate(w.date), { weekStartsOn: 1 }), "yyyy-MM-dd");
+    perWeek.set(key, (perWeek.get(key) ?? 0) + reps);
+  }
+  if (perWeek.size === 0) return null;
+  const keys = [...perWeek.keys()].sort();
+  let cursor = parseDate(keys[0]);
+  const end = parseDate(keys[keys.length - 1]);
+  let rows: CoreWeekly["rows"] = [];
+  while (cursor <= end) {
+    const start = format(cursor, "yyyy-MM-dd");
+    rows.push({ start, label: format(cursor, "d/M"), reps: perWeek.get(start) ?? 0 });
+    cursor = addDays(cursor, 7);
+  }
+  rows = rows.slice(-maxWeeks);
+  if (rows.length < 2) return null;
+  const peakRow = rows.reduce((best, r) => (r.reps > best.reps ? r : best), rows[0]);
+  const onlyAbdominal = coreByExercise(workouts).find((e) => e.exercise === "Abdominal")?.reps ?? 0;
+  return {
+    rows,
+    total: rows.reduce((s, r) => s + r.reps, 0),
+    first: rows[0].reps,
+    last: rows[rows.length - 1].reps,
+    peak: peakRow.reps,
+    peakLabel: peakRow.label,
+    onlyAbdominal,
   };
 }
